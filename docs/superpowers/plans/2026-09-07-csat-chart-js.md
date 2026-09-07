@@ -122,7 +122,7 @@ Expected: FAIL — vitest 가 설치돼 있지 않음 (`npx` 가 설치를 시�
   },
   "devDependencies": {
     "@eslint/js": "^9",
-    "@napi-rs/canvas": "^1.0.3",
+    "@napi-rs/canvas": "1.0.3",
     "@types/node": "^20",
     "eslint": "^9",
     "tsup": "^8",
@@ -133,8 +133,10 @@ Expected: FAIL — vitest 가 설치돼 있지 않음 (`npx` 가 설치를 시�
 }
 ```
 
-`@napi-rs/canvas` 버전은 원본과 같은 `^1.0.3` 이어야 한다. 다르면 골든 이미지의
-픽셀이 달라질 수 있다.
+`@napi-rs/canvas` 는 **범위가 아니라 정확히 `1.0.3`** 으로 고정한다. 골든 이미지를
+만든 geotester-v2 에 깔린 것이 1.0.3 이고, 캔버스 구현이 바뀌면 래스터화가 달라져
+골든이 어긋난다. 그러면 «이식이 틀린 건지 캔버스가 바뀐 건지» 구분할 수 없게 되어
+Task 3 의 검증이 무의미해진다. 이식이 확인된 뒤에 범위를 넓힐지 따로 판단한다.
 
 - [ ] **Step 4: `tsconfig.json` 을 만든다**
 

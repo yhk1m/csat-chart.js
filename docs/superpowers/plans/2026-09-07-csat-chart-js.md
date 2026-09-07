@@ -3139,6 +3139,20 @@ jobs:
       # 잊으면 데모 페이지가 실제 라이브러리와 어긋난 채 배포된다. 방금 돌린
       # build 결과와 커밋된 것이 같은지 본다 — 이 파일은 sourcemap 주석이 없어
       # 바이트 단위로 같아야 한다.
+      # 선언 파일은 크기 하한만 검사한다 — 렌더 테스트로 뒷받침되는 mjs·cjs·umd 와
+      # 달리, 커도 망가진 .d.ts 는 통과한다. 실제 소비자처럼 타입 검사를 한 번 돌려
+      # 그 빈틈을 막는다. dts 를 만드는 워커가 이미 한 번 말썽을 부린 적이 있다.
+      - name: 만들어진 선언 파일이 실제로 쓰이는지 확인
+        run: |
+          mkdir -p /tmp/dtscheck
+          cat > /tmp/dtscheck/use.ts <<'EOF'
+          import { CsatChart, createDefaultTernaryData } from '../../dist/csat-chart.d.mts';
+          const cfg = { type: 'ternary' as const, data: createDefaultTernaryData() };
+          export const ok: typeof CsatChart = CsatChart;
+          export const t = cfg.type;
+          EOF
+          npx tsc --noEmit --strict --moduleResolution bundler --module esnext             --target es2020 --lib es2020,dom /tmp/dtscheck/use.ts
+
       - name: docs/lib 가 최신인지 확인
         run: |
           git diff --exit-code -- docs/lib/csat-chart.umd.min.js             || (echo "docs/lib/csat-chart.umd.min.js 가 낡았습니다 — npm run build 후 커밋하세요" && exit 1)

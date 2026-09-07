@@ -277,7 +277,9 @@ Expected: 출력 없음
 - [ ] **Step 4: 파일 수를 확인한다**
 
 Run: `find src/core -name "*.ts" | wc -l`
-Expected: `37` (canvas 5 + graphs 16 + types 15 + index 1)
+Expected: `38` (canvas 5 + graphs 16 + types 16 + index 1)
+
+원본 `canvas/` 는 6개지만 `export.ts` 를 지우므로 5개가 된다.
 
 - [ ] **Step 5: 타입이 통과하는지 확인한다**
 

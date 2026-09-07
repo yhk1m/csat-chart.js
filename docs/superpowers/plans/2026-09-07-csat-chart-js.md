@@ -431,7 +431,6 @@ git commit -m "test: 골든 이미지 31장과 단위 테스트 이관
 import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { REGISTRY, CHART_TYPES, isCsatChartType } from '../src/registry';
-import type { ChartDataMap, CsatChartType } from '../src/types';
 import { createDefaultGraphOptions } from '../src/core/index';
 
 describe('레지스트리', () => {
@@ -439,18 +438,18 @@ describe('레지스트리', () => {
     expect(CHART_TYPES).toHaveLength(16);
   });
 
-  it('타입 지도와 레지스트리의 키가 같다', () => {
-    // ChartDataMap 에 키를 더하거나 빼면 REGISTRY 가 컴파일되지 않는다.
-    // 이 테스트는 그 관계가 실제로 살아 있는지 런타임에서도 확인한다.
-    const fromMap: CsatChartType[] = CHART_TYPES.map((t) => t);
-    const sample: Record<CsatChartType, keyof ChartDataMap> = Object.fromEntries(
-      fromMap.map((t) => [t, t]),
-    ) as Record<CsatChartType, keyof ChartDataMap>;
-    expect(Object.keys(sample).sort()).toEqual([...CHART_TYPES]);
+  it('키가 정확히 이 16개다', () => {
+    // ChartDataMap 과 REGISTRY 의 키가 어긋나면 tsc 가 먼저 막는다.
+    // 이 테스트가 잡는 건 다른 것이다 — 오타 난 키가 양쪽에 똑같이 들어간 경우.
+    expect([...CHART_TYPES]).toEqual([
+      'absbar', 'category-dot', 'climate', 'cube', 'data-table',
+      'deviation-a', 'deviation-b', 'hythergraph', 'line', 'matrix-table',
+      'pyramid', 'radar', 'scatter', 'stacked', 'ternary', 'treemap',
+    ]);
   });
 
   it('키가 사전순으로 정렬돼 있다', () => {
-    expect([...CHART_TYPES].sort()).toEqual(CHART_TYPES);
+    expect([...CHART_TYPES].sort()).toEqual([...CHART_TYPES]);
   });
 
   it('isCsatChartType 이 아는 키만 통과시킨다', () => {

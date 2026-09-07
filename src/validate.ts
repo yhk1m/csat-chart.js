@@ -136,5 +136,29 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
         );
       }
     }
+
+    // 배열이면 원소의 종류까지 한 겹 더 본다.
+    //
+    // 여기까지만 검사하면 열두 달 자료를 «숫자 12개» 로 납작하게 붙여넣은 실수가
+    // 그대로 통과한다 — 배열도 맞고 길이도 12이기 때문이다. 그런데 그 상태로
+    // 그리면 브라우저에서는 좌표가 NaN 이 되어 **조용히 빈 그림**이 나오고
+    // (Canvas2D 명세상 비유한 좌표는 무시된다), Node 캔버스에서는 네이티브
+    // 프로세스가 통째로 죽는다. 이 검증 계층이 막으려던 바로 그 실패다.
+    //
+    // 기본 데이터의 첫 원소를 본보기로 삼는다. 한 겹만 본다 — 원소의 속속까지
+    // 파고들지 않는 것이 이 파일의 «얕은 검사» 규칙이다.
+    const sample = shape[key];
+    if (want === '배열' && Array.isArray(sample) && sample.length > 0) {
+      const sampleKind = kindOf(sample[0]);
+      const arr = given[key] as unknown[];
+      for (let i = 0; i < arr.length; i++) {
+        const elemKind = kindOf(arr[i]);
+        if (elemKind !== sampleKind) {
+          throw new CsatChartError(
+            `type "${type}" 의 data.${key}[${i}]: ${shouldBe(sampleKind)} (지금 ${elemKind})`,
+          );
+        }
+      }
+    }
   }
 }

@@ -71,6 +71,16 @@ describe('assertChartData', () => {
     );
   });
 
+  it('배열 원소의 종류가 다르면 몇 번째인지 말한다', () => {
+    // 열두 달 자료를 «숫자 12개» 로 납작하게 붙여넣는 실수. 배열도 맞고 길이도
+    // 12라 겉모양만 보면 통과하는데, 그대로 그리면 브라우저에서는 빈 그림이 되고
+    // Node 캔버스에서는 네이티브 프로세스가 죽는다.
+    const c = REGISTRY.climate.createDefaultData() as { months: unknown[] };
+    expect(() =>
+      assertChartData('climate', { ...c, months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }),
+    ).toThrow(/data\.months\[0\]: 객체여야 합니다 \(지금 숫자\)/);
+  });
+
   it('선택 필드를 더 준 것은 통과한다', () => {
     const data = { ...REGISTRY.pyramid.createDefaultData(), numericAgeAxis: true };
     expect(() => assertChartData('pyramid', data)).not.toThrow();

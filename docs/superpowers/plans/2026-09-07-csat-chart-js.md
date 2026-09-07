@@ -811,6 +811,16 @@ describe('assertChartData', () => {
     );
   });
 
+  it('배열 원소의 종류가 다르면 몇 번째인지 말한다', () => {
+    // 열두 달 자료를 «숫자 12개» 로 납작하게 붙여넣는 실수. 배열도 맞고 길이도
+    // 12라 겉모양만 보면 통과하는데, 그대로 그리면 브라우저에서는 빈 그림이 되고
+    // Node 캔버스에서는 네이티브 프로세스가 죽는다.
+    const c = REGISTRY.climate.createDefaultData() as { months: unknown[] };
+    expect(() =>
+      assertChartData('climate', { ...c, months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }),
+    ).toThrow(/data\.months\[0\]: 객체여야 합니다 \(지금 숫자\)/);
+  });
+
   it('선택 필드를 더 준 것은 통과한다', () => {
     const data = { ...REGISTRY.pyramid.createDefaultData(), numericAgeAxis: true };
     expect(() => assertChartData('pyramid', data)).not.toThrow();
@@ -964,6 +974,30 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
         );
       }
     }
+
+    // 배열이면 원소의 종류까지 한 겹 더 본다.
+    //
+    // 여기까지만 검사하면 열두 달 자료를 «숫자 12개» 로 납작하게 붙여넣은 실수가
+    // 그대로 통과한다 — 배열도 맞고 길이도 12이기 때문이다. 그런데 그 상태로
+    // 그리면 브라우저에서는 좌표가 NaN 이 되어 **조용히 빈 그림**이 나오고
+    // (Canvas2D 명세상 비유한 좌표는 무시된다), Node 캔버스에서는 네이티브
+    // 프로세스가 통째로 죽는다. 이 검증 계층이 막으려던 바로 그 실패다.
+    //
+    // 기본 데이터의 첫 원소를 본보기로 삼는다. 한 겹만 본다 — 원소의 속속까지
+    // 파고들지 않는 것이 이 파일의 «얕은 검사» 규칙이다.
+    const sample = shape[key];
+    if (want === '배열' && Array.isArray(sample) && sample.length > 0) {
+      const sampleKind = kindOf(sample[0]);
+      const arr = given[key] as unknown[];
+      for (let i = 0; i < arr.length; i++) {
+        const elemKind = kindOf(arr[i]);
+        if (elemKind !== sampleKind) {
+          throw new CsatChartError(
+            `type "${type}" 의 data.${key}[${i}]: ${shouldBe(sampleKind)} (지금 ${elemKind})`,
+          );
+        }
+      }
+    }
   }
 }
 ```
@@ -971,7 +1005,7 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/validate.test.ts`
-Expected: PASS — 27건 (assertChartType 4 + 종류별 16 + assertChartData 7)
+Expected: PASS — 28건 (assertChartType 4 + 종류별 16 + assertChartData 8)
 
 - [ ] **Step 5: 커밋**
 
@@ -2006,6 +2040,19 @@ TypeScript 에서는 `type` 을 적는 순간 `data` 타입이 좁혀진다.
 
 `Noto Serif KR`·`Noto Sans KR` 을 확보한다. 준비되면 `true`, 못 받거나 Node 이면
 `false` 를 돌려준다. **던지지 않는다.** 사내망이면 `{ href }` 로 출처를 바꾼다.
+
+### 오류 가려내기
+
+데이터가 어긋나면 `CsatChartError` 를 던진다. 가려낼 때는 `instanceof` 말고
+**`err.name` 을 본다.**
+
+```js
+try { new CsatChart(c, { type, data }); }
+catch (err) { if (err.name === 'CsatChartError') showHint(err.message); }
+```
+
+같은 페이지에 ESM 판과 CDN 판이 함께 올라오면 클래스가 두 벌이 되어
+`instanceof` 가 조용히 `false` 가 된다. `name` 은 그런 일이 없다.
 
 ### 저수준 렌더러
 

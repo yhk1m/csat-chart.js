@@ -1319,14 +1319,52 @@ function canvas(w = 800, h = 600) {
   return createCanvas(w, h) as unknown as CanvasLike;
 }
 
+/**
+ * width/height 가 0(또는 아예 없는) 캔버스를 흉내낸다.
+ *
+ * `@napi-rs/canvas` 는 `width`/`height` 를 0 으로 두는 것을 허락하지 않는다 —
+ * `createCanvas(0, 0)` 이든 생성 뒤 `c.width = 0` 이든, 네이티브 세터가 즉시
+ * HTML 캔버스 규격의 기본값(350×150)으로 되튄다. 그래서 실제 caniOS 캔버스로는
+ * "크기 없는 캔버스" 상황 자체를 만들 수 없다. `CanvasLike` 는 덕타이핑
+ * 인터페이스일 뿐이므로, 평범한 객체 리터럴로 `width`/`height` 를 흉내내고
+ * `getContext`/`toDataURL` 만 진짜 캔버스에 위임한다 — 그리기는 여전히 실제
+ * Canvas 2D 구현을 거친다(좌표가 실제 저장소 크기를 넘어가면 그냥 잘릴 뿐,
+ * 던지지 않는다).
+ */
+function zeroSizeCanvas(): CanvasLike {
+  const real = createCanvas(1, 1);
+  return {
+    width: 0,
+    height: 0,
+    getContext: (id: '2d') => real.getContext(id),
+    toDataURL: (type?: string) => real.toDataURL(type as never),
+  };
+}
+
+/**
+ * 흰색이 아닌(=그려진) 픽셀 수를 센다.
+ *
+ * 갓 만든 캔버스는 «투명한 검정» 이다(r=g=b=0, a=0). 알파를 보지 않으면 그
+ * 투명한 픽셀도 «흰색이 아니다» 로 잡혀, 렌더러가 통째로 사라져도(예: draw() 를
+ * 빈 함수로 바꿔치기) 이 검사를 통과한다. 렌더러는 항상 clearCanvas 로 불투명한
+ * 흰 바탕을 먼저 칠하므로, 알파가 255 인 픽셀만 세면 «실제로 그렸는가» 를 묻게 된다.
+ */
 function nonWhitePixels(c: CanvasLike): number {
   const ctx = c.getContext('2d') as unknown as CanvasRenderingContext2D;
   const raw = ctx.getImageData(0, 0, c.width, c.height).data;
   let n = 0;
   for (let i = 0; i < raw.length; i += 4) {
+    if (raw[i + 3] !== 255) continue; // 투명 = 아무것도 그리지 않은 것
     if (raw[i] !== 255 || raw[i + 1] !== 255 || raw[i + 2] !== 255) n++;
   }
   return n;
+}
+
+/** data URL(PNG) 의 실제 픽셀 크기를 IHDR 청크에서 읽는다. 새 의존성 없이. */
+function pngDimensions(dataUrl: string): { width: number; height: number } {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  const buf = Buffer.from(base64, 'base64');
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -1339,12 +1377,53 @@ describe('CsatChart', () => {
   });
 
   it('크기가 없는 캔버스에는 800×600 을 넣는다', () => {
-    const c = createCanvas(1, 1) as unknown as CanvasLike;
-    c.width = 0;
-    c.height = 0;
+    // 실제 @napi-rs/canvas 는 width/height 를 0 으로 두지 못한다(위 zeroSizeCanvas
+    // 참고) — 그래서 덕타이핑 CanvasLike 를 직접 만들어 «크기 없음» 을 흉내낸다.
+    const c = zeroSizeCanvas();
     new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
     expect(c.width).toBe(800);
     expect(c.height).toBe(600);
+  });
+
+  /**
+   * 속성 없는 브라우저 `<canvas>` 를 흉내낸다 — 크기는 300×150(HTML 기본값)이고
+   * `getAttribute('width'/'height')` 가 `null` 이다. 이 조합이 «크기를 정하지
+   * 않았다» 는 신호다 — 300 은 0 이 아니라서 falsy 검사로는 잡히지 않는다.
+   */
+  function attrlessCanvas(
+    w = 300,
+    h = 150,
+    attrs: Record<string, string | null> = {},
+  ): CanvasLike {
+    const real = createCanvas(Math.max(1, w), Math.max(1, h));
+    return {
+      width: w,
+      height: h,
+      getAttribute: (name: string) => attrs[name] ?? null,
+      getContext: (id: '2d') => real.getContext(id),
+    } as CanvasLike;
+  }
+
+  it('width/height 를 적지 않은 <canvas> 는 800×600 으로 본다', () => {
+    // 300×150 은 «작성자가 고른 크기» 가 아니라 HTML 이 넣어 준 기본값이다.
+    const c = attrlessCanvas();
+    new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    expect(c.width).toBe(800);
+    expect(c.height).toBe(600);
+  });
+
+  it('300×150 을 직접 적었으면 그대로 둔다', () => {
+    const c = attrlessCanvas(300, 150, { width: '300', height: '150' });
+    new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    expect(c.width).toBe(300);
+    expect(c.height).toBe(150);
+  });
+
+  it('스크립트로 정한 크기는 그대로 둔다', () => {
+    const c = attrlessCanvas(1200, 900);
+    new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    expect(c.width).toBe(1200);
+    expect(c.height).toBe(900);
   });
 
   it('알 수 없는 type 을 거부한다', () => {
@@ -1376,6 +1455,7 @@ describe('CsatChart', () => {
       },
     });
     expect(nonWhitePixels(c)).not.toBe(before);
+    expect(nonWhitePixels(c)).toBeGreaterThan(50);
   });
 
   it('update(options) 로 제목만 바꿀 수 있다', () => {
@@ -1413,10 +1493,43 @@ describe('CsatChart', () => {
     expect(chart.toDataURL().startsWith('data:image/png;base64,')).toBe(true);
   });
 
+  it('scale 이 2 면 PNG 픽셀 크기도 정확히 두 배다', () => {
+    const chart = new CsatChart(canvas(800, 600), {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+    });
+    const { width, height } = pngDimensions(chart.toDataURL({ scale: 2 }));
+    expect(width).toBe(1600);
+    expect(height).toBe(1200);
+  });
+
+  it('scale 로 내보낸 뒤 화면 캔버스는 원래 크기로 돌아오고 다시 그려진다', () => {
+    const c = canvas();
+    const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    chart.toDataURL({ scale: 2 });
+    expect(c.width).toBe(800);
+    expect(c.height).toBe(600);
+    expect(nonWhitePixels(c)).toBeGreaterThan(50);
+  });
+
+  it.each([0, -1, NaN, Infinity])('scale %s 는 거부한다', (scale) => {
+    const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
+    expect(() => chart.toDataURL({ scale })).toThrow(CsatChartError);
+  });
+
+  it('scale 1 은 인자 없을 때와 같다', () => {
+    const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
+    expect(chart.toDataURL({ scale: 1 })).toBe(chart.toDataURL());
+  });
+
   it('destroy 뒤에는 쓰지 못한다', () => {
     const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
     chart.destroy();
-    expect(() => chart.resize(400, 300)).toThrow(/이미 destroy\(\) 된 차트입니다/);
+    const destroyedMsg = /이미 destroy\(\) 된 차트입니다/;
+    expect(() => chart.resize(400, 300)).toThrow(destroyedMsg);
+    expect(() => chart.update({})).toThrow(destroyedMsg);
+    expect(() => chart.toDataURL()).toThrow(destroyedMsg);
+    expect(() => chart.download()).toThrow(destroyedMsg);
     expect(() => chart.destroy()).not.toThrow();
   });
 
@@ -1446,8 +1559,80 @@ describe('CsatChart', () => {
     ).toThrow(/id "c" 인 요소는 <canvas> 가 아닙니다/);
   });
 
+  it('XHTML 문서의 소문자 tagName 도 <canvas> 로 인정한다', () => {
+    const real = createCanvas(800, 600);
+    vi.stubGlobal('document', {
+      getElementById: () => ({ tagName: 'canvas', getContext: (id: '2d') => real.getContext(id) }),
+    });
+    expect(
+      () => new CsatChart('c', { type: 'ternary', data: createDefaultTernaryData() }),
+    ).not.toThrow();
+  });
+
+  it('첫 인자가 null 이면 그렇게 말한다', () => {
+    // document.getElementById 가 못 찾은 값을 그대로 넘기는 실수를 잡는다.
+    expect(
+      () => new CsatChart(null as never, { type: 'ternary', data: createDefaultTernaryData() }),
+    ).toThrow(/첫 인자는 <canvas> 요소이거나 id 문자열이어야 합니다/);
+  });
+
+  it('첫 인자가 캔버스가 아닌 객체면 그렇게 말한다', () => {
+    // <div> 를 그대로 넘기는 흔한 실수 — getElementById 가 아니라 querySelector 로
+    // <div> 를 골랐을 때도 벌어진다.
+    expect(
+      () =>
+        new CsatChart({ tagName: 'DIV' } as never, {
+          type: 'ternary',
+          data: createDefaultTernaryData(),
+        }),
+    ).toThrow(/getContext 가 없습니다/);
+  });
+
   it('ensureFonts 를 정적 메서드로 노출한다', () => {
     expect(typeof CsatChart.ensureFonts).toBe('function');
+  });
+
+  it('fontSize 를 하나만 줘도 나머지는 기본값을 쓴다', () => {
+    // 얕게 덮으면 axisLabel/tick/dataLabel 이 undefined 가 되어 Node 에서는
+    // ctx.font 대입이 "is not valid font style" 로 던진다.
+    const c1 = canvas();
+    expect(
+      () =>
+        new CsatChart(c1, {
+          type: 'ternary',
+          data: createDefaultTernaryData(),
+          options: { fontSize: { title: 44 } as never },
+        }),
+    ).not.toThrow();
+
+    // 나머지 셋을 기본값 그대로 명시한 것과 픽셀이 같아야 «정말 기본값을 썼다» 가 된다.
+    const c2 = canvas();
+    new CsatChart(c2, {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      options: { fontSize: { title: 44, axisLabel: 28, tick: 26, dataLabel: 22 } },
+    });
+
+    expect(nonWhitePixels(c1)).toBe(nonWhitePixels(c2));
+  });
+
+  it('footnotes 로 넘긴 배열을 그대로 붙들지 않는다', () => {
+    const c = canvas();
+    const footnotes = ['각주 1'];
+    const chart = new CsatChart(c, {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      options: { footnotes },
+    });
+    const before = nonWhitePixels(c);
+
+    // 호출자가 생성 뒤에 자기 배열을 건드린다.
+    footnotes.push('각주 2');
+    // 크기를 그대로 둔 채 다시 그리기만 시킨다 — footnotes 를 참조로 붙들고
+    // 있었다면 각주가 하나 더 그려져 픽셀 수가 달라진다.
+    chart.resize(800, 600);
+
+    expect(nonWhitePixels(c)).toBe(before);
   });
 
   it('글꼴이 늦게 도착하면 한 번 다시 그린다', async () => {
@@ -1538,6 +1723,56 @@ const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
 /**
+ * 속성을 적지 않은 `<canvas>` 가 갖는 크기 (HTML 명세). **0 이 아니라 300×150 이다.**
+ * 그래서 `if (!canvas.width)` 로는 «작성자가 크기를 적지 않았다» 를 알아낼 수 없다.
+ */
+const HTML_DEFAULT_WIDTH = 300;
+const HTML_DEFAULT_HEIGHT = 150;
+
+/**
+ * 이 축의 크기를 작성자가 «정하지 않았는가».
+ *
+ * 렌더러의 여백과 글자 크기는 800×600 에 맞춰 절대 픽셀로 박혀 있다. 300×150
+ * 에서는 플롯 영역의 높이가 음수가 되어 제목·눈금·각주가 한 덩어리로 겹친
+ * 읽을 수 없는 그림이 나온다. `<canvas id="c"></canvas>` 라고만 쓰는 실수는
+ * 아주 흔한데, 그 결과가 조용한 오작동이어서는 안 된다.
+ *
+ * 세 가지를 구별한다.
+ *   · 크기가 0·없음      → 정하지 않았다 (평범한 객체·OffscreenCanvas 흉내)
+ *   · 크기가 300/150 이고 그 속성이 없다 → 정하지 않았다 (`<canvas>` 만 쓴 경우)
+ *   · 그 밖의 모든 경우   → 작성자가 고른 크기다. 건드리지 않는다
+ *
+ * 두 번째 판정에만 `getAttribute` 가 필요한데 `CanvasLike` 에는 없다. 있으면
+ * 쓰고 없으면 «작성자가 골랐다» 로 본다 — 덕타이핑이므로 이것이 안전한 쪽이다.
+ */
+function isUnsized(canvas: CanvasLike, dim: 'width' | 'height', htmlDefault: number): boolean {
+  const current = canvas[dim];
+  if (!current) return true;
+  if (current !== htmlDefault) return false;
+  const el = canvas as { getAttribute?: (name: string) => string | null };
+  return typeof el.getAttribute === 'function' && el.getAttribute(dim) === null;
+}
+
+/**
+ * `data`·`fontSize`·`footnotes` 를 안전하게 덮는다.
+ *
+ * `{ ...base, ...patch }` 로 얕게만 덮으면 두 가지가 새어 나간다.
+ *   · `fontSize` 를 하나만 준 순간(CDN 사용자가 흔히 그런다: `{ title: 44 }`)
+ *     나머지 세 값이 `undefined` 가 되어, Node 에서는 `ctx.font` 대입이
+ *     던지고 브라우저에서는 명세상 조용히 무시된다 — 어느 쪽이든 사고다.
+ *   · `footnotes` 는 배열이다. 호출자가 쥔 배열을 그대로 붙들면, 나중에 그
+ *     배열에 `push` 한 것이 다음 그리기에 몰래 새어 들어온다.
+ */
+function mergeOptions(base: GraphOptions, patch?: Partial<GraphOptions>): GraphOptions {
+  return {
+    ...base,
+    ...patch,
+    fontSize: { ...base.fontSize, ...patch?.fontSize },
+    footnotes: [...(patch?.footnotes ?? base.footnotes)],
+  };
+}
+
+/**
  * 종류 하나를 붙들고 사는 차트.
  *
  * `T` 는 생성자의 `config.type` 에서 추론된다. 그래서 `update()` 의 `data` 도
@@ -1567,10 +1802,10 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
 
     this.type = config.type;
     this.data = config.data;
-    this.options = { ...createDefaultGraphOptions(), ...config.options };
+    this.options = mergeOptions(createDefaultGraphOptions(), config.options);
 
-    if (!this.canvas.width) this.canvas.width = DEFAULT_WIDTH;
-    if (!this.canvas.height) this.canvas.height = DEFAULT_HEIGHT;
+    if (isUnsized(this.canvas, 'width', HTML_DEFAULT_WIDTH)) this.canvas.width = DEFAULT_WIDTH;
+    if (isUnsized(this.canvas, 'height', HTML_DEFAULT_HEIGHT)) this.canvas.height = DEFAULT_HEIGHT;
 
     this.draw();
     this.redrawWhenFontsArrive();
@@ -1584,7 +1819,7 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
       this.data = next.data;
     }
     if (next.options !== undefined) {
-      this.options = { ...this.options, ...next.options };
+      this.options = mergeOptions(this.options, next.options);
     }
     this.draw();
     return this;
@@ -1601,16 +1836,42 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     return this;
   }
 
-  toDataURL(): string {
+  /**
+   * PNG data URL 을 돌려준다.
+   *
+   * `scale` 은 **글자·선까지 함께 키우는** 배율이다. 캔버스만 키우는
+   * `resize(1600, 1200)` 과 다르다 — 이 라이브러리의 글꼴 크기와 여백은 절대
+   * 픽셀이라, 캔버스를 두 배로 하면 «두 배로 선명한 같은 그림» 이 아니라
+   * «글자가 절반으로 작아진 다른 그림» 이 나온다. 인쇄용으로 뽑으려면 이쪽을 쓴다.
+   */
+  toDataURL(options: { scale?: number } = {}): string {
     this.assertAlive();
     if (typeof this.canvas.toDataURL !== 'function') {
       throw new CsatChartError('이 캔버스는 toDataURL 을 지원하지 않습니다');
     }
-    return this.canvas.toDataURL('image/png');
+    const scale = options.scale ?? 1;
+    if (!(Number.isFinite(scale) && scale > 0)) {
+      throw new CsatChartError(`scale 은 0보다 큰 유한한 수여야 합니다 (지금 ${scale})`);
+    }
+    if (scale === 1) return this.canvas.toDataURL('image/png');
+
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    try {
+      this.canvas.width = Math.round(w * scale);
+      this.canvas.height = Math.round(h * scale);
+      this.drawScaled(scale, w, h);
+      return this.canvas.toDataURL('image/png');
+    } finally {
+      // 화면에 붙어 있는 캔버스다. 원래 크기로 돌리고 다시 그려 둔다.
+      this.canvas.width = w;
+      this.canvas.height = h;
+      this.draw();
+    }
   }
 
   /** 브라우저 전용. Node 에서는 `toDataURL()` 이나 캔버스의 버퍼를 쓴다. */
-  download(filename = 'csat-chart.png'): void {
+  download(filename = 'csat-chart.png', options: { scale?: number } = {}): void {
     this.assertAlive();
     if (typeof document === 'undefined') {
       throw new CsatChartError(
@@ -1618,13 +1879,16 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
       );
     }
     const a = document.createElement('a');
-    a.href = this.toDataURL();
+    a.href = this.toDataURL(options);
     a.download = filename;
     a.click();
   }
 
   destroy(): void {
     if (this.destroyed) return;
+    // 불투명한 흰 바탕으로 지운다 — 시험지 원고를 다루는 라이브러리라, 반투명
+    // «지워진 상태» 보다 «빈 답안지» 처럼 보이는 쪽이 낫다. 생성자나 resize()
+    // 가 바꿔 둔 캔버스 크기는 되돌리지 않는다 — destroy() 는 그리기만 멈춘다.
     clearCanvas(this.ctx, this.canvas.width, this.canvas.height);
     this.destroyed = true;
   }
@@ -1664,22 +1928,57 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     REGISTRY[this.type].render(this.ctx, width, height, this.data, this.options);
   }
 
+  /**
+   * 논리 크기는 `width`×`height` 로 두고 픽셀만 `scale` 배로 그린다.
+   *
+   * 렌더러들은 변환 행렬을 전혀 건드리지 않으므로(`grep setTransform src/core` →
+   * 없음) 여기서 한 번 걸어 두면 그림 전체가 그대로 확대된다.
+   */
+  private drawScaled(scale: number, width: number, height: number): void {
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    try {
+      clearCanvas(this.ctx, width, height);
+      REGISTRY[this.type].render(this.ctx, width, height, this.data, this.options);
+    } finally {
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+  }
+
   private assertAlive(): void {
     if (this.destroyed) throw new CsatChartError('이미 destroy() 된 차트입니다');
   }
 }
 
 function resolveCanvas(target: CanvasLike | string): CanvasLike {
-  if (typeof target !== 'string') return target;
-  if (typeof document === 'undefined') {
-    throw new CsatChartError(`id 문자열은 브라우저에서만 씁니다 ("${target}")`);
+  if (typeof target === 'string') {
+    if (typeof document === 'undefined') {
+      throw new CsatChartError(`id 문자열은 브라우저에서만 씁니다 ("${target}")`);
+    }
+    const el = document.getElementById(target);
+    if (!el) throw new CsatChartError(`id "${target}" 인 요소를 찾지 못했습니다`);
+    // XHTML(application/xhtml+xml) 문서에서는 tagName 이 대문자로 바뀌지 않는다.
+    // 대소문자를 맞춰 보지 않으면 멀쩡한 <canvas> 를 «캔버스가 아니다» 라고 막는다.
+    if (el.tagName.toUpperCase() !== 'CANVAS') {
+      throw new CsatChartError(`id "${target}" 인 요소는 <canvas> 가 아닙니다`);
+    }
+    return el as unknown as CanvasLike;
   }
-  const el = document.getElementById(target);
-  if (!el) throw new CsatChartError(`id "${target}" 인 요소를 찾지 못했습니다`);
-  if (el.tagName !== 'CANVAS') {
-    throw new CsatChartError(`id "${target}" 인 요소는 <canvas> 가 아닙니다`);
+
+  // 가장 흔한 사용법은 `new CsatChart(document.getElementById('c'), …)` 다.
+  // id 를 잘못 적으면 여기로 null 이 들어오는데, 그냥 두면 아래에서
+  // «Cannot read properties of null (reading 'getContext')» 라는 영문 TypeError 로
+  // 끝난다. 개발자 도구를 열지 않는 사용자를 겨냥한 라이브러리에서, 문자열
+  // 경로에는 친절한 안내가 있는데 요소 경로만 그러면 앞뒤가 맞지 않는다.
+  if (target === null || typeof target !== 'object') {
+    throw new CsatChartError(
+      `첫 인자는 <canvas> 요소이거나 id 문자열이어야 합니다 (지금 ${target === null ? 'null' : typeof target})` +
+        (target === null ? ' — getElementById 가 그 id 를 찾지 못한 것은 아닌지 보세요' : ''),
+    );
   }
-  return el as unknown as CanvasLike;
+  if (typeof (target as { getContext?: unknown }).getContext !== 'function') {
+    throw new CsatChartError('첫 인자에 getContext 가 없습니다 — <canvas> 요소가 맞는지 보세요');
+  }
+  return target;
 }
 ```
 
@@ -1689,7 +1988,7 @@ Node 에 없어서 참조하는 순간 터진다.
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/chart.test.ts`
-Expected: PASS — 20건
+Expected: PASS — 35건
 
 Run: `npx tsc --noEmit`
 Expected: 오류 없음. `@ts-expect-error` 두 줄이 «실제로 오류인» 곳을 가리켜야 한다 —

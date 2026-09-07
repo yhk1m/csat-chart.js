@@ -2,7 +2,7 @@
 // 캔버스 획득·다시 그리기·PNG 추출의 수명주기를 관리하는 파사드.
 import { REGISTRY } from './registry';
 import { CsatChartError, assertChartData, assertChartType } from './validate';
-import { ensureFonts } from './fonts';
+import { ensureFonts, type EnsureFontsOptions } from './fonts';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
 import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
@@ -80,16 +80,16 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
   /**
    * 시험지 글꼴을 확보한다. 자세한 것은 `ensureFonts` 참고.
    *
-   * `tsconfig.json` 의 `target` 을 ES2022 아래로 낮추지 말 것. 이 정적 필드가
-   * 네이티브 클래스 필드로 컴파일되지 않으면(ES2020 이하) 번들러가 클래스
-   * 선언 뒤에 `CsatChart.ensureFonts = ensureFonts;` 같은 대입문을 따로
-   * 낸다. 대입문은 트리쉐이킹이 지울 수 없는 부작용이라, `CsatChart` 를
-   * 아무도 안 써도 이 클래스가 붙들려 있고, `draw()` 가 참조하는 `REGISTRY`
-   * (=16종 렌더러 전부)까지 함께 딸려 온다 — 그러면 저수준 렌더러 하나만
-   * 가져와도 번들이 전혀 줄지 않는다. 실제로 겪은 문제이고, `test/bundle.test.ts`
-   * 가 이걸 회귀로 잡지는 않으니 여기 적어 둔다.
+   * 필드가 아니라 **메서드**로 둔다. `static readonly ensureFonts = ensureFonts`
+   * 로 적으면 ES2020 로 낮출 때 클래스 «뒤» 의 대입문이 되는데, 그것은 지울 수
+   * 없는 부수효과라 이 클래스와 레지스트리와 렌더러 16종이 모든 번들에 박힌다.
+   * 메서드는 클래스 본문의 일부라 어느 목표에서도 그런 일이 없다 — 실제로
+   * 겪은 문제이고, `test/bundle.test.ts` 가 이걸 회귀로 잡지는 않으니 여기
+   * 적어 둔다.
    */
-  static readonly ensureFonts = ensureFonts;
+  static ensureFonts(options?: EnsureFontsOptions): Promise<boolean> {
+    return ensureFonts(options);
+  }
 
   readonly canvas: CanvasLike;
 

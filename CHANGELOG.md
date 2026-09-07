@@ -54,12 +54,16 @@
   - `CHART_TYPES` 를 만드는 `Object.freeze(Object.keys(REGISTRY).sort())` 가
     모듈 맨 위의 함수 호출이라 번들러가 부작용을 의심해 지우지 못했다 — 세
     호출(`Object.keys`·`.sort()`·`Object.freeze`) 모두에 `/* @__PURE__ */` 를 달았다.
-  - 더 컸던 원인은 따로 있었다: `CsatChart.ensureFonts` 정적 필드가 (당시 빌드
-    타깃이던) ES2020 으로 내려가며 클래스 선언 뒤의 `CsatChart.ensureFonts =
-    ensureFonts;` 대입문으로 풀렸는데, 이 대입문은 트리쉐이킹이 절대 지울 수
-    없는 부작용이라 `CsatChart` 를 아무도 안 써도 클래스 전체와 그것이 붙든
-    `REGISTRY`(=16종 렌더러 전부)가 계속 살아 있었다. 빌드 타깃을 ES2022 로
-    올려 정적 필드가 네이티브로 남게 했다.
+  - 더 컸던 원인은 따로 있었다: `CsatChart.ensureFonts` 가 `static readonly
+    ensureFonts = ensureFonts;` 라는 정적 **필드**였는데, ES2020 빌드에서는
+    이런 필드가 네이티브 클래스 필드로 컴파일되지 않고 클래스 선언 **뒤**의
+    `CsatChart.ensureFonts = ensureFonts;` 라는 별도 대입문으로 풀린다. 이
+    대입문은 트리쉐이킹이 절대 지울 수 없는 부작용이라 `CsatChart` 를 아무도
+    안 써도 클래스 전체와 그것이 붙든 `REGISTRY`(=16종 렌더러 전부)가 계속
+    살아 있었다. 빌드 타깃을 올리는 대신(학교 컴퓨터 같은 오래된 환경도
+    겨냥한 패키지라 호환 기준은 그대로 둔다) 정적 필드를 정적 **메서드**로
+    바꿨다 — 메서드는 클래스 본문 안에 남는 선언이라 어느 빌드 타깃에서도
+    이 문제가 생기지 않는다.
   - 두 수정을 합치니 `renderClimateGraph` 하나만 가져온 번들이 10.0 KB 로
     줄었다(같은 방법으로 잰 값). `CsatChart` 를 통째로 가져오면 여전히 94.6 KB
     다 — 파사드가 16종을 다 붙들고 있어야 하는 것은 설계상 당연하다.

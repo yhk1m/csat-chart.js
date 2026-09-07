@@ -241,19 +241,23 @@ render○○(ctx, width, height, data, options): void
 이야기가 해당하지 않는다.
 
 이 절감이 실제로 나오려면 두 가지가 맞아떨어져야 한다 — 둘 중 하나라도 빠지면
-번들이 거의 줄지 않는다(직접 겪은 문제라 `src/registry.ts`·`src/chart.ts`·
-`tsconfig.json` 에 각각 회귀 방지 주석을 남겨 뒀다).
+번들이 거의 줄지 않는다(직접 겪은 문제라 `src/registry.ts`·`src/chart.ts` 에
+각각 회귀 방지 주석을 남겨 뒀다). 빌드 타깃은 그대로 ES2020 이다 — 학교
+컴퓨터처럼 항상 최신은 아닌 환경도 겨냥한 패키지라, 이 절감 때문에 호환 기준을
+올리지는 않는다.
 
 1. `CHART_TYPES` 를 만드는 `Object.freeze(Object.keys(REGISTRY).sort())` 는
    모듈 맨 위에서 실행되는 함수 호출이다. 번들러는 함수 호출에 부작용이
    있을 수 있다고 보수적으로 가정하므로, `/* @__PURE__ */` 로 셋 다
    (`Object.keys`·`.sort()`·`Object.freeze`) 표시해 둬야 한다.
-2. `CsatChart.ensureFonts` 처럼 클래스의 정적 필드를 빌드 타깃이 ES2020 이하로
-   내리면, 번들러가 그 필드를 클래스 선언 뒤의 별도 대입문으로 내보낸다. 대입문은
-   트리쉐이킹이 지울 수 없는 부작용이라, `CsatChart` 를 아무도 안 써도 클래스
-   전체가 붙들리고 `REGISTRY`(=16종 렌더러 전부)까지 딸려 온다 — 실제로 이
-   패키지를 ES2020 으로 빌드했을 때 `renderClimateGraph` 하나만 가져와도 92 KB
-   대에서 꼼짝하지 않았다. 그래서 빌드 타깃을 ES2022 로 둔다.
+2. `CsatChart.ensureFonts` 는 정적 **메서드**다 — 일부러 그렇게 뒀다. 처음에는
+   `static readonly ensureFonts = ensureFonts;` 라는 정적 **필드**였는데, ES2020
+   빌드에서는 이 필드가 네이티브 클래스 필드로 컴파일되지 않고 클래스 선언
+   **뒤**에 `CsatChart.ensureFonts = ensureFonts;` 라는 별도 대입문으로 풀린다.
+   대입문은 트리쉐이킹이 지울 수 없는 부작용이라, `CsatChart` 를 아무도 안 써도
+   클래스 전체가 붙들리고 `REGISTRY`(=16종 렌더러 전부)까지 딸려 왔다 —
+   `renderClimateGraph` 하나만 가져와도 92 KB 대에서 꼼짝하지 않았다. 메서드는
+   클래스 본문 **안**에 남는 선언이라 빌드 타깃과 상관없이 이 문제가 없다.
 
 저수준 렌더러는 번들 크기 말고도 쓸 이유가 있다 — `CsatChart` 의 수명주기
 (캔버스 자동 크기 보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때도

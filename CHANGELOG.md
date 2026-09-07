@@ -48,6 +48,21 @@
   `LINE_DASH` 는 렌더러가 기본값으로 읽는 바로 그 객체다. 타입 검사를 받지 않는
   CDN 사용자를 겨냥한 패키지라, 얼리지 않으면 `DOT_MARKER_ORDER.reverse()` 한
   번에 이후 모든 그림의 기호 배정이 조용히 어긋난다.
+- **저수준 렌더러를 하나만 가져오면 번들이 실제로 작아진다.** 처음 재는 값(esbuild
+  실측)이 95.9 KB(전부)와 별 차이 없는 92 KB 대여서, 한동안 이 이점이 배포되는
+  `dist/csat-chart.mjs` 에서는 성립하지 않았다. 원인 둘을 찾아 고쳤다.
+  - `CHART_TYPES` 를 만드는 `Object.freeze(Object.keys(REGISTRY).sort())` 가
+    모듈 맨 위의 함수 호출이라 번들러가 부작용을 의심해 지우지 못했다 — 세
+    호출(`Object.keys`·`.sort()`·`Object.freeze`) 모두에 `/* @__PURE__ */` 를 달았다.
+  - 더 컸던 원인은 따로 있었다: `CsatChart.ensureFonts` 정적 필드가 (당시 빌드
+    타깃이던) ES2020 으로 내려가며 클래스 선언 뒤의 `CsatChart.ensureFonts =
+    ensureFonts;` 대입문으로 풀렸는데, 이 대입문은 트리쉐이킹이 절대 지울 수
+    없는 부작용이라 `CsatChart` 를 아무도 안 써도 클래스 전체와 그것이 붙든
+    `REGISTRY`(=16종 렌더러 전부)가 계속 살아 있었다. 빌드 타깃을 ES2022 로
+    올려 정적 필드가 네이티브로 남게 했다.
+  - 두 수정을 합치니 `renderClimateGraph` 하나만 가져온 번들이 10.0 KB 로
+    줄었다(같은 방법으로 잰 값). `CsatChart` 를 통째로 가져오면 여전히 94.6 KB
+    다 — 파사드가 16종을 다 붙들고 있어야 하는 것은 설계상 당연하다.
 
 ### 원본과 다른 점
 

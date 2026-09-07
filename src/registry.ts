@@ -92,9 +92,19 @@ export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
  *
  * 인자 없는 `sort()` 는 로캘을 보지 않고 UTF-16 코드 단위로 비교한다(명세).
  * 리눅스 CI 의 small-icu 빌드에서도 같은 순서가 나온다.
+ *
+ * 아래 세 PURE 주석을 지우지 말 것. `Object.freeze`·`.sort()`·`Object.keys`
+ * 모두 이 모듈 맨 위에서 실행되는 함수 호출이다 — 번들러는 함수 호출에
+ * 부작용이 있을 수 있다고 보수적으로 가정하므로, 표시가 없으면 `CHART_TYPES`
+ * 를 아무도 안 써도 이 문장을 지우지 못하고, 그 문장이 붙들고 있는
+ * `REGISTRY`(=16종 렌더러 전부)까지 함께 남는다. **셋 중 하나라도 빠지면**
+ * 나머지 호출이 여전히 `REGISTRY` 를 읽으므로 소용이 없다 — 실제로 겪은
+ * 문제다(`Object.freeze` 하나만 표시했을 때는 번들이 전혀 줄지 않았다).
+ * 표시를 지우면 저수준 렌더러 하나만 가져와도 번들이 줄지 않는 문제가
+ * 조용히 되돌아온다.
  */
-export const CHART_TYPES: readonly CsatChartType[] = Object.freeze(
-  (Object.keys(REGISTRY) as CsatChartType[]).sort(),
+export const CHART_TYPES: readonly CsatChartType[] = /* @__PURE__ */ Object.freeze(
+  /* @__PURE__ */ (/* @__PURE__ */ Object.keys(REGISTRY) as CsatChartType[]).sort(),
 );
 
 /**

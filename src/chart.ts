@@ -77,7 +77,18 @@ function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOpt
  * 같은 종류로 좁혀지고, 다른 종류의 데이터를 넣으면 컴파일 시점에 걸린다.
  */
 export class CsatChart<T extends CsatChartType = CsatChartType> {
-  /** 시험지 글꼴을 확보한다. 자세한 것은 `ensureFonts` 참고. */
+  /**
+   * 시험지 글꼴을 확보한다. 자세한 것은 `ensureFonts` 참고.
+   *
+   * `tsconfig.json` 의 `target` 을 ES2022 아래로 낮추지 말 것. 이 정적 필드가
+   * 네이티브 클래스 필드로 컴파일되지 않으면(ES2020 이하) 번들러가 클래스
+   * 선언 뒤에 `CsatChart.ensureFonts = ensureFonts;` 같은 대입문을 따로
+   * 낸다. 대입문은 트리쉐이킹이 지울 수 없는 부작용이라, `CsatChart` 를
+   * 아무도 안 써도 이 클래스가 붙들려 있고, `draw()` 가 참조하는 `REGISTRY`
+   * (=16종 렌더러 전부)까지 함께 딸려 온다 — 그러면 저수준 렌더러 하나만
+   * 가져와도 번들이 전혀 줄지 않는다. 실제로 겪은 문제이고, `test/bundle.test.ts`
+   * 가 이걸 회귀로 잡지는 않으니 여기 적어 둔다.
+   */
   static readonly ensureFonts = ensureFonts;
 
   readonly canvas: CanvasLike;

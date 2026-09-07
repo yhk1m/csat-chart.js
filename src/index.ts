@@ -89,21 +89,28 @@ import {
  * `CsatChart.DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
  * 조용히 어긋난다. 타입 검사를 받지 않는 CDN 사용자를 겨냥한 패키지라 특히 그렇다.
  * `CHART_TYPES` 를 얼린 것과 같은 이유다.
+ *
+ * 각 `Object.freeze` 앞의 PURE 주석을 지우지 말 것. 함수 호출은 번들러가
+ * 부작용이 있을 수 있다고 보수적으로 가정하는 대상이라, 표시가 없으면 이
+ * 상수들을 아무도 안 써도 문장 자체가 안 지워진다 — 여기서는 값이 각각
+ * `core` 배열 하나씩만 가리키므로 결과가 이 파일 안에서 끝나 심각하지 않지만,
+ * `registry.ts` 의 `CHART_TYPES` 는 같은 문제가 16종 렌더러 전체를 붙드는
+ * 문제로 번진다. 그 사례를 따라 여기도 표시해 둔다.
  */
-export const AGE_GROUPS = Object.freeze(coreAgeGroups);
-export const DOT_MARKER_ORDER = Object.freeze(coreDotMarkerOrder);
-export const LINE_MARKER_ORDER = Object.freeze(coreLineMarkerOrder);
-export const LINE_STYLE_ORDER = Object.freeze(coreLineStyleOrder);
-export const MONTH_LABELS_EN = Object.freeze(coreMonthLabelsEn);
-export const MONTH_LABELS_NUM = Object.freeze(coreMonthLabelsNum);
+export const AGE_GROUPS = /* @__PURE__ */ Object.freeze(coreAgeGroups);
+export const DOT_MARKER_ORDER = /* @__PURE__ */ Object.freeze(coreDotMarkerOrder);
+export const LINE_MARKER_ORDER = /* @__PURE__ */ Object.freeze(coreLineMarkerOrder);
+export const LINE_STYLE_ORDER = /* @__PURE__ */ Object.freeze(coreLineStyleOrder);
+export const MONTH_LABELS_EN = /* @__PURE__ */ Object.freeze(coreMonthLabelsEn);
+export const MONTH_LABELS_NUM = /* @__PURE__ */ Object.freeze(coreMonthLabelsNum);
 
 // LINE_DASH 는 Record<LineStyle, number[]> 다. 얕게 얼리면 LINE_DASH.dashed 를
 // 갈아 끼우는 것만 막고, LINE_DASH.dashed.push(1) 은 그대로 통한다.
-export const LINE_DASH = Object.freeze({
-  solid: Object.freeze(coreLineDash.solid),
-  dashed: Object.freeze(coreLineDash.dashed),
-  dotted: Object.freeze(coreLineDash.dotted),
-  dashdot: Object.freeze(coreLineDash.dashdot),
+export const LINE_DASH = /* @__PURE__ */ Object.freeze({
+  solid: /* @__PURE__ */ Object.freeze(coreLineDash.solid),
+  dashed: /* @__PURE__ */ Object.freeze(coreLineDash.dashed),
+  dotted: /* @__PURE__ */ Object.freeze(coreLineDash.dotted),
+  dashdot: /* @__PURE__ */ Object.freeze(coreLineDash.dashdot),
 });
 
 // ── 타입 ───────────────────────────────────────────────

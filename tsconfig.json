@@ -1,7 +1,12 @@
 {
+  // target 을 ES2022 밑으로 낮추지 말 것 — src/chart.ts 의 CsatChart.ensureFonts
+  // 정적 필드가 네이티브 클래스 필드로 안 남으면, 번들러가 그 자리에 클래스
+  // 선언 뒤 대입문을 따로 내고, 그 대입문이 CsatChart(와 그것이 붙든 16종
+  // 렌더러 전부)를 트리쉐이킹에서 못 지우게 막는다. 자세한 사정은 그 필드의
+  // 주석과 README 의 「저수준 렌더러」 절 참고.
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,

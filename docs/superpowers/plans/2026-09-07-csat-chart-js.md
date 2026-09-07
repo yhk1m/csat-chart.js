@@ -304,8 +304,9 @@ canvas/export.ts 만 제외했다 (GeoGrapher 전용 죽은 코드)."
 안전망이다.
 
 **Files:**
-- Create: `test/core/fixtures.ts`, `test/core/golden.test.ts`, `test/core/*.test.ts` (5종),
-  `test/core/__snapshots__/*.png` (31장)
+- Create: `test/core/` — `.ts` 8개(`fixtures.ts` + `golden.test.ts` + 단위 테스트 6종:
+  abs-bar-zero-baseline · auto-range · canvas-backend · category-dot ·
+  pyramid-tick-step · treemap-layout) + `__snapshots__/*.png` 31장
 
 - [ ] **Step 1: 테스트와 기준 이미지를 복사한다**
 
@@ -371,8 +372,9 @@ const SKIP_GOLDEN = process.env.SKIP_GOLDEN === '1';
 - [ ] **Step 4: 테스트를 돌린다**
 
 Run: `npx vitest run`
-Expected: PASS — 골든 31 + 빈캔버스 31 + 단위 테스트(auto-range, abs-bar-zero-baseline,
-category-dot, pyramid-tick-step, treemap-layout) + scaffold 2. **실패 0건.**
+Expected: PASS — 파일 8개, 128건. 골든 31 + 빈캔버스 31 + canvas-backend 8 +
+auto-range 21 + abs-bar-zero-baseline 4 + category-dot 2 + pyramid-tick-step 8 +
+treemap-layout 26 + scaffold 2. **실패 0건.**
 
 골든이 하나라도 어긋나면 **멈추고 원인을 밝힌다.** `UPDATE_GOLDEN=1` 로 덮어쓰지
 않는다 — 이 단계에서 기준을 갱신하면 이식 검증 자체가 무의미해진다.

@@ -366,8 +366,31 @@ const SKIP_GOLDEN = process.env.SKIP_GOLDEN === '1';
 ```
 
 블록 끝의 `});` 를 `},
-  );` 로 맞춰 닫는다. 두 번째 블록
-(`'%s 는 빈 캔버스가 아니다'`) 는 **그대로 둔다.**
+  );` 로 맞춰 닫는다.
+
+(다) **두 번째 블록의 검사를 실제로 실패할 수 있게 만든다.**
+
+`createCanvas` 가 준 캔버스는 흰색이 아니라 **투명한 검정**이다. 그런데 검사는
+«흰색이 아닌 픽셀» 을 세므로, 렌더러가 아무것도 안 그려도 480,000 이 나와 통과한다.
+렌더러 16종이 스스로 `clearCanvas` 로 흰 배경을 칠하기 때문에 지금은 우연히 뜻이
+맞아 보이지만, **렌더러가 통째로 no-op 이 되어도 이 검사는 통과한다.**
+`SKIP_GOLDEN=1` 인 CI 에서 이것이 유일하게 남는 렌더링 검사이므로 고친다.
+
+import 에 `clearCanvas` 를 더하고,
+
+```ts
+import { clearCanvas, createDefaultGraphOptions } from '../../src/core/index';
+```
+
+두 번째 블록에서 `fn(...)` **앞에** 한 줄을 넣는다:
+
+```ts
+    // 새 캔버스는 투명 검정이다. 흰색으로 채워야 «흰색이 아닌 픽셀» 이 뜻을 가진다.
+    clearCanvas(ctx, W, H);
+    fn(ctx, W, H, makeData() as never, optionsFor(_name));
+```
+
+이것이 이 파일의 **세 번째이자 마지막** 의도된 수정이다.
 
 - [ ] **Step 4: 테스트를 돌린다**
 
@@ -431,7 +454,7 @@ git commit -m "test: 골든 이미지 31장과 단위 테스트 이관
 import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { REGISTRY, CHART_TYPES, isCsatChartType } from '../src/registry';
-import { createDefaultGraphOptions } from '../src/core/index';
+import { clearCanvas, createDefaultGraphOptions } from '../src/core/index';
 
 describe('레지스트리', () => {
   it('16종을 담는다', () => {
@@ -448,10 +471,6 @@ describe('레지스트리', () => {
     ]);
   });
 
-  it('키가 사전순으로 정렬돼 있다', () => {
-    expect([...CHART_TYPES].sort()).toEqual([...CHART_TYPES]);
-  });
-
   it('isCsatChartType 이 아는 키만 통과시킨다', () => {
     expect(isCsatChartType('pyramid')).toBe(true);
     expect(isCsatChartType('piramid')).toBe(false);
@@ -459,9 +478,30 @@ describe('레지스트리', () => {
     expect(isCsatChartType(undefined)).toBe(false);
   });
 
+  it('프로토타입 속성 이름을 종류로 착각하지 않는다', () => {
+    // REGISTRY 는 객체 리터럴이라 프로토타입을 물고 있다. `in` 으로 판정하면
+    // 아래가 전부 통과하고, 곧이어 REGISTRY['constructor'].render 에서 터진다.
+    expect(isCsatChartType('constructor')).toBe(false);
+    expect(isCsatChartType('__proto__')).toBe(false);
+    expect(isCsatChartType('toString')).toBe(false);
+    expect(isCsatChartType('hasOwnProperty')).toBe(false);
+  });
+
+  it('CHART_TYPES 는 얼어 있다', () => {
+    // readonly 는 타입에만 있다. 타입 검사가 없는 CDN 사용자가 제자리에서
+    // 뒤집으면 오류 메시지가 조용히 망가진다.
+    expect(Object.isFrozen(CHART_TYPES)).toBe(true);
+  });
+
   it.each(CHART_TYPES)('%s 를 기본 데이터로 그리면 빈 캔버스가 아니다', (type) => {
     const canvas = createCanvas(800, 600);
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+
+    // 새 캔버스는 흰색이 아니라 **투명한 검정**이다. 흰색으로 채우지 않으면
+    // 렌더러가 아무것도 안 그려도 «흰색이 아닌 픽셀» 이 480,000 개 세어져
+    // 이 검사가 영원히 통과한다.
+    clearCanvas(ctx, 800, 600);
+
     const entry = REGISTRY[type];
     entry.render(ctx, 800, 600, entry.createDefaultData() as never, createDefaultGraphOptions());
 
@@ -590,49 +630,74 @@ import {
   createDefaultTreemapData,
   type GraphOptions,
 } from './core/index';
-import type { CsatChartType } from './types';
+import type { ChartDataMap, CsatChartType } from './types';
 
 /**
- * 모든 렌더러가 공유하는 시그니처.
- * `data` 는 종류마다 다르므로 여기서는 `never` 로 두고 호출부에서 좁힌다.
+ * 한 종류의 렌더러와 기본 데이터.
+ *
+ * **키마다 제네릭을 따로 두는 이유가 있다.** 하나로 뭉뚱그리면(`data: never` 같은)
+ * 항목을 엉뚱하게 이어도 컴파일과 테스트가 모두 통과한다 — `radar` 를 산점도
+ * 렌더러에 연결해도 그림은 나오고 픽셀도 찍히기 때문이다. 이렇게 두면 잘못
+ * 이을 수 있는 480가지 중 479가지가 컴파일 오류가 되고, 항목마다 붙던
+ * `as` 캐스팅 16개가 사라진다.
  */
-export type AnyRenderer = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  data: never,
-  options: GraphOptions,
-) => void;
-
-export interface RegistryEntry {
-  render: AnyRenderer;
-  createDefaultData: () => object;
+export interface RegistryEntry<T extends CsatChartType> {
+  render: (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    data: ChartDataMap[T],
+    options: GraphOptions,
+  ) => void;
+  createDefaultData: () => ChartDataMap[T];
 }
 
-export const REGISTRY: Record<CsatChartType, RegistryEntry> = {
-  absbar: { render: renderAbsBarGraph as AnyRenderer, createDefaultData: createDefaultAbsBarData },
-  'category-dot': { render: renderCategoryDotGraph as AnyRenderer, createDefaultData: createDefaultCategoryDotData },
-  climate: { render: renderClimateGraph as AnyRenderer, createDefaultData: createDefaultClimateData },
-  cube: { render: renderCubeGraph as AnyRenderer, createDefaultData: createDefaultCubeData },
-  'data-table': { render: renderDataTable as AnyRenderer, createDefaultData: createDefaultDataTableData },
-  'deviation-a': { render: renderDeviationAGraph as AnyRenderer, createDefaultData: createDefaultDeviationAData },
-  'deviation-b': { render: renderDeviationBGraph as AnyRenderer, createDefaultData: createDefaultDeviationBData },
-  hythergraph: { render: renderHythergraph as AnyRenderer, createDefaultData: createDefaultHythergraphData },
-  line: { render: renderLineGraph as AnyRenderer, createDefaultData: createDefaultLineData },
-  'matrix-table': { render: renderMatrixTable as AnyRenderer, createDefaultData: createDefaultMatrixTableData },
-  pyramid: { render: renderPyramidGraph as AnyRenderer, createDefaultData: createDefaultPyramidData },
-  radar: { render: renderRadarChart as AnyRenderer, createDefaultData: createDefaultRadarData },
-  scatter: { render: renderScatterGraph as AnyRenderer, createDefaultData: createDefaultScatterData },
-  stacked: { render: renderStackedGraph as AnyRenderer, createDefaultData: createDefaultStackedData },
-  ternary: { render: renderTernaryGraph as AnyRenderer, createDefaultData: createDefaultTernaryData },
-  treemap: { render: renderTreemapGraph as AnyRenderer, createDefaultData: createDefaultTreemapData },
+export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
+  absbar: { render: renderAbsBarGraph, createDefaultData: createDefaultAbsBarData },
+  'category-dot': { render: renderCategoryDotGraph, createDefaultData: createDefaultCategoryDotData },
+
+  // 컴파일러가 갈라주지 못하는 **유일한** 짝이 climate 와 deviation-a 다.
+  // DeviationAData 가 ClimateGraphData 의 구조적 상위집합이기 때문이다
+  // (같은 6필드 + baseMonths + 선택 필드). 렌더러만 바꾸고 기본값은 그대로 두는
+  // «섞인» 오배선은 통과한다. 둘 다 바꿔 끼우면 잡힌다.
+  climate: { render: renderClimateGraph, createDefaultData: createDefaultClimateData },
+  cube: { render: renderCubeGraph, createDefaultData: createDefaultCubeData },
+  'data-table': { render: renderDataTable, createDefaultData: createDefaultDataTableData },
+  'deviation-a': { render: renderDeviationAGraph, createDefaultData: createDefaultDeviationAData },
+
+  'deviation-b': { render: renderDeviationBGraph, createDefaultData: createDefaultDeviationBData },
+  hythergraph: { render: renderHythergraph, createDefaultData: createDefaultHythergraphData },
+  line: { render: renderLineGraph, createDefaultData: createDefaultLineData },
+  'matrix-table': { render: renderMatrixTable, createDefaultData: createDefaultMatrixTableData },
+  pyramid: { render: renderPyramidGraph, createDefaultData: createDefaultPyramidData },
+  radar: { render: renderRadarChart, createDefaultData: createDefaultRadarData },
+  scatter: { render: renderScatterGraph, createDefaultData: createDefaultScatterData },
+  stacked: { render: renderStackedGraph, createDefaultData: createDefaultStackedData },
+  ternary: { render: renderTernaryGraph, createDefaultData: createDefaultTernaryData },
+  treemap: { render: renderTreemapGraph, createDefaultData: createDefaultTreemapData },
 };
 
-/** 사전순으로 정렬된 전체 종류 목록. 오류 메시지와 데모가 이 순서를 쓴다. */
-export const CHART_TYPES: readonly CsatChartType[] = (
-  Object.keys(REGISTRY) as CsatChartType[]
-).sort();
+/**
+ * 사전순으로 정렬된 전체 종류 목록. 오류 메시지와 데모가 이 순서를 쓴다.
+ *
+ * `Object.freeze` 를 쓰는 까닭: `readonly` 는 타입에만 있고 런타임에는 없다.
+ * 이 패키지는 타입 검사를 받지 않는 CDN 사용자를 겨냥하므로, 얼려 두지 않으면
+ * `CsatChart.CHART_TYPES.reverse()` 한 번에 오류 메시지가 조용히 망가진다.
+ *
+ * 인자 없는 `sort()` 는 로캘을 보지 않고 UTF-16 코드 단위로 비교한다(명세).
+ * 리눅스 CI 의 small-icu 빌드에서도 같은 순서가 나온다.
+ */
+export const CHART_TYPES: readonly CsatChartType[] = Object.freeze(
+  (Object.keys(REGISTRY) as CsatChartType[]).sort(),
+);
 
+/**
+ * 아는 키인지 본다.
+ *
+ * **`v in REGISTRY` 로 바꾸지 말 것.** REGISTRY 는 객체 리터럴이라 프로토타입을
+ * 물고 있어서 `'constructor'`·`'__proto__'`·`'toString'` 이 전부 통과하고,
+ * 곧이어 `REGISTRY['constructor'].render` 에서 터진다.
+ */
 export function isCsatChartType(v: unknown): v is CsatChartType {
   return typeof v === 'string' && Object.prototype.hasOwnProperty.call(REGISTRY, v);
 }
@@ -641,11 +706,11 @@ export function isCsatChartType(v: unknown): v is CsatChartType {
 - [ ] **Step 5: 통과를 확인한다**
 
 Run: `npx vitest run test/registry.test.ts`
-Expected: PASS — 20건 (16 + 4)
+Expected: PASS — 21건 (16 + 5)
 
 Run: `npx tsc --noEmit`
-Expected: 오류 없음. `REGISTRY` 가 `Record<CsatChartType, …>` 이므로 `ChartDataMap`
-에 있는 종류를 빠뜨리면 여기서 막힌다.
+Expected: 오류 없음. 매핑 타입이라 `ChartDataMap` 의 종류를 빠뜨리면 `TS2741` 로
+막히고, 렌더러를 엉뚱한 키에 이으면 `TS2322` 로 막힌다. 둘 다 직접 확인할 것.
 
 - [ ] **Step 6: 커밋**
 
@@ -832,7 +897,9 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
   }
 
   const given = data as Record<string, unknown>;
-  const shape = REGISTRY[type].createDefaultData() as Record<string, unknown>;
+  // 매핑 타입이라 반환값이 16종의 유니온이다. Record 로 바로 못 좁히므로
+  // unknown 을 거친다. 키와 종류만 훑을 것이므로 안전하다.
+  const shape = REGISTRY[type].createDefaultData() as unknown as Record<string, unknown>;
   const lengths = FIXED_LENGTHS[type] ?? {};
 
   for (const key of Object.keys(shape)) {
@@ -1348,7 +1415,9 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
   private draw(): void {
     const { width, height } = this.canvas;
     clearCanvas(this.ctx, width, height);
-    REGISTRY[this.type].render(this.ctx, width, height, this.data as never, this.options);
+    // 캐스팅이 없다. RegistryEntry<T> 의 data 가 곧 ChartDataMap[T] 이므로
+    // 엉뚱한 값을 넘기면 여기서 컴파일이 막힌다.
+    REGISTRY[this.type].render(this.ctx, width, height, this.data, this.options);
   }
 
   private assertAlive(): void {

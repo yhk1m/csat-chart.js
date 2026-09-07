@@ -47,8 +47,12 @@
   .hero-head h2 { font-size:15px; margin:0; color:var(--muted); font-weight:500;
                   font-family:'Noto Sans KR', sans-serif; }
   .hero-head a { font-size:13px; color:var(--accent); }
-  .hero img { width:100%; height:auto; display:block; border:1px solid var(--control-line);
-              background:#fff; border-radius:2px; }
+  /* max-width 없이 width:100% 만 쓰면 넓은 화면(예: 1440px 카드 폭)에서 800×600
+     설계 크기보다 커져(예: 998px, 125%) 세로도 함께 늘어난다 — 그 늘어난
+     분량이 정확히 범례·각주·출처가 있는 아랫부분이라 접히지 않는 화면
+     바깥으로 밀려난다. 640px 로 막아 둔다. */
+  .hero img { width:100%; max-width:640px; height:auto; display:block; margin:0 auto;
+              border:1px solid var(--control-line); background:#fff; border-radius:2px; }
   .hero-note { margin:10px 2px 0; font-size:12px; color:var(--muted); }
 
   /* 16종 색인 — 이름을 알면 바로 그 카드로 뛴다 */
@@ -109,6 +113,9 @@
   button.copied { border-color:#2e7d32; color:#2e7d32; }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
   button.primary:hover { background:#183c70; border-color:#183c70; color:#fff; }
+  /* 기본 :focus-visible 링은 --accent — 채운 primary 버튼 위에서는 채움색과
+     같은 색이 2px 오프셋만으로 갈린다. 더 튼튼하게 --ink 로 바꾼다. */
+  button.primary:focus-visible { outline-color:var(--ink); }
   button:disabled { opacity:.45; cursor:not-allowed; }
   button:disabled:hover { border-color:var(--control-line); color:var(--ink); }
 
@@ -331,9 +338,13 @@ const SAMPLE_OVERRIDES = {
       { 'male': 1.3, 'female': 1.5 },
     ],
     'unit': 'percent', 'maleLabel': '남', 'femaleLabel': '여', 'axisLabel': '(%)',
-    // ageLabelSide 는 numericAgeAxis:true 에서 안 쓴다 — 적어 두면 읽는 사람이
-    // "이게 뭘 하지" 하고 헷갈릴 죽은 값이라 뺐다.
-    'range': { 'max': 5, 'auto': false },
+    // ageLabelSide 는 기본 데이터에 있는 키라 지울 수 없다(지우면 검증이
+    // "ageLabelSide 항목이 없습니다"로 막는다 — 실제로 지워서 확인했다).
+    // numericAgeAxis:true 에서 연령대 **이름표** 위치는 더 이상 안 쓰지만,
+    // 완전히 죽은 값은 아니다 — PopulationPyramid.ts 에서 이 값은
+    // numericAgeAxis 와 무관하게 가운데 세로 구분선을 그릴지도 정한다.
+    // 'center'는 그 구분선을 켠다(시험지 인구 피라미드에 흔한 모양).
+    'range': { 'max': 5, 'auto': false }, 'ageLabelSide': 'center',
     'numericAgeAxis': true, 'ageUnit': '(세)', 'axisLabelInline': true,
     'sexFills': ['#d9d9d9', '#d9d9d9'],
   },
@@ -393,15 +404,36 @@ const OPTIONS_OVERRIDES = {
   'climate': { 'title': '서울의 기후', 'source': '기상청', 'footnotes': ['1991~2020년의 평년값임.'] },
   'scatter': { 'title': '시·도별 인구밀도와 1인당 지역내총생산', 'source': '통계청, 2023' },
   'stacked': { 'title': '(가)~(다) 지역의 산업별 취업자 비중', 'source': '통계청' },
-  'pyramid': { 'title': '우리나라의 인구 피라미드', 'source': '통계청, 2023' },
+  'pyramid': {
+    'title': '우리나라의 인구 피라미드', 'source': '통계청, 2023',
+    // src/core/graphs/PopulationPyramid.ts 의 알려진 동작(CHANGELOG 「알아 둘
+    // 동작」 참고): 막대는 data.sexFills 를 따르지만 범례 사각형은 언제나
+    // #666/#BBB 로 고정돼 있다. 남·여를 같은 연회색(sexFills 둘 다 #d9d9d9)
+    // 으로 두면 막대는 구분이 없는데 범례만 진하고 연한 두 색을 보여줘
+    // 어긋난다. 범례를 끈다 — 축 머리글(남/여)이 이미 좌우를 구분해 준다.
+    'showLegend': false,
+  },
 };
 
-/** scatter 는 옵션만으로는 제목과 축 이름이 어긋나 보여 데이터도 함께 손본다
- * (기본 xLabel/yLabel 이 그냥 "X축"/"Y축"이다). 값 자체(점 4개)는 그대로 둔다. */
+/**
+ * SAMPLE_OVERRIDES/OPTIONS_OVERRIDES만으로는 제목과 실제 자료(축 이름·계열
+ * 이름)가 어긋나 보이는 카드를 마지막으로 손본다.
+ *   · scatter — 기본 xLabel/yLabel 이 그냥 "X축"/"Y축"이라 제목과 안 맞는다.
+ *     '1인당 지역내총생산'을 그대로 y축에 쓰면 렌더러의 왼쪽 여백을 넘어가
+ *     "총생산"만 남고 그 첫 글자까지 캔버스 가장자리에 잘렸다 — 제목에 이미
+ *     전체 문구가 있으니 축에는 짧게 '지역내총생산'만 쓴다. 단위는
+ *     ㎢(U+33A2, 정사각형 호환 문자)를 쓰면 확대했을 때 이지러져 보여
+ *     'km' + '²'(U+00B2)로 적는다.
+ *   · stacked — 제목이 "산업별"이라고 말하는데 계열 이름은 항목1/2/3 그대로였다.
+ */
 const DATA_PATCHES = {
   'scatter': (d) => {
-    d.xLabel = '인구밀도'; d.xUnit = '(명/㎢)';
-    d.yLabel = '1인당 지역내총생산'; d.yUnit = '(백만 원)';
+    d.xLabel = '인구밀도'; d.xUnit = '(명/km²)';
+    d.yLabel = '지역내총생산'; d.yUnit = '(백만 원)';
+    return d;
+  },
+  'stacked': (d) => {
+    d.seriesLabels = ['1차 산업', '2차 산업', '3차 산업'];
     return d;
   },
 };

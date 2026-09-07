@@ -116,8 +116,8 @@ Expected: FAIL — vitest 가 설치돼 있지 않음 (`npx` 가 설치를 시�
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src test",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "lint": "eslint --no-error-on-unmatched-pattern src test",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run test",
     "prepublishOnly": "npm run verify"
   },
   "devDependencies": {
@@ -132,6 +132,15 @@ Expected: FAIL — vitest 가 설치돼 있지 않음 (`npx` 가 설치를 시�
   }
 }
 ```
+
+두 스크립트에 주의할 점이 있다.
+
+- `verify` 는 **`build` 를 `test` 보다 먼저** 돌린다. Task 9 의 `test/bundle.test.ts`
+  가 `dist/` 를 읽기 때문이다. 순서를 뒤집으면 `prepublishOnly`(= `npm publish`)가
+  깨끗한 체크아웃에서 실패한다.
+- `lint` 에 `--no-error-on-unmatched-pattern` 이 붙는다. `src/` 가 아직 없는 동안
+  (Task 1~2 사이)과 `src/` 가 전부 `src/core/**` 라서 통째로 무시되는 동안
+  (Task 2~4 사이) ESLint 9 가 exit 2 로 크래시하기 때문이다.
 
 `@napi-rs/canvas` 는 **범위가 아니라 정확히 `1.0.3`** 으로 고정한다. 골든 이미지를
 만든 geotester-v2 에 깔린 것이 1.0.3 이고, 캔버스 구현이 바뀌면 래스터화가 달라져
@@ -155,7 +164,7 @@ Task 3 의 검증이 무의미해진다. 이식이 확인된 뒤에 범위를 �
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts", "eslint.config.mjs"]
+  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
 }
 ```
 

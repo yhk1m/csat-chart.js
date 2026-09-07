@@ -595,7 +595,6 @@ export interface UpdateFor<T extends CsatChartType> {
   data?: ChartDataMap[T];
   options?: PartialGraphOptions;
 }
-
 ```
 
 - [ ] **Step 4: `src/registry.ts` 를 쓴다**
@@ -2060,7 +2059,7 @@ git commit -m "feat: CsatChart 파사드 — type 하나로 16종을 그리고 P
 // © 2026 김용현
 import { describe, it, expect } from 'vitest';
 import * as lib from '../src/index';
-import { CHART_TYPES } from '../src/registry';
+import { CHART_TYPES, REGISTRY } from '../src/registry';
 
 const RENDERERS = [
   'renderAbsBarGraph', 'renderCategoryDotGraph', 'renderClimateGraph', 'renderCubeGraph',
@@ -2099,9 +2098,37 @@ describe('공개 표면', () => {
     expect(typeof (lib as Record<string, unknown>)[name]).toBe('function');
   });
 
+  it('REGISTRY 의 모든 렌더러와 기본값 생성기가 공개 표면에 있다', () => {
+    // 손으로 적은 목록은 «빠뜨린 것» 을 못 잡는다. 레지스트리에서 끌어와 센다.
+    const exported = new Set(Object.values(lib as Record<string, unknown>));
+    for (const type of CHART_TYPES) {
+      const entry = REGISTRY[type];
+      expect(exported.has(entry.render), `${type} 의 렌더러`).toBe(true);
+      expect(exported.has(entry.createDefaultData), `${type} 의 기본값 생성기`).toBe(true);
+    }
+  });
+
   it('축 계산 유틸을 내보낸다', () => {
     expect(lib.niceStep(100, 5)).toBeGreaterThan(0);
     expect(lib.autoRange([1, 2, 3]).step).toBeGreaterThan(0);
+  });
+
+  it('상수를 얼려서 내보낸다', () => {
+    expect(lib.AGE_GROUPS).toHaveLength(17);
+    expect(lib.DOT_MARKER_ORDER).toHaveLength(4);
+    expect(lib.LINE_MARKER_ORDER).toHaveLength(4);
+    expect(lib.LINE_STYLE_ORDER).toHaveLength(4);
+    expect(lib.MONTH_LABELS_EN).toHaveLength(12);
+    expect(lib.MONTH_LABELS_NUM).toHaveLength(12);
+    expect(Array.isArray(lib.LINE_DASH.solid)).toBe(true);
+
+    for (const c of [
+      lib.AGE_GROUPS, lib.DOT_MARKER_ORDER, lib.LINE_MARKER_ORDER,
+      lib.LINE_STYLE_ORDER, lib.MONTH_LABELS_EN, lib.MONTH_LABELS_NUM,
+      lib.LINE_DASH, lib.LINE_DASH.solid,
+    ]) {
+      expect(Object.isFrozen(c)).toBe(true);
+    }
   });
 
   it.each(EXCLUDED)('GeoGrapher 전용 %s 는 내보내지 않는다', (name) => {
@@ -2143,6 +2170,16 @@ describe('타입 표면', () => {
     const err: lib.CsatChartError = new lib.CsatChartError('시험');
     expect(data.months).toHaveLength(12);
     expect(err.name).toBe('CsatChartError');
+  });
+
+  it('GeoGrapher UI 의 타입은 공개 표면에 없다', () => {
+    // 이름을 만들지 않는 꼴로 쓴다. `type _X = …` 로 적으면 쓰이지 않는 이름이
+    // 생겨 lint 를 따로 눌러야 한다. 아래는 선언이 아니라서 누를 것이 없다.
+    // @ts-expect-error GraphType 은 지도 4종과 'guide' 를 담은 메뉴 목록이다
+    void (null as unknown as lib.GraphType);
+    // @ts-expect-error ExportSettings 는 GeoGrapher 내보내기 대화상자의 상태다
+    void (null as unknown as lib.ExportSettings);
+    expect(true).toBe(true);
   });
 });
 ```
@@ -2229,15 +2266,39 @@ export {
 } from './core/index';
 
 // ── 상수 ───────────────────────────────────────────────
-export {
-  AGE_GROUPS,
-  DOT_MARKER_ORDER,
-  LINE_DASH,
-  LINE_MARKER_ORDER,
-  LINE_STYLE_ORDER,
-  MONTH_LABELS_EN,
-  MONTH_LABELS_NUM,
+import {
+  AGE_GROUPS as coreAgeGroups,
+  DOT_MARKER_ORDER as coreDotMarkerOrder,
+  LINE_DASH as coreLineDash,
+  LINE_MARKER_ORDER as coreLineMarkerOrder,
+  LINE_STYLE_ORDER as coreLineStyleOrder,
+  MONTH_LABELS_EN as coreMonthLabelsEn,
+  MONTH_LABELS_NUM as coreMonthLabelsNum,
 } from './core/index';
+
+/**
+ * 상수는 얼려서 내보낸다.
+ *
+ * 여기서 내보내는 것은 렌더러가 기본값으로 읽는 **바로 그 객체**다. 얼리지 않으면
+ * `CsatChart.DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
+ * 조용히 어긋난다. 타입 검사를 받지 않는 CDN 사용자를 겨냥한 패키지라 특히 그렇다.
+ * `CHART_TYPES` 를 얼린 것과 같은 이유다.
+ */
+export const AGE_GROUPS = Object.freeze(coreAgeGroups);
+export const DOT_MARKER_ORDER = Object.freeze(coreDotMarkerOrder);
+export const LINE_MARKER_ORDER = Object.freeze(coreLineMarkerOrder);
+export const LINE_STYLE_ORDER = Object.freeze(coreLineStyleOrder);
+export const MONTH_LABELS_EN = Object.freeze(coreMonthLabelsEn);
+export const MONTH_LABELS_NUM = Object.freeze(coreMonthLabelsNum);
+
+// LINE_DASH 는 Record<LineStyle, number[]> 다. 얕게 얼리면 LINE_DASH.dashed 를
+// 갈아 끼우는 것만 막고, LINE_DASH.dashed.push(1) 은 그대로 통한다.
+export const LINE_DASH = Object.freeze({
+  solid: Object.freeze(coreLineDash.solid),
+  dashed: Object.freeze(coreLineDash.dashed),
+  dotted: Object.freeze(coreLineDash.dotted),
+  dashdot: Object.freeze(coreLineDash.dashdot),
+});
 
 // ── 타입 ───────────────────────────────────────────────
 export type {
@@ -2298,7 +2359,7 @@ export type {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/index.test.ts`
-Expected: PASS — 42건 (실제 개수를 세어 보고할 것)
+Expected: PASS — 45건
 
 - [ ] **Step 5: 전체 검사를 돌린다**
 

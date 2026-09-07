@@ -115,12 +115,12 @@ describe('타입 표면', () => {
   });
 
   it('GeoGrapher UI 의 타입은 공개 표면에 없다', () => {
+    // 이름을 만들지 않는 꼴로 쓴다. `type _X = …` 로 적으면 쓰이지 않는 이름이
+    // 생겨 lint 를 따로 눌러야 한다. 아래는 선언이 아니라서 누를 것이 없다.
     // @ts-expect-error GraphType 은 지도 4종과 'guide' 를 담은 메뉴 목록이다
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    type _NoGraphType = lib.GraphType;
+    void (null as unknown as lib.GraphType);
     // @ts-expect-error ExportSettings 는 GeoGrapher 내보내기 대화상자의 상태다
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    type _NoExportSettings = lib.ExportSettings;
+    void (null as unknown as lib.ExportSettings);
     expect(true).toBe(true);
   });
 });

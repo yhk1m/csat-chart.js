@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createDefaultGraphOptions } from '../../src/core/index';
+import { clearCanvas, createDefaultGraphOptions } from '../../src/core/index';
 import { CASES, type Renderer } from './fixtures';
 
 const SNAP_DIR = join(__dirname, '__snapshots__');
@@ -78,6 +78,8 @@ describe('골든 이미지', () => {
   it.each(CASES)('%s 는 빈 캔버스가 아니다', (_name, fn, makeData) => {
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+    // 새 캔버스는 투명 검정이다. 흰색으로 채워야 «흰색이 아닌 픽셀» 이 뜻을 가진다.
+    clearCanvas(ctx, W, H);
     fn(ctx, W, H, makeData() as never, optionsFor(_name));
 
     // 흰 배경 위에 무언가 그려졌는지 — 흰색이 아닌 픽셀이 있는지 본다

@@ -19,6 +19,15 @@
 // `package.json` 그 무엇도 `csat-chart.d.ts` 라는 이름을 가리키지 않아서
 // (top-level `types` 는 `.d.cts`, `exports` 는 `.d.mts`/`.d.cts`) 그대로
 // 두면 아무도 안 쓰는 파일이 `npm pack` 산출물에 죽은 채로 얹히기 때문이다.
+//
+// 이 스크립트는 두 번 돌아도, 그리고 언젠가 tsup 이 이 버그를 고쳐서
+// `.d.mts` 를 직접 내도 안전해야 한다. 이름 바꾸기라 성공하면 `src`
+// (`.d.ts`) 가 사라진다 — 그래서 다시 돌리면 `src` 가 없다. `dest`
+// (`.d.mts`) 가 이미 있으면 "이미 끝났다"는 뜻이지 "빌드가 실패했다"는
+// 뜻이 아니므로, 그때는 조용히 성공(exit 0)한다. tsup 이 나중에 고쳐서
+// 처음부터 `.d.mts` 를 내는 날에도 마찬가지다 — `src` 는 애초에 없고
+// `dest` 는 tsup 이 이미 만들어 뒀을 테니 이 스크립트는 할 일이 없다.
+// `dest` 마저 없을 때만 진짜 오류(빌드를 먼저 돌리지 않음)로 본다.
 
 import { renameSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -30,6 +39,10 @@ const src = join(dist, 'csat-chart.d.ts');
 const dest = join(dist, 'csat-chart.d.mts');
 
 if (!existsSync(src)) {
+  if (existsSync(dest)) {
+    console.log(`[fix-esm-dts-ext] ${dest} 가 이미 있습니다 — 할 일이 없습니다.`);
+    process.exit(0);
+  }
   console.error(`[fix-esm-dts-ext] ${src} 가 없습니다 — tsup build 가 먼저 끝나야 합니다.`);
   process.exit(1);
 }

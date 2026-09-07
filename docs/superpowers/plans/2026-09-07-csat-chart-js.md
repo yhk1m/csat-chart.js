@@ -471,13 +471,6 @@ describe('레지스트리', () => {
     ]);
   });
 
-  it('isCsatChartType 이 아는 키만 통과시킨다', () => {
-    expect(isCsatChartType('pyramid')).toBe(true);
-    expect(isCsatChartType('piramid')).toBe(false);
-    expect(isCsatChartType(42)).toBe(false);
-    expect(isCsatChartType(undefined)).toBe(false);
-  });
-
   it('프로토타입 속성 이름을 종류로 착각하지 않는다', () => {
     // REGISTRY 는 객체 리터럴이라 프로토타입을 물고 있다. `in` 으로 판정하면
     // 아래가 전부 통과하고, 곧이어 REGISTRY['constructor'].render 에서 터진다.
@@ -493,15 +486,20 @@ describe('레지스트리', () => {
     expect(Object.isFrozen(CHART_TYPES)).toBe(true);
   });
 
+  it('isCsatChartType 이 아는 키만 통과시킨다', () => {
+    expect(isCsatChartType('pyramid')).toBe(true);
+    expect(isCsatChartType('piramid')).toBe(false);
+    expect(isCsatChartType(42)).toBe(false);
+    expect(isCsatChartType(undefined)).toBe(false);
+  });
+
   it.each(CHART_TYPES)('%s 를 기본 데이터로 그리면 빈 캔버스가 아니다', (type) => {
     const canvas = createCanvas(800, 600);
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
-
     // 새 캔버스는 흰색이 아니라 **투명한 검정**이다. 흰색으로 채우지 않으면
     // 렌더러가 아무것도 안 그려도 «흰색이 아닌 픽셀» 이 480,000 개 세어져
     // 이 검사가 영원히 통과한다.
     clearCanvas(ctx, 800, 600);
-
     const entry = REGISTRY[type];
     entry.render(ctx, 800, 600, entry.createDefaultData() as never, createDefaultGraphOptions());
 
@@ -571,11 +569,22 @@ export interface ChartDataMap {
 /** 그릴 수 있는 그래프 종류. 여러 낱말은 kebab-case, 한 낱말은 그대로. */
 export type CsatChartType = keyof ChartDataMap;
 
+/**
+ * 부분 지정을 허용하는 옵션.
+ *
+ * `Partial` 은 맨 위 칸만 선택으로 만든다. 그래서 `fontSize` 는 넷을 다 적어야
+ * 했다 — 런타임은 하나만 줘도 받는데 타입이 막는, 거꾸로 된 어긋남이다.
+ * 한 겹 더 풀어 준다.
+ */
+export type PartialGraphOptions = Omit<Partial<GraphOptions>, 'fontSize'> & {
+  fontSize?: Partial<GraphOptions['fontSize']>;
+};
+
 /** 한 종류의 설정. `type` 을 적으면 `data` 가 그 종류로 좁혀진다. */
 export interface ConfigFor<T extends CsatChartType> {
   type: T;
   data: ChartDataMap[T];
-  options?: Partial<GraphOptions>;
+  options?: PartialGraphOptions;
 }
 
 /** 16종을 모은 판별 유니온. */
@@ -584,7 +593,7 @@ export type CsatChartConfig = { [K in CsatChartType]: ConfigFor<K> }[CsatChartTy
 /** 한 종류의 부분 갱신. 준 것만 덮는다. */
 export interface UpdateFor<T extends CsatChartType> {
   data?: ChartDataMap[T];
-  options?: Partial<GraphOptions>;
+  options?: PartialGraphOptions;
 }
 
 export type CsatChartUpdate = { [K in CsatChartType]: UpdateFor<K> }[CsatChartType];
@@ -655,7 +664,6 @@ export interface RegistryEntry<T extends CsatChartType> {
 export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
   absbar: { render: renderAbsBarGraph, createDefaultData: createDefaultAbsBarData },
   'category-dot': { render: renderCategoryDotGraph, createDefaultData: createDefaultCategoryDotData },
-
   // 컴파일러가 갈라주지 못하는 **유일한** 짝이 climate 와 deviation-a 다.
   // DeviationAData 가 ClimateGraphData 의 구조적 상위집합이기 때문이다
   // (같은 6필드 + baseMonths + 선택 필드). 한쪽 칸만 바꾼 오배선 두 가지가 통과한다:
@@ -667,7 +675,6 @@ export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
   'data-table': { render: renderDataTable, createDefaultData: createDefaultDataTableData },
   // 위 climate 주석 참고 — 이 칸의 렌더러만 바꾼 오배선은 컴파일러가 잡지 못한다.
   'deviation-a': { render: renderDeviationAGraph, createDefaultData: createDefaultDeviationAData },
-
   'deviation-b': { render: renderDeviationBGraph, createDefaultData: createDefaultDeviationBData },
   hythergraph: { render: renderHythergraph, createDefaultData: createDefaultHythergraphData },
   line: { render: renderLineGraph, createDefaultData: createDefaultLineData },
@@ -856,6 +863,10 @@ export class CsatChartError extends Error {
 /**
  * 길이가 고정된 배열 필드. 기본 데이터에서 «몇 개여야 하는가»를 도출할 수 없어
  * (산점도의 점 개수처럼 자유로운 배열과 구별되지 않는다) 확인된 것만 여기 적는다.
+ *
+ * `scatter.quadrantLabels` 는 타입에 `[string, string, string, string]` 튜플로
+ * 박혀 있어 ternary.axisLabels 와 같은 근거로 추가했다 — 렌더러가 아직 이
+ * 필드를 읽지 않지만(포팅 원본을 그대로 둔 필드), 타입 계약은 4개를 요구한다.
  */
 const FIXED_LENGTHS: Partial<Record<CsatChartType, Record<string, number>>> = {
   climate: { months: 12 },
@@ -1518,7 +1529,11 @@ describe('CsatChart', () => {
   });
 
   it('scale 1 은 인자 없을 때와 같다', () => {
-    const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
+    const c = canvas();
+    const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 PNG 가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(nonWhitePixels(c)).toBeGreaterThan(50);
     expect(chart.toDataURL({ scale: 1 })).toBe(chart.toDataURL());
   });
 
@@ -1595,13 +1610,15 @@ describe('CsatChart', () => {
   it('fontSize 를 하나만 줘도 나머지는 기본값을 쓴다', () => {
     // 얕게 덮으면 axisLabel/tick/dataLabel 이 undefined 가 되어 Node 에서는
     // ctx.font 대입이 "is not valid font style" 로 던진다.
+    // `fontSize: { title: 44 }` 는 캐스팅 없이 그대로 컴파일된다 — PartialGraphOptions
+    // 가 fontSize 안쪽까지 한 겹 더 풀어 주기 때문이다(아래 «타입» 항목 참고).
     const c1 = canvas();
     expect(
       () =>
         new CsatChart(c1, {
           type: 'ternary',
           data: createDefaultTernaryData(),
-          options: { fontSize: { title: 44 } as never },
+          options: { fontSize: { title: 44 } },
         }),
     ).not.toThrow();
 
@@ -1613,6 +1630,9 @@ describe('CsatChart', () => {
       options: { fontSize: { title: 44, axisLabel: 28, tick: 26, dataLabel: 22 } },
     });
 
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 캔버스가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(nonWhitePixels(c1)).toBeGreaterThan(50);
     expect(nonWhitePixels(c1)).toBe(nonWhitePixels(c2));
   });
 
@@ -1625,6 +1645,9 @@ describe('CsatChart', () => {
       options: { footnotes },
     });
     const before = nonWhitePixels(c);
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 캔버스가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(before).toBeGreaterThan(50);
 
     // 호출자가 생성 뒤에 자기 배열을 건드린다.
     footnotes.push('각주 2');
@@ -1684,6 +1707,27 @@ describe('타입', () => {
     expect(bad.type).toBe('ternary');
   });
 
+  it('fontSize 는 부분 지정이 컴파일된다 — 정확히 한 겹만 풀렸다', () => {
+    // PartialGraphOptions 가 fontSize 안쪽까지 선택으로 풀어 주므로 title 하나만
+    // 줘도 컴파일된다. 캐스팅이 없다 — 있으면 이 테스트가 증명하는 게 없어진다.
+    const ok: CsatChartConfig = {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      options: { fontSize: { title: 44 } },
+    };
+    expect(ok.options?.fontSize?.title).toBe(44);
+
+    // 풀어준 건 «있는 네 칸을 부분 지정» 까지다. 없는 칸을 적으면 여전히 막혀야
+    // 한다 — 안 그러면 오타를 조용히 삼키는 객체가 된다.
+    const bad: CsatChartConfig = {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      // @ts-expect-error fontSize 에 없는 칸이다(오타 등) — 여전히 막혀야 한다
+      options: { fontSize: { titel: 44 } },
+    };
+    expect(bad.type).toBe('ternary');
+  });
+
   it('update 의 data 도 생성 때의 종류로 좁혀진다', () => {
     const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
     // @ts-expect-error 삼각 그래프에 피라미드 데이터를 줄 수 없다
@@ -1706,7 +1750,7 @@ import { REGISTRY } from './registry';
 import { CsatChartError, assertChartData, assertChartType } from './validate';
 import { ensureFonts } from './fonts';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
-import type { ChartDataMap, ConfigFor, CsatChartType, UpdateFor } from './types';
+import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
 /**
  * 브라우저의 `HTMLCanvasElement` 와 Node 캔버스 구현체가 함께 만족하는 최소 모양.
@@ -1763,7 +1807,7 @@ function isUnsized(canvas: CanvasLike, dim: 'width' | 'height', htmlDefault: num
  *   · `footnotes` 는 배열이다. 호출자가 쥔 배열을 그대로 붙들면, 나중에 그
  *     배열에 `push` 한 것이 다음 그리기에 몰래 새어 들어온다.
  */
-function mergeOptions(base: GraphOptions, patch?: Partial<GraphOptions>): GraphOptions {
+function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOptions {
   return {
     ...base,
     ...patch,
@@ -1988,7 +2032,7 @@ Node 에 없어서 참조하는 순간 터진다.
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/chart.test.ts`
-Expected: PASS — 35건
+Expected: PASS — 36건
 
 Run: `npx tsc --noEmit`
 Expected: 오류 없음. `@ts-expect-error` 두 줄이 «실제로 오류인» 곳을 가리켜야 한다 —

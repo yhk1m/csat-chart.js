@@ -2606,6 +2606,20 @@ catch (err) { if (err.name === 'CsatChartError') showHint(err.message); }
 render○○(ctx, width, height, data, options): void
 ```
 
+**번들 크기를 아껴야 한다면 이쪽을 쓴다.** `CsatChart` 는 종류를 문자열로 고르므로
+16종을 모두 물고 간다 — 번들러가 어느 것이 쓰일지 미리 알 수 없기 때문이다.
+실측(esbuild, minify):
+
+| 무엇을 가져오나 | 크기 |
+|---|---|
+| 전부 | 95.8 KB |
+| `CsatChart` 만 | 94.4 KB |
+| `renderClimateGraph` 만 | **9.8 KB** |
+
+기후 그래프 하나만 필요한 앱이라면 저수준 렌더러를 직접 부르는 편이
+열 배 가볍다. CDN 으로 쓰는 경우에는 어차피 한 벌을 통째로 받으므로
+이 이야기가 해당하지 않는다.
+
 ## 만든 배경
 
 지리 교사가 수업·평가 자료를 만들려고 쓰던 렌더러를 떼어내 공개한 것이다.

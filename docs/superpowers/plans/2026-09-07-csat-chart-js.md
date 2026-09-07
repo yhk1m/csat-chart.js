@@ -3222,6 +3222,29 @@ git commit -m "ci: 검증 워크플로와 1.0.0 버전"
 
 ---
 
+## 이 계획 밖으로 남기는 것
+
+작업 중에 드러났지만 이번 범위에서 고치지 않기로 한 것들이다.
+
+**`sourceInline`·`sourceLeft` 가 16종 중 2종에서만 동작한다.** 둘 다 공통
+`GraphOptions` 에 있고 공통 유틸 `drawSourceAndFootnote` 가 제대로 구현하고 있는데,
+정작 그 옵션을 넘기는 렌더러가 `ScatterBubble`(sourceInline)과 `StackedBarPie`
+(sourceLeft) 둘뿐이다. `common.ts` 의 `sourceInline` 주석이 드는 예가 하필 기후
+그래프인데 기후에서는 동작하지 않는다 — 의도한 제한이 아니라 이식이 덜 끝난
+자리로 보인다.
+
+**고치려면 `src/core/` 를 건드려야 하고, 그러면 골든 이미지 31장을 다시 만들어야
+한다.** 그 순간 «똑같이 그려진다» 의 증거가 사라진다. 그래서 이번에는 README 와
+CHANGELOG 에 정확히 적어 두기만 했다. 나중에 손댄다면 골든 갱신을 포함한 별도
+작업으로, 갱신 전후를 사람이 눈으로 대조하는 단계를 넣어야 한다.
+
+**화면 캔버스의 devicePixelRatio 를 다루지 않는다.** 레티나에서 조금 흐릿하다.
+`toDataURL({ scale })` 로 또렷한 PNG 를 뽑는 길은 있고 README 가 안내한다.
+파사드에 `pixelRatio` 옵션을 더하는 것은 같은 `drawScaled` 내부를 쓰므로 나중에
+막히지 않는다.
+
+---
+
 ## 완료 기준
 
 - [ ] `npm run verify` 가 전부 통과한다 (타입·린트·테스트·빌드)

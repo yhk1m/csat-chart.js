@@ -13,8 +13,8 @@ const DIST = join(__dirname, '..', 'dist');
 // 존재만 확인하면 0 바이트로 잘린 파일도 통과한다 — 리뷰에서 실제로
 // dist/csat-chart.cjs, .d.mts, .d.cts 를 0 바이트로 잘라도 기존 8 개
 // 테스트가 전부 통과함을 확인했다. 그래서 최소 크기도 같이 본다. 아래
-// 바이트 수는 실제 빌드 크기(mjs 189KB, cjs 192KB, umd 94KB, dts 각
-// 35KB)의 1/4~1/7 수준으로 잡았다 — 앞으로 export 가 늘거나 줄어도
+// 바이트 수는 실제 빌드 크기(mjs 188.2KB, cjs 191.4KB, umd 96.1KB, dts 각
+// 37.8KB)의 1/4~1/7 수준으로 잡았다 — 앞으로 export 가 늘거나 줄어도
 // 여유가 넉넉하되, 잘리거나 빈 파일은 반드시 걸러낸다.
 const ARTIFACT_MIN_SIZES: [name: string, minBytes: number][] = [
   ['csat-chart.mjs', 50_000],

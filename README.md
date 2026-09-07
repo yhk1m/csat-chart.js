@@ -323,6 +323,13 @@ render○○(ctx, width, height, data, options): void
 (캔버스 자동 크기 보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때다.
 위 [Node.js 에서 PNG 뽑기](#nodejs-에서-png-뽑기)가 그런 경우다.
 
+렌더러가 눈금 간격을 잡을 때 쓰는 두 축 계산 유틸도 함께 내보낸다 —
+`niceStep(range, maxTicks = 8)` 은 범위를 주면 1·2·5 배수 규칙으로 보기 좋은
+눈금 간격 하나를 돌려주고(범위가 0 이하거나 유한하지 않으면 1을 돌려준다 —
+간격이 0이면 눈금을 그리는 루프가 멎는다), `autoRange(values, maxTicks = 8)`
+는 값 배열을 주면 그 값들을 담는 `{ min, max, step }` 을 한 번에 잡아 준다.
+직접 축을 그리는 커스텀 렌더러를 만들 때 유용하다.
+
 ## 만든 배경
 
 지리 교사가 수업·평가 자료를 만들려고 쓰던 렌더러를 떼어내 공개한 것이다.
@@ -335,7 +342,7 @@ render○○(ctx, width, height, data, options): void
 
 ```bash
 npm install
-npm run verify          # 타입·린트·테스트·빌드
+npm run verify          # 타입 → 린트 → 빌드 → 테스트 순
 UPDATE_GOLDEN=1 npx vitest run test/core/golden.test.ts   # 기준 갱신
 ```
 

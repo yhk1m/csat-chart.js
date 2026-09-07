@@ -58,7 +58,6 @@
     "@napi-rs/canvas": "1.0.3",
     "@types/node": "^20",
     "eslint": "^9",
-    "playwright-core": "^1.63.0",
     "tsup": "^8",
     "typescript": "^5",
     "typescript-eslint": "^8",

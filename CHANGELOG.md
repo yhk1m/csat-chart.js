@@ -1,6 +1,6 @@
-# 변경 기록
+# 변경 기록 — csat-chart.js
 
-## 1.0.0 — 2026-09-07
+## 1.0.0 — 2026-09-08
 
 첫 공개. 지리 수업·평가 자료를 만들려고 쓰던 렌더러를 독립 패키지로 떼어냈다.
 
@@ -59,10 +59,13 @@
   `LINE_DASH` 는 렌더러가 기본값으로 읽는 바로 그 객체다. 타입 검사를 받지 않는
   CDN 사용자를 겨냥한 패키지라, 얼리지 않으면 `DOT_MARKER_ORDER.reverse()` 한
   번에 이후 모든 그림의 기호 배정이 조용히 어긋난다.
-- **저수준 렌더러 하나만 가져오면 번들이 10.0 KB 다.** 라이브러리 전부는 95.9 KB,
+- **저수준 렌더러 하나만 가져오면 훨씬 가볍다.** 라이브러리 전부는 95.9 KB,
   `CsatChart` 파사드만 가져와도 94.6 KB 다 — 파사드가 `type` 문자열로 16종을
-  고르는 이상 전부를 붙들고 있어야 한다. (esbuild `--bundle --minify --format=esm`
-  실측.)
+  고르는 이상 전부를 붙들고 있어야 한다. 렌더러 하나만 가져왔을 때의 크기는
+  종류마다 다르다 — 16종 전체를 재 보면 `renderMatrixTable` 이 3.9 KB 로 가장
+  작고 `renderScatterGraph` 가 16.3 KB 로 가장 크다. `renderClimateGraph` 는
+  10.0 KB 다 — README 「저수준 렌더러」에 실린 그 예시다. (esbuild
+  `--bundle --minify --format=esm` 실측.)
 - `sourceInline`·`sourceLeft` 는 공통 옵션이지만 지금은 각각 `scatter`·`stacked`
   에서만 동작한다. 나머지 종류는 렌더러가 그 옵션을 넘기지 않는다.
 - `pyramid` 의 `sexFills` 는 막대 채움색만 바꾼다. 범례 사각형은 `sexFills` 와

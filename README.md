@@ -29,8 +29,8 @@
 
 `<canvas id="c"></canvas>` 처럼 크기를 적지 않으면 800×600 으로 채운다. HTML
 기본값인 300×150 으로 그리면 여백·글자 크기가 절대 픽셀이라 제목·눈금·각주가
-한 덩어리로 겹친다. 크기를 직접 적었다면 그 크기를 그대로 쓰는데, 대략
-500×400보다 작아지면 글자가 겹쳐 읽기 어려워진다.
+한 덩어리로 겹친다. 크기를 직접 적었다면 그 크기를 그대로 쓴다. 다만 대략
+500×400 보다 작으면 글자가 겹쳐 읽기 어려워진다.
 
 ## 내 자료 넣기
 
@@ -50,11 +50,12 @@
       { temp: 21.2, precip: 141.5 },{ temp: 14.8, precip: 52.2 },
       { temp: 7.2, precip: 51.1 },  { temp: 0.4, precip: 22.6 },
     ];
-    new CsatChart('c', {
+    const chart = new CsatChart('c', {
       type: 'climate',
       data: data,
-      options: { title: '서울의 기후', source: '기상청', footnotes: ['1991~2020년의 평년값임.'], sourceInline: true },
+      options: { title: '서울의 기후', source: '기상청', footnotes: ['1991~2020년의 평년값임.'] },
     });
+    // 인쇄용으로 뽑을 때는 아래 「인쇄용으로 뽑기」 처럼 chart.download(…) 를 쓴다.
   });
 </script>
 ```
@@ -91,19 +92,19 @@
 
 ## 옵션
 
-`options` 는 다음 13개 필드를 받는다. 준 것만 적으면 나머지는 기본값을 쓴다.
+`options` 는 다음 13개 필드를 받는다. 필요한 것만 적으면 나머지는 기본값을 쓴다.
 
 | 필드 | 기본값 | 하는 일 |
 |---|---|---|
 | `title` | `''` | 제목 |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline` 이면 각주와 같은 줄)에 오른쪽 정렬로 적힌다 |
-| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). 주면 출처 줄이 각주 아래로 내려가 좌우로 나뉜다 |
-| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다(각주는 왼쪽 끝) — 시험지 관습이다 |
+| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). **지금은 `stacked` 에서만 동작한다** |
+| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다(시험지 관습). **지금은 `scatter` 에서만 동작한다** |
 | `footnotes` | `['']` | 각주 목록. 앞에 `* ` 를 자동으로 붙이므로 직접 적지 않는다. 빈 문자열은 무시된다 |
 | `fontFamily` | `'serif'` | `'serif'`(명조)·`'sans'`(고딕)·`'custom'` 중 하나 |
 | `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 쓸 글꼴 이름 |
-| `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | 제목·축 이름·눈금·데이터 값 글자 크기(px) |
-| `showDataLabels` | `false` | 막대·점 위에 값을 직접 표시할지 |
+| `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | 제목·축 이름·눈금·데이터 값 글자 크기(px). 각주·출처는 `dataLabel` 을 따른다 |
+| `showDataLabels` | `false` | 막대·점에 값을 함께 표시할지 |
 | `showLegend` | `true` | 범례를 보여줄지 |
 | `legendPosition` | `'bottom'` | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나 |
 | `legendLabel1` | `''` | 두 계열을 쓰는 종류(기후·편차·인구 피라미드)의 첫 계열 범례 이름. 비워 두면 데이터가 준 이름을 쓴다 |
@@ -162,14 +163,14 @@ import { CsatChart, createDefaultClimateData } from 'csat-chart.js';
 
 await CsatChart.ensureFonts();
 
-// 자리표시자 자료 그대로 구조만 보여준다 — 실제 값은 위 「내 자료 넣기」 처럼 채운다.
+// 기본 자료는 값이 전부 0이다 — 채우는 법은 위 「내 자료 넣기」.
 const chart = new CsatChart(document.querySelector('canvas'), {
   type: 'climate',
   data: createDefaultClimateData(),
   options: { title: '기후 그래프', source: '기상청' },
 });
 
-chart.update({ options: { title: '제목을 다시 정한다' } });
+chart.update({ options: { title: '부산의 기후' } });
 chart.download('기후그래프.png');
 ```
 
@@ -291,8 +292,9 @@ CDN 판에서는 전역 `CsatChart` 에도 같이 붙어 있어 `CsatChart.CHART
 render○○(ctx, width, height, data, options): void
 ```
 
-실측(esbuild 0.27.7, `--bundle --minify --format=esm`, `csat-chart.js` 를
-패키지로 설치한 상태 기준):
+번들러를 쓴다면 렌더러 하나만 가져오는 편이 실제로 훨씬 가볍다. 실측(esbuild
+0.27.7, `--bundle --minify --format=esm`, `csat-chart.js` 를 패키지로 설치한
+상태 기준):
 
 | 무엇을 가져오나 | 크기 |
 |---|---|
@@ -305,9 +307,9 @@ render○○(ctx, width, height, data, options): void
 부르는 편이 아홉 배 가볍다. CDN 으로 쓰면 어차피 한 벌을 통째로 받으므로 이
 이야기는 해당하지 않는다.
 
-번들 크기 말고 다른 이유로도 쓴다 — `CsatChart` 의 수명주기(캔버스 자동 크기
-보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때다. 위 [Node.js 에서
-PNG 뽑기](#nodejs-에서-png-뽑기)가 그런 경우다.
+저수준 렌더러는 번들 크기 말고 다른 이유로도 쓴다 — `CsatChart` 의 수명주기
+(캔버스 자동 크기 보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때다.
+위 [Node.js 에서 PNG 뽑기](#nodejs-에서-png-뽑기)가 그런 경우다.
 
 ## 만든 배경
 

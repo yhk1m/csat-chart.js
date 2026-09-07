@@ -51,8 +51,13 @@
   `CsatChart` 파사드만 가져와도 94.6 KB 다 — 파사드가 `type` 문자열로 16종을
   고르는 이상 전부를 붙들고 있어야 한다. (esbuild `--bundle --minify --format=esm`
   실측.)
+- `sourceInline`·`sourceLeft` 는 공통 옵션이지만 지금은 각각 `scatter`·`stacked`
+  에서만 동작한다. 나머지 종류는 렌더러가 그 옵션을 넘기지 않는다.
 
 ### 원본과 다른 점
+
+이 렌더러는 원래 지리 수업 도구인 GeoTester·GeoGrapher 안에 있었다. 그 두
+앱에서 옮겨 오는 경우에만 해당하는 이야기다.
 
 - **`canvas/export.ts` 를 옮기지 않았다.** GeoGrapher 전용이다. 파일명을
   `GeoGrapher_*.png` 로 짓고, 이 패키지가 공개하지 않는 `ExportSettings`·`GraphType`

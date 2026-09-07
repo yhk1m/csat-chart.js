@@ -694,9 +694,19 @@ export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
  *
  * 인자 없는 `sort()` 는 로캘을 보지 않고 UTF-16 코드 단위로 비교한다(명세).
  * 리눅스 CI 의 small-icu 빌드에서도 같은 순서가 나온다.
+ *
+ * 아래 세 PURE 주석을 지우지 말 것. `Object.freeze`·`.sort()`·`Object.keys`
+ * 모두 이 모듈 맨 위에서 실행되는 함수 호출이다 — 번들러는 함수 호출에
+ * 부작용이 있을 수 있다고 보수적으로 가정하므로, 표시가 없으면 `CHART_TYPES`
+ * 를 아무도 안 써도 이 문장을 지우지 못하고, 그 문장이 붙들고 있는
+ * `REGISTRY`(=16종 렌더러 전부)까지 함께 남는다. **셋 중 하나라도 빠지면**
+ * 나머지 호출이 여전히 `REGISTRY` 를 읽으므로 소용이 없다 — 실제로 겪은
+ * 문제다(`Object.freeze` 하나만 표시했을 때는 번들이 전혀 줄지 않았다).
+ * 표시를 지우면 저수준 렌더러 하나만 가져와도 번들이 줄지 않는 문제가
+ * 조용히 되돌아온다.
  */
-export const CHART_TYPES: readonly CsatChartType[] = Object.freeze(
-  (Object.keys(REGISTRY) as CsatChartType[]).sort(),
+export const CHART_TYPES: readonly CsatChartType[] = /* @__PURE__ */ Object.freeze(
+  /* @__PURE__ */ (/* @__PURE__ */ Object.keys(REGISTRY) as CsatChartType[]).sort(),
 );
 
 /**
@@ -1746,7 +1756,7 @@ Expected: FAIL — `Failed to resolve import "../src/chart"`
 // 캔버스 획득·다시 그리기·PNG 추출의 수명주기를 관리하는 파사드.
 import { REGISTRY } from './registry';
 import { CsatChartError, assertChartData, assertChartType } from './validate';
-import { ensureFonts } from './fonts';
+import { ensureFonts, type EnsureFontsOptions } from './fonts';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
 import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
@@ -1821,8 +1831,19 @@ function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOpt
  * 같은 종류로 좁혀지고, 다른 종류의 데이터를 넣으면 컴파일 시점에 걸린다.
  */
 export class CsatChart<T extends CsatChartType = CsatChartType> {
-  /** 시험지 글꼴을 확보한다. 자세한 것은 `ensureFonts` 참고. */
-  static readonly ensureFonts = ensureFonts;
+  /**
+   * 시험지 글꼴을 확보한다. 자세한 것은 `ensureFonts` 참고.
+   *
+   * 필드가 아니라 **메서드**로 둔다. `static readonly ensureFonts = ensureFonts`
+   * 로 적으면 ES2020 로 낮출 때 클래스 «뒤» 의 대입문이 되는데, 그것은 지울 수
+   * 없는 부수효과라 이 클래스와 레지스트리와 렌더러 16종이 모든 번들에 박힌다.
+   * 메서드는 클래스 본문의 일부라 어느 목표에서도 그런 일이 없다 — 실제로
+   * 겪은 문제이고, `test/bundle.test.ts` 가 이걸 회귀로 잡지는 않으니 여기
+   * 적어 둔다.
+   */
+  static ensureFonts(options?: EnsureFontsOptions): Promise<boolean> {
+    return ensureFonts(options);
+  }
 
   readonly canvas: CanvasLike;
 
@@ -2283,21 +2304,28 @@ import {
  * `CsatChart.DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
  * 조용히 어긋난다. 타입 검사를 받지 않는 CDN 사용자를 겨냥한 패키지라 특히 그렇다.
  * `CHART_TYPES` 를 얼린 것과 같은 이유다.
+ *
+ * 각 `Object.freeze` 앞의 PURE 주석을 지우지 말 것. 함수 호출은 번들러가
+ * 부작용이 있을 수 있다고 보수적으로 가정하는 대상이라, 표시가 없으면 이
+ * 상수들을 아무도 안 써도 문장 자체가 안 지워진다 — 여기서는 값이 각각
+ * `core` 배열 하나씩만 가리키므로 결과가 이 파일 안에서 끝나 심각하지 않지만,
+ * `registry.ts` 의 `CHART_TYPES` 는 같은 문제가 16종 렌더러 전체를 붙드는
+ * 문제로 번진다. 그 사례를 따라 여기도 표시해 둔다.
  */
-export const AGE_GROUPS = Object.freeze(coreAgeGroups);
-export const DOT_MARKER_ORDER = Object.freeze(coreDotMarkerOrder);
-export const LINE_MARKER_ORDER = Object.freeze(coreLineMarkerOrder);
-export const LINE_STYLE_ORDER = Object.freeze(coreLineStyleOrder);
-export const MONTH_LABELS_EN = Object.freeze(coreMonthLabelsEn);
-export const MONTH_LABELS_NUM = Object.freeze(coreMonthLabelsNum);
+export const AGE_GROUPS = /* @__PURE__ */ Object.freeze(coreAgeGroups);
+export const DOT_MARKER_ORDER = /* @__PURE__ */ Object.freeze(coreDotMarkerOrder);
+export const LINE_MARKER_ORDER = /* @__PURE__ */ Object.freeze(coreLineMarkerOrder);
+export const LINE_STYLE_ORDER = /* @__PURE__ */ Object.freeze(coreLineStyleOrder);
+export const MONTH_LABELS_EN = /* @__PURE__ */ Object.freeze(coreMonthLabelsEn);
+export const MONTH_LABELS_NUM = /* @__PURE__ */ Object.freeze(coreMonthLabelsNum);
 
 // LINE_DASH 는 Record<LineStyle, number[]> 다. 얕게 얼리면 LINE_DASH.dashed 를
 // 갈아 끼우는 것만 막고, LINE_DASH.dashed.push(1) 은 그대로 통한다.
-export const LINE_DASH = Object.freeze({
-  solid: Object.freeze(coreLineDash.solid),
-  dashed: Object.freeze(coreLineDash.dashed),
-  dotted: Object.freeze(coreLineDash.dotted),
-  dashdot: Object.freeze(coreLineDash.dashdot),
+export const LINE_DASH = /* @__PURE__ */ Object.freeze({
+  solid: /* @__PURE__ */ Object.freeze(coreLineDash.solid),
+  dashed: /* @__PURE__ */ Object.freeze(coreLineDash.dashed),
+  dotted: /* @__PURE__ */ Object.freeze(coreLineDash.dotted),
+  dashdot: /* @__PURE__ */ Object.freeze(coreLineDash.dashdot),
 });
 
 // ── 타입 ───────────────────────────────────────────────

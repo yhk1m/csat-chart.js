@@ -9,8 +9,6 @@
 
 ## 시작하기
 
-### 브라우저 (스크립트 한 줄)
-
 ```html
 <script src="https://cdn.jsdelivr.net/npm/csat-chart.js"></script>
 <canvas id="c" width="800" height="600"></canvas>
@@ -26,20 +24,134 @@
 ```
 
 `ensureFonts()` 를 부르지 않으면 대체 글꼴로 그려져 시험지 양식이 재현되지 않는다.
-던지지는 않는다 — 못 받아도, 시간이 지나도 조용히 `false` 로 끝난다.
+던지지 않는다 — 글꼴을 못 받아도, 제한 시간(기본 5초)을 넘겨도 조용히 `false` 로
+끝난다.
 
-### 캔버스 크기
+`<canvas id="c"></canvas>` 처럼 크기를 적지 않으면 800×600 으로 채운다. HTML
+기본값인 300×150 으로 그리면 여백·글자 크기가 절대 픽셀이라 제목·눈금·각주가
+한 덩어리로 겹친다. 크기를 직접 적었다면 그 크기를 그대로 쓰는데, 대략
+500×400보다 작아지면 글자가 겹쳐 읽기 어려워진다.
 
-`width`/`height` 를 적지 않은 `<canvas>` 는 HTML 기본값인 300×150 대신 800×600 으로
-자동 지정된다. 300×150 그대로 두면 여백·글자 크기가 절대 픽셀로 박혀 있는 이
-라이브러리 특성상 플롯 영역이 음수가 되어 제목·눈금·각주가 한 덩어리로 겹친
-읽을 수 없는 그림이 나온다. 그래서 `<canvas id="c"></canvas>` 라고만 써도 된다.
+## 내 자료 넣기
 
-명시적으로 크기를 준 경우(위 예제의 800×600 처럼)는 작성자의 선택으로 보고
-그대로 둔다 — 다만 대략 **500×400보다 작아지면 같은 이유로 다시 읽기 어려워진다.**
-특별한 사정이 없다면 기본값인 800×600 안팎을 유지하는 편이 안전하다.
+`createDefault○○Data()` 가 주는 것은 **뼈대**다. 기후·인구 피라미드처럼 값이 전부
+0인 것도 있어서, 그대로 그리면 빈 그림이 나온다. 필요한 칸만 덮어 쓴다.
 
-### 번들러
+```html
+<script>
+  CsatChart.ensureFonts().then(function () {
+    const data = CsatChart.createDefaultClimateData();
+    // 1월부터 12월까지, 월마다 { temp, precip } 하나씩 — 열두 개를 다 채운다.
+    data.months = [
+      { temp: -1.9, precip: 16.8 }, { temp: 0.7, precip: 28.2 },
+      { temp: 6.1, precip: 36.9 },  { temp: 12.6, precip: 72.9 },
+      { temp: 18.2, precip: 103.6 },{ temp: 22.7, precip: 129.5 },
+      { temp: 25.3, precip: 414.4 },{ temp: 26.1, precip: 348.2 },
+      { temp: 21.2, precip: 141.5 },{ temp: 14.8, precip: 52.2 },
+      { temp: 7.2, precip: 51.1 },  { temp: 0.4, precip: 22.6 },
+    ];
+    new CsatChart('c', {
+      type: 'climate',
+      data: data,
+      options: { title: '서울의 기후', source: '기상청', footnotes: ['1991~2020년의 평년값임.'], sourceInline: true },
+    });
+  });
+</script>
+```
+
+`tempRange`·`precipRange` 는 `auto: true` 라 값에 맞춰 알아서 잡힌다. 눈금을 고정하고
+싶으면 `auto: false` 로 두고 `min`·`max` 를 적는다.
+
+## 그래프 16종
+
+| `type` | 그래프 | 기본 데이터 | 저수준 렌더러 | 데이터 타입 |
+|---|---|---|---|---|
+| `absbar` | 절댓값 막대 | `createDefaultAbsBarData()` | `renderAbsBarGraph` | `AbsBarGraphData` |
+| `category-dot` | 범주 점 | `createDefaultCategoryDotData()` | `renderCategoryDotGraph` | `CategoryDotGraphData` |
+| `climate` | 기후 그래프 | `createDefaultClimateData()` | `renderClimateGraph` | `ClimateGraphData` |
+| `cube` | 정육면체 | `createDefaultCubeData()` | `renderCubeGraph` | `CubeGraphData` |
+| `data-table` | 항목×지역 표 | `createDefaultDataTableData()` | `renderDataTable` | `DataTableData` |
+| `deviation-a` | 월별 편차 | `createDefaultDeviationAData()` | `renderDeviationAGraph` | `DeviationAData` |
+| `deviation-b` | 지역별 편차 | `createDefaultDeviationBData()` | `renderDeviationBGraph` | `DeviationBData` |
+| `hythergraph` | 하이서그래프 | `createDefaultHythergraphData()` | `renderHythergraph` | `HythergraphData` |
+| `line` | 꺾은선 | `createDefaultLineData()` | `renderLineGraph` | `LineGraphData` |
+| `matrix-table` | 계단식 행렬표 | `createDefaultMatrixTableData()` | `renderMatrixTable` | `MatrixTableData` |
+| `pyramid` | 인구 피라미드 | `createDefaultPyramidData()` | `renderPyramidGraph` | `PyramidGraphData` |
+| `radar` | 방사형 | `createDefaultRadarData()` | `renderRadarChart` | `RadarGraphData` |
+| `scatter` | 산점도·버블 | `createDefaultScatterData()` | `renderScatterGraph` | `ScatterGraphData` |
+| `stacked` | 100% 막대·원 | `createDefaultStackedData()` | `renderStackedGraph` | `StackedGraphData` |
+| `ternary` | 삼각 그래프 | `createDefaultTernaryData()` | `renderTernaryGraph` | `TernaryGraphData` |
+| `treemap` | 트리맵 | `createDefaultTreemapData()` | `renderTreemapGraph` | `TreemapGraphData` |
+
+기본 데이터는 표의 `createDefault○○Data()` 로 얻어 고쳐 쓴다 — 어느 종류든 이
+이름 규칙을 따른다. 저수준 렌더러 이름은 그렇지 않다 — `renderDataTable`·
+`renderHythergraph`·`renderMatrixTable`·`renderRadarChart` 넷은 `render○○Graph`
+를 따르지 않으니 표에서 확인한다. 데이터 모양이 어긋나면 한국어 메시지로
+알려준다 — [오류 가려내기](#오류-가려내기) 참고.
+
+## 옵션
+
+`options` 는 다음 13개 필드를 받는다. 준 것만 적으면 나머지는 기본값을 쓴다.
+
+| 필드 | 기본값 | 하는 일 |
+|---|---|---|
+| `title` | `''` | 제목 |
+| `source` | `''` | 출처. 각주 위(또는 `sourceInline` 이면 각주와 같은 줄)에 오른쪽 정렬로 적힌다 |
+| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). 주면 출처 줄이 각주 아래로 내려가 좌우로 나뉜다 |
+| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다(각주는 왼쪽 끝) — 시험지 관습이다 |
+| `footnotes` | `['']` | 각주 목록. 앞에 `* ` 를 자동으로 붙이므로 직접 적지 않는다. 빈 문자열은 무시된다 |
+| `fontFamily` | `'serif'` | `'serif'`(명조)·`'sans'`(고딕)·`'custom'` 중 하나 |
+| `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 쓸 글꼴 이름 |
+| `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | 제목·축 이름·눈금·데이터 값 글자 크기(px) |
+| `showDataLabels` | `false` | 막대·점 위에 값을 직접 표시할지 |
+| `showLegend` | `true` | 범례를 보여줄지 |
+| `legendPosition` | `'bottom'` | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나 |
+| `legendLabel1` | `''` | 두 계열을 쓰는 종류(기후·편차·인구 피라미드)의 첫 계열 범례 이름. 비워 두면 데이터가 준 이름을 쓴다 |
+| `legendLabel2` | `''` | 같은 종류의 두 번째 계열 범례 이름 |
+
+`fontSize` 는 하나만 부분 지정해도 된다 — TypeScript·JavaScript 모두 마찬가지다.
+
+```js
+chart.update({ options: { fontSize: { title: 44 } } });
+```
+
+나머지 세 값은 그대로 유지된다(준 항목만 갈아 끼운다). TypeScript 에서 이 모양의
+옵션 타입 이름은 `PartialGraphOptions`, 한 종류의 부분 갱신 전체는 `UpdateFor<T>` 다.
+
+## 그림이 이상할 때
+
+| 증상 | 원인 | 할 일 |
+|---|---|---|
+| 글꼴이 시험지 같지 않다 | `ensureFonts()` 를 안 불렀거나, 차트를 만든 **뒤에** 불렀다 | `await CsatChart.ensureFonts()` 를 먼저 부르고 그 안에서 차트를 만든다 |
+| 제목·눈금·각주가 한 덩어리로 겹친다 | 캔버스가 너무 작다 | 800×600 안팎으로. 500×400 아래로는 내려가지 않는다 |
+| 축은 그려지는데 자료가 없다 | 기본 데이터를 그대로 썼다 (값이 전부 0인 종류가 있다) | [내 자료 넣기](#내-자료-넣기) |
+| 레티나에서 흐릿하다 | 화면 캔버스는 1배다 | `toDataURL({ scale: 2 })` 로 뽑아 `<img>` 로 건다 |
+| 아무것도 안 그려진다 | `CsatChartError` 가 던져졌다 | 브라우저 콘솔(F12)을 열면 한국어로 이유가 적혀 있다 |
+
+## 인쇄용으로 뽑기
+
+`toDataURL()`·`download()` 의 `scale` 은 **글자·선까지 함께 키우는** 배율이다.
+캔버스만 키우는 `resize(1600, 1200)` 과는 다르다 — 이 라이브러리의 글꼴 크기와
+여백이 절대 픽셀이라서, 캔버스를 두 배로 하면 «두 배로 선명한 같은 그림» 이 아니라
+**«글자가 절반으로 작아진 다른 그림»** 이 나온다. 인쇄용으로 뽑을 때는 이렇게 쓴다.
+
+```js
+const printUrl = chart.toDataURL({ scale: 2 });   // 화면과 같은 구도, 두 배 해상도
+chart.download('시험지그림.png', { scale: 2 });
+```
+
+화면에 그려지는 캔버스 자체는 항상 1배다. `devicePixelRatio` 를 따로 다루지
+않으므로 **레티나 디스플레이에서는 글자와 선이 조금 흐릿하게 보인다.** 화면으로
+훑어보는 데는 지장이 없지만, 또렷한 그림이 필요하면 `scale: 2` 로 뽑은 PNG 를
+`<img>` 에 넣고 CSS 로 원래 크기까지 줄여 건다. 인쇄·투사도 같은 방법이다.
+
+## 지원 환경
+
+- Chrome 80, Firefox 74, Safari 13.1 이상 (빌드 타깃 ES2020)
+- 런타임 의존성 0. `<script>` 한 줄이면 된다
+- Node 는 캔버스 구현체를 직접 고른다 (아래 「Node.js 에서 PNG 뽑기」)
+
+## 번들러
 
 ```bash
 npm install csat-chart.js
@@ -50,17 +162,18 @@ import { CsatChart, createDefaultClimateData } from 'csat-chart.js';
 
 await CsatChart.ensureFonts();
 
+// 자리표시자 자료 그대로 구조만 보여준다 — 실제 값은 위 「내 자료 넣기」 처럼 채운다.
 const chart = new CsatChart(document.querySelector('canvas'), {
   type: 'climate',
   data: createDefaultClimateData(),
-  options: { title: '서울의 기후', source: '기상청', sourceInline: true },
+  options: { title: '기후 그래프', source: '기상청' },
 });
 
-chart.update({ options: { title: '부산의 기후' } });
-chart.download('부산기후.png');
+chart.update({ options: { title: '제목을 다시 정한다' } });
+chart.download('기후그래프.png');
 ```
 
-### Node.js에서 PNG 뽑기
+## Node.js 에서 PNG 뽑기
 
 캔버스 구현체는 직접 고른다. 이 패키지의 의존성이 아니다.
 
@@ -83,32 +196,7 @@ Node 에는 `document` 가 없으므로 `ensureFonts()` 를 불러도 아무 일
 `false` 만 돌아온다 — 시스템에 깔린 대체 글꼴로 그려진다. 시험지 서체가 꼭
 필요하면 그 글꼴을 서버에 직접 설치한다.
 
-## 그래프 16종
-
-| `type` | 그래프 | 데이터 타입 |
-|---|---|---|
-| `absbar` | 절댓값 막대 | `AbsBarGraphData` |
-| `category-dot` | 범주 점 | `CategoryDotGraphData` |
-| `climate` | 기후 그래프 | `ClimateGraphData` |
-| `cube` | 정육면체 | `CubeGraphData` |
-| `data-table` | 항목×지역 표 | `DataTableData` |
-| `deviation-a` | 월별 편차 | `DeviationAData` |
-| `deviation-b` | 지역별 편차 | `DeviationBData` |
-| `hythergraph` | 하이서그래프 | `HythergraphData` |
-| `line` | 꺾은선 | `LineGraphData` |
-| `matrix-table` | 계단식 행렬표 | `MatrixTableData` |
-| `pyramid` | 인구 피라미드 | `PyramidGraphData` |
-| `radar` | 방사형 | `RadarGraphData` |
-| `scatter` | 산점도·버블 | `ScatterGraphData` |
-| `stacked` | 100% 막대·원 | `StackedGraphData` |
-| `ternary` | 삼각 그래프 | `TernaryGraphData` |
-| `treemap` | 트리맵 | `TreemapGraphData` |
-
-각 종류의 기본 데이터는 `createDefault○○Data()` 로 얻어 고쳐 쓰는 것이 가장 빠르다.
-데이터 모양이 어긋나면 만들 때든 `update()` 할 때든 한국어 메시지로 알려준다 —
-아래 [오류 가려내기](#오류-가려내기) 참고.
-
-## API
+## API 자세히
 
 ### `new CsatChart(target, config)`
 
@@ -116,7 +204,7 @@ Node 에는 `document` 가 없으므로 `ensureFonts()` 를 불러도 아무 일
 TypeScript 에서는 `type` 을 적는 순간 `data` 타입이 그 종류로 좁혀진다 — 다른 종류의
 데이터를 넣으면 컴파일이 막힌다.
 
-`target` 이 잘못돼도 알아보기 쉬운 한국어 오류를 던진다. 특히 `id` 를 잘못 적어
+`target` 이 잘못되면 알아보기 쉬운 한국어 오류를 던진다. 특히 `id` 를 잘못 적어
 `document.getElementById()` 가 `null` 을 돌려준 경우 — 브라우저 콘솔을 잘 열지
 않는 사용자를 겨냥해, «그 id 를 찾지 못한 것은 아닌지 보라» 는 안내까지 붙는다.
 
@@ -126,43 +214,23 @@ TypeScript 에서는 `type` 을 적는 순간 `data` 타입이 그 종류로 좁
 | `resize(width, height)` | 캔버스 픽셀 크기를 바꾸고 다시 그린다. 둘 다 0보다 커야 한다 |
 | `toDataURL(options?: { scale?: number })` | PNG data URL |
 | `download(filename?, options?: { scale?: number })` | 내려받기 (브라우저 전용) |
-| `destroy()` | 흰 화면으로 지우고 더는 그리지 못하게 한다 |
+| `destroy()` | 캔버스를 흰 바탕으로 지우고 더는 그리지 못하게 한다 |
 
 `update()`·`resize()` 는 `this` 를 돌려주므로 이어 쓸 수 있다. `chart.canvas` 로
 넘겨준 캔버스 자체에도 접근할 수 있다.
 
-### 인쇄용 고해상도로 뽑기
-
-`toDataURL()`·`download()` 의 `scale` 은 **글자·선까지 함께 키우는** 배율이다.
-캔버스만 키우는 `resize(1600, 1200)` 과는 다르다 — 이 라이브러리의 글꼴 크기와
-여백이 절대 픽셀이라서, 캔버스를 두 배로 하면 «두 배로 선명한 같은 그림» 이 아니라
-**«글자가 절반으로 작아진 다른 그림»** 이 나온다. 인쇄용으로 뽑을 때는 이렇게 쓴다.
-
-```js
-const printUrl = chart.toDataURL({ scale: 2 });   // 화면과 같은 구도, 두 배 해상도
-chart.download('시험지그림.png', { scale: 2 });
-```
-
-화면에 그려지는 캔버스 자체는 항상 1배다 — `devicePixelRatio` 를 따로 다루지
-않으므로, 레티나 디스플레이에서 화면에 걸어 두는 용도로는 그대로 써도 되지만
-확대해서 인쇄·투사할 계획이면 `scale` 을 쓴다.
-
-### `options.fontSize` 부분 지정
-
-`fontSize` 는 `{ title, axisLabel, tick, dataLabel }` 넷을 가진 객체이지만,
-바꾸고 싶은 것만 적어도 된다 — TypeScript·JavaScript 모두 마찬가지다.
-
-```js
-chart.update({ options: { fontSize: { title: 44 } } });
-```
-
-나머지 세 값은 그대로 유지된다(얕게 덮지 않는다). TypeScript 에서 이 모양의
-옵션 타입 이름은 `PartialGraphOptions`, 한 종류의 부분 갱신 전체는 `UpdateFor<T>` 다.
-
 ### `CsatChart.ensureFonts(options?)`
 
 `Noto Serif KR`·`Noto Sans KR` 을 확보한다. 준비되면 `true`, 못 받거나 Node 이면
-`false` 를 돌려준다. **던지지 않는다.** 사내망이면 `{ href }` 로 출처를 바꾼다.
+`false` 를 돌려준다. **던지지 않는다.**
+
+한 페이지에서 여러 번 불러도 실제 작업은 한 번뿐이다. 그래서 **차트를 만들기 전에,
+가장 먼저** 부른다 — 나중 호출에 넘긴 옵션은 조용히 버려지고, 차트를 먼저 만들면
+늦게 도착한 글꼴이 반영되지 않을 수 있다.
+
+옵션은 셋이다. `href`(글꼴 CSS 주소), `families`(확인할 글꼴 이름), `timeoutMs`
+(기본 5000). 교내망·오프라인이라 `href` 를 바꾼다면 **`families` 도 함께 바꾼다**
+— `href` 를 그대로 둔 채 `families` 만 바꾸면 그 글꼴이 없어도 `true` 가 나온다.
 
 ### 오류 가려내기
 
@@ -181,7 +249,8 @@ try {
 `instanceof` 가 조용히 `false` 가 된다. `name` 은 그런 일이 없다.
 
 메시지는 무엇이 왜 잘못됐는지까지 말해 준다. 필수 항목이 빠졌으면 그 이름을,
-종류가 다르면 무엇이었어야 하는지를, `type` 을 잘못 적었으면 가까운 후보를 댄다.
+값의 자료형이 다르면 무엇이었어야 하는지를, `type` 을 잘못 적었으면 가까운
+후보를 댄다.
 
 ```
 csat-chart: 알 수 없는 type "climat" — 혹시 "climate"?
@@ -190,19 +259,19 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
 ```
 
 마지막 예는 흔한 실수 하나를 잡는다 — 열두 달 자료를 `months: [1, 2, …, 12]`
-처럼 숫자만 있는 배열로 납작하게 붙여넣는 것. 배열이고 길이도 12라 겉모양만
-보면 통과할 법하지만, 그 상태로 그리면 브라우저에서는 좌표가 어긋나 빈 그림이
+처럼 숫자만 늘어놓은 배열로 적는 것. 배열이고 길이도 12라 겉모양만 보면
+통과할 법하지만, 그 상태로 그리면 브라우저에서는 좌표가 어긋나 빈 그림이
 나오고 Node 캔버스에서는 프로세스가 죽는다. 배열의 첫 원소까지 한 겹 더 보고
 막는다.
 
 ### 상수
 
-기호·눈금 순서를 정하는 값 7개 — `AGE_GROUPS`·`DOT_MARKER_ORDER`·
+기호·눈금 순서를 정하는 상수 7개를 내보낸다 — `AGE_GROUPS`·`DOT_MARKER_ORDER`·
 `LINE_MARKER_ORDER`·`LINE_STYLE_ORDER`·`MONTH_LABELS_EN`·`MONTH_LABELS_NUM`·
-`LINE_DASH` — 를 내보낸다. 모두 **얼려서** 내보낸다. 렌더러가 기본값으로 읽는
-바로 그 객체라서, 얼지 않으면 `DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든
-그림의 기호 배정이 조용히 어긋난다. `CHART_TYPES`(그래프 16종 목록)도 같은
-이유로 따로 얼려서 내보낸다.
+`LINE_DASH`. 모두 **얼려서** 내보낸다. 렌더러가 기본값으로 읽는 바로 그 객체라서,
+얼지 않으면 `DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
+조용히 어긋난다. `CHART_TYPES`(그래프 16종 목록)도 같은 이유로 따로 얼려서
+내보낸다.
 
 ESM/CJS 로 쓸 때는 각각 이름으로 가져온다.
 
@@ -211,20 +280,17 @@ import { CHART_TYPES, AGE_GROUPS } from 'csat-chart.js';
 ```
 
 CDN 판에서는 전역 `CsatChart` 에도 같이 붙어 있어 `CsatChart.CHART_TYPES` 로도
-쓸 수 있다 — 둘은 별개의 붙는 방식이라, 번들러로 쓸 때 `CsatChart.CHART_TYPES`
-라고 쓰면 `undefined` 다.
+쓸 수 있다 — UMD 번들이 전역 `CsatChart` 에 한 번 더 얹어 둔 것뿐이라, 번들러로
+쓸 때 `CsatChart.CHART_TYPES` 라고 쓰면 `undefined` 다.
 
-### 저수준 렌더러
+## 저수준 렌더러
 
-파사드를 거치지 않고 그래프 하나만 직접 그릴 수 있다. 모두 같은 꼴이다.
+`CsatChart` 를 거치지 않고 그래프 하나만 직접 그릴 수 있다. 모두 같은 꼴이다.
 
 ```ts
 render○○(ctx, width, height, data, options): void
 ```
 
-`CsatChart` 는 종류를 문자열로 고르므로 16종 렌더러를 전부 물고 있다 — 어느
-것이 실제로 쓰일지 번들러가 미리 알 수 없기 때문이다. `render○○Graph` 하나만
-가져오면 이 문제를 피할 수 있고, **번들러를 쓴다면 실제로 훨씬 가벼워진다.**
 실측(esbuild 0.27.7, `--bundle --minify --format=esm`, `csat-chart.js` 를
 패키지로 설치한 상태 기준):
 
@@ -234,34 +300,14 @@ render○○(ctx, width, height, data, options): void
 | `CsatChart` 만 | 94.6 KB |
 | `renderClimateGraph` 만 | **10.0 KB** |
 
-`CsatChart` 만 가져와도 크기가 거의 줄지 않는 것은 당연하다 — 파사드는 `type`
-을 문자열로 받아 그때그때 렌더러를 고르므로, 16종 전부를 실제로 붙들고 있어야
-한다. 기후 그래프 하나만 필요한 앱이라면 저수준 렌더러를 직접 부르는 편이
-아홉 배 가볍다. CDN 으로 쓰는 경우에는 어차피 한 벌을 통째로 받으므로 이
-이야기가 해당하지 않는다.
+`CsatChart` 는 `type` 을 문자열로 받아 그때그때 렌더러를 고르므로 16종을 전부
+붙들고 있어야 한다. 기후 그래프 하나만 필요한 앱이라면 저수준 렌더러를 직접
+부르는 편이 아홉 배 가볍다. CDN 으로 쓰면 어차피 한 벌을 통째로 받으므로 이
+이야기는 해당하지 않는다.
 
-이 절감이 실제로 나오려면 두 가지가 맞아떨어져야 한다 — 둘 중 하나라도 빠지면
-번들이 거의 줄지 않는다(직접 겪은 문제라 `src/registry.ts`·`src/chart.ts` 에
-각각 회귀 방지 주석을 남겨 뒀다). 빌드 타깃은 그대로 ES2020 이다 — 학교
-컴퓨터처럼 항상 최신은 아닌 환경도 겨냥한 패키지라, 이 절감 때문에 호환 기준을
-올리지는 않는다.
-
-1. `CHART_TYPES` 를 만드는 `Object.freeze(Object.keys(REGISTRY).sort())` 는
-   모듈 맨 위에서 실행되는 함수 호출이다. 번들러는 함수 호출에 부작용이
-   있을 수 있다고 보수적으로 가정하므로, `/* @__PURE__ */` 로 셋 다
-   (`Object.keys`·`.sort()`·`Object.freeze`) 표시해 둬야 한다.
-2. `CsatChart.ensureFonts` 는 정적 **메서드**다 — 일부러 그렇게 뒀다. 처음에는
-   `static readonly ensureFonts = ensureFonts;` 라는 정적 **필드**였는데, ES2020
-   빌드에서는 이 필드가 네이티브 클래스 필드로 컴파일되지 않고 클래스 선언
-   **뒤**에 `CsatChart.ensureFonts = ensureFonts;` 라는 별도 대입문으로 풀린다.
-   대입문은 트리쉐이킹이 지울 수 없는 부작용이라, `CsatChart` 를 아무도 안 써도
-   클래스 전체가 붙들리고 `REGISTRY`(=16종 렌더러 전부)까지 딸려 왔다 —
-   `renderClimateGraph` 하나만 가져와도 92 KB 대에서 꼼짝하지 않았다. 메서드는
-   클래스 본문 **안**에 남는 선언이라 빌드 타깃과 상관없이 이 문제가 없다.
-
-저수준 렌더러는 번들 크기 말고도 쓸 이유가 있다 — `CsatChart` 의 수명주기
-(캔버스 자동 크기 보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때도
-쓴다. 위 [Node 레시피](#nodejs에서-png-뽑기)가 그런 경우다.
+번들 크기 말고 다른 이유로도 쓴다 — `CsatChart` 의 수명주기(캔버스 자동 크기
+보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때다. 위 [Node.js 에서
+PNG 뽑기](#nodejs-에서-png-뽑기)가 그런 경우다.
 
 ## 만든 배경
 

@@ -3046,6 +3046,13 @@ jobs:
           # 골든 이미지는 시스템 글꼴 대체 결과에 의존해 기계마다 다르다.
           # 이식 검증은 저자 기계에서 하고, CI 에서는 «빈 캔버스가 아니다» 만 본다.
           SKIP_GOLDEN: '1'
+      # docs/lib 는 커밋된 빌드 산출물이다. 누가 src 를 고치고 다시 빌드하는 걸
+      # 잊으면 데모 페이지가 실제 라이브러리와 어긋난 채 배포된다. 방금 돌린
+      # build 결과와 커밋된 것이 같은지 본다 — 이 파일은 sourcemap 주석이 없어
+      # 바이트 단위로 같아야 한다.
+      - name: docs/lib 가 최신인지 확인
+        run: |
+          git diff --exit-code -- docs/lib/csat-chart.umd.min.js             || (echo "docs/lib/csat-chart.umd.min.js 가 낡았습니다 — npm run build 후 커밋하세요" && exit 1)
 ```
 
 `npm test` 를 `npm run build` 뒤에 두는 이유: `test/bundle.test.ts` 가 `dist/` 를 읽는다.

@@ -1348,8 +1348,10 @@ describe('CsatChart', () => {
   });
 
   it('알 수 없는 type 을 거부한다', () => {
+    // type 을 never 로 캐스팅하면 T 도 never 로 추론되어 data 까지 never 가 된다.
+    // 둘 다 캐스팅해야 컴파일된다 — 여기서 보려는 건 런타임 검증이다.
     expect(
-      () => new CsatChart(canvas(), { type: 'piramid' as never, data: {} }),
+      () => new CsatChart(canvas(), { type: 'piramid' as never, data: {} as never }),
     ).toThrow(/혹시 "pyramid"\?/);
   });
 
@@ -1434,6 +1436,14 @@ describe('CsatChart', () => {
     expect(
       () => new CsatChart('none', { type: 'ternary', data: createDefaultTernaryData() }),
     ).toThrow(/id "none" 인 요소를 찾지 못했습니다/);
+  });
+
+  it('id 로 찾은 요소가 캔버스가 아니면 그렇게 말한다', () => {
+    // <div id="c"> 에 그리려는 흔한 실수.
+    vi.stubGlobal('document', { getElementById: () => ({ tagName: 'DIV' }) });
+    expect(
+      () => new CsatChart('c', { type: 'ternary', data: createDefaultTernaryData() }),
+    ).toThrow(/id "c" 인 요소는 <canvas> 가 아닙니다/);
   });
 
   it('ensureFonts 를 정적 메서드로 노출한다', () => {
@@ -1679,7 +1689,7 @@ Node 에 없어서 참조하는 순간 터진다.
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/chart.test.ts`
-Expected: PASS — 19건
+Expected: PASS — 20건
 
 Run: `npx tsc --noEmit`
 Expected: 오류 없음. `@ts-expect-error` 두 줄이 «실제로 오류인» 곳을 가리켜야 한다 —

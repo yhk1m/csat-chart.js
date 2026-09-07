@@ -4,7 +4,7 @@ import { REGISTRY } from './registry';
 import { CsatChartError, assertChartData, assertChartType } from './validate';
 import { ensureFonts } from './fonts';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
-import type { ChartDataMap, ConfigFor, CsatChartType, UpdateFor } from './types';
+import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
 /**
  * 브라우저의 `HTMLCanvasElement` 와 Node 캔버스 구현체가 함께 만족하는 최소 모양.
@@ -61,7 +61,7 @@ function isUnsized(canvas: CanvasLike, dim: 'width' | 'height', htmlDefault: num
  *   · `footnotes` 는 배열이다. 호출자가 쥔 배열을 그대로 붙들면, 나중에 그
  *     배열에 `push` 한 것이 다음 그리기에 몰래 새어 들어온다.
  */
-function mergeOptions(base: GraphOptions, patch?: Partial<GraphOptions>): GraphOptions {
+function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOptions {
   return {
     ...base,
     ...patch,

@@ -209,7 +209,11 @@ describe('CsatChart', () => {
   });
 
   it('scale 1 은 인자 없을 때와 같다', () => {
-    const chart = new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData() });
+    const c = canvas();
+    const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 PNG 가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(nonWhitePixels(c)).toBeGreaterThan(50);
     expect(chart.toDataURL({ scale: 1 })).toBe(chart.toDataURL());
   });
 
@@ -286,13 +290,15 @@ describe('CsatChart', () => {
   it('fontSize 를 하나만 줘도 나머지는 기본값을 쓴다', () => {
     // 얕게 덮으면 axisLabel/tick/dataLabel 이 undefined 가 되어 Node 에서는
     // ctx.font 대입이 "is not valid font style" 로 던진다.
+    // `fontSize: { title: 44 }` 는 캐스팅 없이 그대로 컴파일된다 — PartialGraphOptions
+    // 가 fontSize 안쪽까지 한 겹 더 풀어 주기 때문이다(아래 «타입» 항목 참고).
     const c1 = canvas();
     expect(
       () =>
         new CsatChart(c1, {
           type: 'ternary',
           data: createDefaultTernaryData(),
-          options: { fontSize: { title: 44 } as never },
+          options: { fontSize: { title: 44 } },
         }),
     ).not.toThrow();
 
@@ -304,6 +310,9 @@ describe('CsatChart', () => {
       options: { fontSize: { title: 44, axisLabel: 28, tick: 26, dataLabel: 22 } },
     });
 
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 캔버스가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(nonWhitePixels(c1)).toBeGreaterThan(50);
     expect(nonWhitePixels(c1)).toBe(nonWhitePixels(c2));
   });
 
@@ -316,6 +325,9 @@ describe('CsatChart', () => {
       options: { footnotes },
     });
     const before = nonWhitePixels(c);
+    // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는
+    // 뮤턴트에서도 두 빈 캔버스가 «같다» 며 이 테스트가 그냥 통과해 버린다.
+    expect(before).toBeGreaterThan(50);
 
     // 호출자가 생성 뒤에 자기 배열을 건드린다.
     footnotes.push('각주 2');
@@ -372,6 +384,27 @@ describe('타입', () => {
   it('type 에 맞지 않는 data 는 컴파일 시점에 걸린다', () => {
     // @ts-expect-error ternary 에 pyramid 데이터를 줄 수 없다
     const bad: CsatChartConfig = { type: 'ternary', data: createDefaultPyramidData() };
+    expect(bad.type).toBe('ternary');
+  });
+
+  it('fontSize 는 부분 지정이 컴파일된다 — 정확히 한 겹만 풀렸다', () => {
+    // PartialGraphOptions 가 fontSize 안쪽까지 선택으로 풀어 주므로 title 하나만
+    // 줘도 컴파일된다. 캐스팅이 없다 — 있으면 이 테스트가 증명하는 게 없어진다.
+    const ok: CsatChartConfig = {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      options: { fontSize: { title: 44 } },
+    };
+    expect(ok.options?.fontSize?.title).toBe(44);
+
+    // 풀어준 건 «있는 네 칸을 부분 지정» 까지다. 없는 칸을 적으면 여전히 막혀야
+    // 한다 — 안 그러면 오타를 조용히 삼키는 객체가 된다.
+    const bad: CsatChartConfig = {
+      type: 'ternary',
+      data: createDefaultTernaryData(),
+      // @ts-expect-error fontSize 에 없는 칸이다(오타 등) — 여전히 막혀야 한다
+      options: { fontSize: { titel: 44 } },
+    };
     expect(bad.type).toBe('ternary');
   });
 

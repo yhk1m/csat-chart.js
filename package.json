@@ -4,9 +4,21 @@
   "description": "수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그리는 라이브러리",
   "license": "MIT",
   "author": "김용현",
-  "repository": { "type": "git", "url": "git+https://github.com/yhk1m/csat-chart.js.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yhk1m/csat-chart.js.git"
+  },
   "homepage": "https://yhk1m.github.io/csat-chart.js/",
-  "keywords": ["chart", "canvas", "korea", "csat", "수능", "지리", "geography", "exam"],
+  "keywords": [
+    "chart",
+    "canvas",
+    "korea",
+    "csat",
+    "수능",
+    "지리",
+    "geography",
+    "exam"
+  ],
   "type": "module",
   "types": "./dist/csat-chart.d.cts",
   "main": "./dist/csat-chart.cjs",
@@ -15,12 +27,23 @@
   "jsdelivr": "./dist/csat-chart.umd.min.js",
   "exports": {
     ".": {
-      "import": { "types": "./dist/csat-chart.d.mts", "default": "./dist/csat-chart.mjs" },
-      "require": { "types": "./dist/csat-chart.d.cts", "default": "./dist/csat-chart.cjs" }
+      "import": {
+        "types": "./dist/csat-chart.d.mts",
+        "default": "./dist/csat-chart.mjs"
+      },
+      "require": {
+        "types": "./dist/csat-chart.d.cts",
+        "default": "./dist/csat-chart.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -32,7 +55,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9",
-    "@napi-rs/canvas": "^1.0.3",
+    "@napi-rs/canvas": "1.0.3",
     "@types/node": "^20",
     "eslint": "^9",
     "tsup": "^8",

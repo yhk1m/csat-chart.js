@@ -1,8 +1,9 @@
 // © 2026 김용현
 // 캔버스 획득·다시 그리기·PNG 추출의 수명주기를 관리하는 파사드.
 import { REGISTRY } from './registry';
-import { CsatChartError, assertChartData, assertChartType } from './validate';
+import { CsatChartError, assertChartData, assertChartType, assertConfigShape } from './validate';
 import { ensureFonts, type EnsureFontsOptions } from './fonts';
+import { installRoundRectPolyfill } from './roundrect';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
 import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
@@ -106,6 +107,7 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     if (!ctx) throw new CsatChartError('캔버스에서 2d 컨텍스트를 얻지 못했습니다');
     this.ctx = ctx as CanvasRenderingContext2D;
 
+    assertConfigShape(config);
     assertChartType(config.type);
     assertChartData(config.type, config.data);
 
@@ -115,6 +117,12 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
 
     if (isUnsized(this.canvas, 'width', HTML_DEFAULT_WIDTH)) this.canvas.width = DEFAULT_WIDTH;
     if (isUnsized(this.canvas, 'height', HTML_DEFAULT_HEIGHT)) this.canvas.height = DEFAULT_HEIGHT;
+
+    // 여덟 종류(범례 박스가 있는 climate·deviation-a/b·pyramid·absbar·stacked·
+    // hythergraph·scatter)는 그리는 도중 `ctx.roundRect()` 를 부른다. Chrome 99·
+    // Firefox 112·Safari 16.4 아래에서는 그 메서드가 없어 `draw()` 가 던진다 —
+    // 아래 `draw()` 보다 먼저 심어 둔다. 자세한 사정은 `./roundrect` 참고.
+    installRoundRectPolyfill();
 
     this.draw();
     this.redrawWhenFontsArrive();

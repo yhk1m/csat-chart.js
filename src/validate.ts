@@ -98,6 +98,30 @@ export function assertChartType(type: unknown): asserts type is CsatChartType {
   );
 }
 
+/**
+ * `new CsatChart(target, config)` 의 `config` 자체가 객체인지, 있다면
+ * `config.options` 도 객체인지를 본다. `assertChartType`·`assertChartData` 보다
+ * 먼저 불러야 한다 — 그 둘은 `config.type`·`config.data` 를 읽는데, `config` 를
+ * 통째로 빠뜨리면(`new CsatChart(canvas)`) 거기 닿기도 전에 영문
+ * `TypeError: Cannot read properties of undefined (reading 'type')` 로 죽는다.
+ * 이 라이브러리의 다른 «잘못된 인자» 경로는 전부 한국어 `CsatChartError` 인데
+ * 이 경로만 예외였다.
+ *
+ * `options` 은 흔히 실수로 문자열·배열·숫자를 통째로 넘기는 자리라 여기서도
+ * 같이 본다 — 그냥 두면 `mergeOptions` 의 얕은 스프레드가 조용히 무시하고
+ * 넘어가 «옵션을 줬는데 하나도 안 먹힌» 것처럼 보인다.
+ */
+export function assertConfigShape(config: unknown): void {
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    throw new CsatChartError(`config 는 ${shouldBe('객체')} (지금 ${kindOf(config)})`);
+  }
+
+  const options = (config as { options?: unknown }).options;
+  if (options !== undefined && (typeof options !== 'object' || options === null || Array.isArray(options))) {
+    throw new CsatChartError(`config.options 는 ${shouldBe('객체')} (지금 ${kindOf(options)})`);
+  }
+}
+
 export function assertChartData(type: CsatChartType, data: unknown): void {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
     throw new CsatChartError(

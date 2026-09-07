@@ -30,6 +30,18 @@
   없는 그림이 된다. `<canvas id="c"></canvas>` 라고만 쓰는 실수는 흔한데, 그 결과가
   조용한 오작동이면 안 되므로 자동으로 800×600 을 넣는다. 명시적으로 준 크기는
   그대로 존중한다.
+- **`roundRect` 폴리필로 지원 환경을 도로 넓힌다.** `src/core` 중 `legend.ts`·
+  `Hythergraph.ts`·`ScatterBubble.ts` 셋이 범례 박스를 그릴 때 `ctx.roundRect()`
+  를 쓰는데, 이 메서드는 core 안의 유일한 최신 Canvas 2D API 라 Chrome 99·
+  Firefox 112·Safari 16.4(iOS 16.4) 아래에서는 없다 — 그 아래에서는 범례가 있는
+  여덟 종류(`absbar`·`climate`·`deviation-a`·`deviation-b`·`hythergraph`·
+  `pyramid`·`scatter`·`stacked`)가 `ctx.roundRect is not a function` 으로 죽어
+  캔버스가 하얗게 비었다. 이 라이브러리가 겨냥하는 학교 PC·구형 iPad 가 정확히
+  그 아래 버전을 쓴다. `CsatChart` 생성자가 첫 렌더 전에
+  `installRoundRectPolyfill()` 을 자동으로 불러 이 여덟 종류를 도로 원래
+  지원 환경(Chrome 80·Firefox 74·Safari 13.1)에서 그릴 수 있게 한다. 저수준
+  렌더러를 파사드 없이 직접 부르는 사람은 `installRoundRectPolyfill()` 을
+  그리기 전에 스스로 한 번 불러야 한다 — 이 함수도 공개 표면에서 내보낸다.
 - **`toDataURL({ scale })` — 인쇄용 고해상도 내보내기.** `resize()` 는 캔버스만
   키우고 글자 크기는 절대 픽셀 그대로라 «두 배로 선명한 같은 그림» 이 아니라
   «글자가 절반으로 작아진 다른 그림» 이 된다. `scale` 은 글자·선까지 함께 키워

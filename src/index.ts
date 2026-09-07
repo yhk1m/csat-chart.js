@@ -27,6 +27,12 @@ export { CsatChartError } from './validate';
 export { ensureFonts } from './fonts';
 export type { EnsureFontsOptions } from './fonts';
 
+// ── roundRect 폴리필 ───────────────────────────────────
+// `CsatChart` 생성자가 첫 렌더 전에 자동으로 부른다. 파사드를 거치지 않고
+// 저수준 렌더러를 직접 부르는 사람만 이 함수를 스스로 불러야 한다 — 자세한
+// 사정은 `./roundrect` 참고.
+export { installRoundRectPolyfill } from './roundrect';
+
 // ── 저수준 렌더러 16종 ─────────────────────────────────
 export {
   renderAbsBarGraph,

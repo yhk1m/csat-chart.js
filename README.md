@@ -148,7 +148,19 @@ chart.download('시험지그림.png', { scale: 2 });
 
 ## 지원 환경
 
-- Chrome 80, Firefox 74, Safari 13.1 이상 (빌드 타깃 ES2020)
+- Chrome 99, Firefox 112, Safari 16.4(iOS 16.4) 이상은 아무것도 하지 않아도
+  16종 전부가 그대로 그려진다 (빌드 타깃 ES2020).
+- 그 아래 — Chrome 80·Firefox 74·Safari 13.1 까지 — 도 그려진다. **다만
+  `absbar`·`climate`·`deviation-a`·`deviation-b`·`hythergraph`·`pyramid`·
+  `scatter`·`stacked` 여덟 종류는 범례 박스를 그릴 때 `ctx.roundRect()` 를
+  쓰는데, 그 메서드가 Chrome 99·Firefox 112·Safari 16.4 미만에는 없다.** 이
+  라이브러리는 그 자리를 폴리필로 메운다 — `new CsatChart(...)` 를 쓰면
+  생성자가 첫 렌더 전에 자동으로 불러 주므로 신경 쓸 일이 없다. 저수준
+  렌더러(`renderClimateGraph` 등)를 파사드 없이 직접 부른다면 그리기 전에
+  `installRoundRectPolyfill()` 을 스스로 한 번 불러야 한다.
+- 학교 PC·구형 iPad 가 이 라이브러리의 실제 관객이다. iPad 5세대·Air 2 처럼
+  iOS 15 에서 멈춘 기기는 iOS 16.4 를 영영 받을 수 없어, 폴리필이 없으면
+  위 여덟 종류가 흰 캔버스로만 보인다.
 - 런타임 의존성 0. `<script>` 한 줄이면 된다
 - Node 는 캔버스 구현체를 직접 고른다 (아래 「Node.js 에서 PNG 뽑기」)
 

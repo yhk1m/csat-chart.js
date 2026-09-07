@@ -117,6 +117,40 @@ describe('CsatChart', () => {
     expect(c.height).toBe(900);
   });
 
+  it('config 를 통째로 생략하면 영문 TypeError 대신 한국어로 안내한다', () => {
+    // new CsatChart(canvas) 처럼 두 번째 인자를 빠뜨리면 config 가 undefined 다.
+    // 이 가드가 없으면 assertChartType(config.type) 에서 영문
+    // `TypeError: Cannot read properties of undefined (reading 'type')` 로 죽는다
+    // — 이 라이브러리의 다른 «잘못된 인자» 경로는 전부 한국어 CsatChartError다.
+    expect(() => new CsatChart(canvas(), undefined as never)).toThrow(/config 는 객체여야 합니다/);
+    expect(() => new CsatChart(canvas(), undefined as never)).toThrow(CsatChartError);
+  });
+
+  it('config 가 객체가 아니면(문자열·배열 등) 한국어로 안내한다', () => {
+    expect(() => new CsatChart(canvas(), 'ternary' as never)).toThrow(/config 는 객체여야 합니다 \(지금 문자열\)/);
+    expect(() => new CsatChart(canvas(), [] as never)).toThrow(/config 는 객체여야 합니다 \(지금 배열\)/);
+  });
+
+  it('config.options 가 객체가 아니면 한국어로 안내한다', () => {
+    expect(
+      () =>
+        new CsatChart(canvas(), {
+          type: 'ternary',
+          data: createDefaultTernaryData(),
+          options: '제목' as never,
+        }),
+    ).toThrow(/config\.options 는 객체여야 합니다 \(지금 문자열\)/);
+
+    expect(
+      () =>
+        new CsatChart(canvas(), {
+          type: 'ternary',
+          data: createDefaultTernaryData(),
+          options: [] as never,
+        }),
+    ).toThrow(/config\.options 는 객체여야 합니다 \(지금 배열\)/);
+  });
+
   it('알 수 없는 type 을 거부한다', () => {
     // type 을 never 로 캐스팅하면 T 도 never 로 추론되어 data 까지 never 가 된다.
     // 둘 다 캐스팅해야 컴파일된다 — 여기서 보려는 건 런타임 검증이다.

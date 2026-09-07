@@ -331,7 +331,9 @@ const SAMPLE_OVERRIDES = {
       { 'male': 1.3, 'female': 1.5 },
     ],
     'unit': 'percent', 'maleLabel': '남', 'femaleLabel': '여', 'axisLabel': '(%)',
-    'range': { 'max': 5, 'auto': false }, 'ageLabelSide': 'center',
+    // ageLabelSide 는 numericAgeAxis:true 에서 안 쓴다 — 적어 두면 읽는 사람이
+    // "이게 뭘 하지" 하고 헷갈릴 죽은 값이라 뺐다.
+    'range': { 'max': 5, 'auto': false },
     'numericAgeAxis': true, 'ageUnit': '(세)', 'axisLabelInline': true,
     'sexFills': ['#d9d9d9', '#d9d9d9'],
   },

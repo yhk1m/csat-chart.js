@@ -3142,8 +3142,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # 기본 브랜치 이름이 확정되기 전이라 둘 다 받는다.
+    branches: [main, master]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -3170,16 +3178,21 @@ jobs:
       # 선언 파일은 크기 하한만 검사한다 — 렌더 테스트로 뒷받침되는 mjs·cjs·umd 와
       # 달리, 커도 망가진 .d.ts 는 통과한다. 실제 소비자처럼 타입 검사를 한 번 돌려
       # 그 빈틈을 막는다. dts 를 만드는 워커가 이미 한 번 말썽을 부린 적이 있다.
+      # ⚠️ `.d.mts` 를 직접 import 하면 `TS2846: A declaration file cannot be
+      # imported without 'import type'` 로 막힌다. 구현 파일 `.mjs` 를 가리켜야
+      # TypeScript 가 옆의 `.d.mts` 를 찾아 쓴다 — 실제 소비자가 겪는 경로와도 같다.
+      # 검사 파일은 작업 폴더 안에 둔다. /tmp 에 두면 상대 경로가 저장소를 벗어난다.
       - name: 만들어진 선언 파일이 실제로 쓰이는지 확인
         run: |
-          mkdir -p /tmp/dtscheck
-          cat > /tmp/dtscheck/use.ts <<'EOF'
-          import { CsatChart, createDefaultTernaryData } from '../../dist/csat-chart.d.mts';
+          mkdir -p .dtscheck
+          cat > .dtscheck/use.ts <<'EOF'
+          import { CsatChart, createDefaultTernaryData } from '../dist/csat-chart.mjs';
           const cfg = { type: 'ternary' as const, data: createDefaultTernaryData() };
           export const ok: typeof CsatChart = CsatChart;
           export const t = cfg.type;
           EOF
-          npx tsc --noEmit --strict --moduleResolution bundler --module esnext             --target es2020 --lib es2020,dom /tmp/dtscheck/use.ts
+          npx tsc --noEmit --strict --moduleResolution bundler --module esnext             --target es2020 --lib es2020,dom .dtscheck/use.ts
+          rm -rf .dtscheck
 
       - name: docs/lib 가 최신인지 확인
         run: |

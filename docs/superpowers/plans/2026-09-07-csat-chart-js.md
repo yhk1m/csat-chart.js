@@ -1129,6 +1129,29 @@ describe('ensureFonts', () => {
     await ensureFonts();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('head 가 아직 없어도 던지지 않는다', () => {
+    // 문서 파싱 도중에 부르면 head 가 없을 수 있다.
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => ({ id: '', rel: '', href: '' }) as FakeLink,
+      fonts: { load: () => Promise.resolve([]) },
+    });
+    return expect(ensureFonts()).resolves.toBe(false);
+  });
+
+  it('createElement 가 막혀 있어도 던지지 않는다', () => {
+    // 엄격한 CSP·샌드박스에서 일어난다.
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => {
+        throw new Error('막힘');
+      },
+      head: { appendChild: () => {} },
+      fonts: { load: () => Promise.resolve([]) },
+    });
+    return expect(ensureFonts()).resolves.toBe(false);
+  });
 });
 ```
 
@@ -1194,12 +1217,20 @@ async function load(o: EnsureFontsOptions): Promise<boolean> {
   const families = o.families ?? DEFAULT_FAMILIES;
   const timeoutMs = o.timeoutMs ?? 5000;
 
-  if (!document.getElementById(LINK_ID)) {
-    const link = document.createElement('link');
-    link.id = LINK_ID;
-    link.rel = 'stylesheet';
-    link.href = href;
-    document.head.appendChild(link);
+  // 이 구간까지 감싸야 «던지지 않는다» 가 완성된다. document 는 있는데 head 가
+  // 아직 없거나(문서 파싱 도중), createElement 가 막힌 환경(엄격한 CSP·샌드박스)
+  // 에서 여기서 던진다. load() 가 async 라 그 예외는 거부된 약속이 되어
+  // ensureFonts() 호출부로 그대로 새어 나간다.
+  try {
+    if (!document.getElementById(LINK_ID)) {
+      const link = document.createElement('link');
+      link.id = LINK_ID;
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+  } catch {
+    return false;
   }
 
   const fonts = (document as unknown as { fonts?: FontFaceSetLike }).fonts;
@@ -1237,7 +1268,7 @@ async function load(o: EnsureFontsOptions): Promise<boolean> {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/fonts.test.ts`
-Expected: PASS — 8건
+Expected: PASS — 10건
 
 - [ ] **Step 5: 커밋**
 

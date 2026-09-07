@@ -112,7 +112,7 @@ csat-chart.js는 위 16개만 담은 `CsatChartType`을 새로 정의한다.
 csat-chart.js/
   src/
     core/                 ← geo-graph 무수정 이관층
-      canvas/             axes · export · labels · legend · patterns · renderer
+      canvas/             axes · labels · legend · patterns · renderer
       graphs/             렌더러 16종
       types/              데이터 타입 + GraphOptions
     registry.ts           키 → 렌더러·기본 데이터 매핑
@@ -144,7 +144,14 @@ csat-chart.js/
 ```ts
 const chart = new CsatChart(canvasOrId, {
   type: 'pyramid',
-  data: { bins, male, female },
+  data: {
+    ages: [{ male: 2.1, female: 2.0 }, /* …17개 연령대 */],
+    unit: 'percent',
+    maleLabel: '남', femaleLabel: '여',
+    axisLabel: '(%)',
+    range: { max: 10, auto: true },
+    ageLabelSide: 'center',
+  },
   options: { title: '○○국 인구 구조', source: 'UN' },   // 선택
 });
 
@@ -188,17 +195,29 @@ export type CsatChartConfig =
 ### 7.4 런타임 검증
 
 타입이 없는 자바스크립트 사용자를 위해 `chart.ts`가 그리기 전에 얕은 검사를 한다.
-검사는 **모양**만 본다 — 필수 필드 존재, 배열 여부, 길이 제약(예: 기후 12개월).
-값의 타당성은 보지 않는다.
+검사는 **모양**만 본다. 값의 타당성은 보지 않는다.
+
+기대 모양을 손으로 적지 않는다. **`createDefault*Data()`가 곧 정답 모양이다** —
+그 객체에 있는 키는 필수, 없는 키는 선택(핵심 타입의 `?` 필드들이 여기 해당한다).
+그래서 `core/`가 바뀌면 검증도 저절로 따라간다.
+
+규칙:
+
+1. `type`이 레지스트리에 없으면 — 편집 거리로 가장 가까운 키를 제안한다
+2. `data`가 객체가 아니면 — 오류
+3. 기본 데이터의 키 중 빠진 것이 있으면 — 오류
+4. 주어진 키의 종류(배열·객체·숫자·문자열·불리언)가 기본값과 다르면 — 오류
+5. 길이가 고정된 배열은 길이도 본다 — 확인된 것만 표로 둔다:
+   `climate.months` 12, `deviation-a.baseMonths` 12, `deviation-a.months` 12,
+   `ternary.axisLabels` 3
 
 실패하면 한국어로 무엇이 어떻게 어긋났는지 던진다.
 
 ```
-csat-chart: type "climate" 의 data.temp 는 12개여야 합니다 (지금 11개)
+csat-chart: type "climate" 의 data.months 는 12개여야 합니다 (지금 11개)
+csat-chart: type "pyramid" 의 data 에 ages 가 없습니다
 csat-chart: 알 수 없는 type "piramid" — 혹시 "pyramid"?
 ```
-
-알 수 없는 키에는 편집 거리 기준으로 가장 가까운 키를 제안한다.
 
 ## 8. 배포 산출물
 
@@ -248,16 +267,20 @@ renderClimateGraph(cv.getContext('2d'), 800, 600, data, options);
 fs.writeFileSync('out.png', cv.toBuffer('image/png'));
 ```
 
-두 곳을 정리해야 한다.
+브레인스토밍 단계에서 이 부분을 잘못 짚었다. 코드를 실제로 확인한 결과는 다음과 같다.
 
-- `core/canvas/patterns.ts` — 해칭 타일을 만들 때 `document.createElement('canvas')`를
-  쓴다. 이미 생성자를 주입받는 자리가 있으므로, 이를 공개 API `setCanvasFactory()`로
-  정식화한다. 미설정 시 브라우저에서는 `document`를, Node에서는 명확한 오류를 낸다.
-- `core/canvas/export.ts` — `document`와 `<a download>`를 쓴다. 브라우저 전용
-  모듈로 분리하고 Node 진입점에서는 내보내지 않는다.
+- `core/canvas/patterns.ts` — **이미 Node에서 돌아간다.** `document`가 없으면 지금
+  그리고 있는 캔버스의 생성자(`ctx.canvas.constructor`)로 타일 캔버스를 만든다.
+  `ctx.createPattern`이 같은 백엔드의 캔버스만 받기 때문에 그렇게 짜여 있다.
+  기존 골든 테스트 31장이 `@napi-rs/canvas`로 돌면서 해칭까지 그려내고 있는 것이
+  그 증거다. **`setCanvasFactory()`는 필요 없다 — 만들지 않는다.**
+- `core/canvas/export.ts` — **이관하지 않는다.** GeoGrapher 전용이다. 파일명을
+  `GeoGrapher_*.png`로 짓고, 공개 표면에서 제외하기로 한 `ExportSettings`·`GraphType`에
+  의존한다. geotester-v2 안에서도 아무도 import 하지 않는 죽은 코드다.
+  같은 역할은 파사드의 `toDataURL()`·`download()`가 대신한다.
 
-이 둘은 `core/` 무수정 원칙의 **유일한 예외**다. 예외인 이유와 변경 내용을
-CHANGELOG에 명시한다.
+`export.ts`를 빼는 것이 `core/` 무수정 원칙의 **유일한 예외**다. 파일을 지우는 것뿐
+내용을 고치지 않으며, 이유를 CHANGELOG에 명시한다.
 
 ## 11. 테스트
 
@@ -309,7 +332,7 @@ UI에 이모지를 쓰지 않는다. 아이콘이 필요하면 선 SVG로 그린
 | 1 | `core/` 무수정 이관 + 골든 이관 | 골든 30여 장 전부 통과 |
 | 2 | `registry.ts` + `validate.ts` | 16종 디스패치·검증 문구 테스트 통과 |
 | 3 | `chart.ts` 파사드 | update·resize·toDataURL·destroy 테스트 통과 |
-| 4 | `fonts.ts` + `setCanvasFactory()` | 브라우저·Node 양쪽 스모크 통과 |
+| 4 | `fonts.ts` | 글꼴 등록·중복 호출 테스트 통과 |
 | 5 | 번들 3종 + `exports` + 타입 선언 | 세 산출물 스모크 통과 |
 | 6 | README + CHANGELOG | 시작 예제가 복붙으로 동작 |
 | 7 | `docs/index.html` 데모 | 16종이 실제로 그려짐 |
@@ -320,6 +343,6 @@ UI에 이모지를 쓰지 않는다. 아이콘이 필요하면 선 SVG로 그린
 | 위험 | 대응 |
 |---|---|
 | 이관 중 렌더 결과가 미묘하게 달라짐 | 골든 이미지가 관문. 무수정 이관이 원칙인 이유 |
-| Node에서 해칭 패턴이 깨짐 | `setCanvasFactory()` 스모크를 4단계 완료 기준에 포함 |
+| 골든 이미지가 기계마다 다름 (글꼴 대체가 환경마다 다르다) | 골든은 이식 검증용이므로 저자 기계에서 돌린다. CI에서는 `RUN_GOLDEN` 없이 건너뛰고, 글꼴과 무관한 «빈 캔버스가 아니다» 검사는 늘 돌린다 |
 | CDN 사용자가 글꼴 없이 써서 «모양이 다르다» 문의 | 데모 첫 예제와 README 첫 단락에 `ensureFonts()` 노출 |
 | 세 벌이 갈라짐 | 이 저장소가 이제 그래프의 정본. 고칠 일이 생기면 여기서 고치고, 다른 두 곳으로 옮길지는 그때 각각 판단 |

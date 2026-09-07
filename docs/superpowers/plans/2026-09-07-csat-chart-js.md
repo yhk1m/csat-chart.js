@@ -113,7 +113,7 @@ Expected: FAIL — vitest 가 설치돼 있지 않음 (`npx` 가 설치를 시�
   "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/fix-esm-dts-ext.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern src test",
@@ -2384,8 +2384,14 @@ git commit -m "feat: 공개 표면 — 이름을 하나씩 적어 GeoGrapher UI 
 ### Task 9: 번들
 
 **Files:**
-- Create: `tsup.config.ts`
+- Create: `tsup.config.ts`, `scripts/fix-esm-dts-ext.mjs`
 - Test: `test/bundle.test.ts`
+
+⚠️ **tsup 만으로는 `package.json` 의 약속을 지킬 수 없다.** `dts: true` 는 선언
+파일 번들링을 워커 스레드에서 돌리는데, 함수는 구조화 복제가 안 되므로 tsup 이
+`outExtension` 을 통째로 버린다. 그러면 내부 기본값이 쓰이고, `"type": "module"`
+인 패키지에서는 cjs 만 `.d.cts` 가 되고 esm 은 `.d.ts` 로 남는다. `exports` 가
+가리키는 `.d.mts` 는 영영 안 나온다. 그래서 빌드 뒤에 이름을 바꾸는 단계가 붙는다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
@@ -2410,9 +2416,11 @@ const ARTIFACTS = [
   'csat-chart.d.cts',
 ];
 
+const BUILD_HINT = 'dist/ 가 없습니다 — `npm run build` 를 먼저 돌리세요';
+
 describe('번들 산출물', () => {
   it.each(ARTIFACTS)('%s 가 만들어졌다', (name) => {
-    expect(existsSync(join(DIST, name))).toBe(true);
+    expect(existsSync(join(DIST, name)), BUILD_HINT).toBe(true);
   });
 
   it('ESM 번들로 차트를 그린다', async () => {
@@ -2472,7 +2480,13 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    outExtension: ({ format }) => ({ js: format === 'esm' ? '.mjs' : '.cjs' }),
+    // `package.json` 의 `"type": "module"` 때문에 tsup 기본값은 esm 쪽 dts 를
+    // `.d.ts` 로 남겨 둔다(패키지 기본이 이미 모듈이라 보고). exports 맵은
+    // `.d.mts`/`.d.cts` 를 명시하므로 dts 확장자도 js 와 나란히 지정해야 한다.
+    outExtension: ({ format }) => ({
+      js: format === 'esm' ? '.mjs' : '.cjs',
+      dts: format === 'esm' ? '.d.mts' : '.d.cts',
+    }),
   },
   {
     entry: { 'csat-chart.umd': 'src/index.ts' },
@@ -2496,6 +2510,49 @@ export default defineConfig([
 ]);
 ```
 
+- [ ] **Step 3b: `scripts/fix-esm-dts-ext.mjs` 를 쓴다**
+
+```js
+// © 2026 김용현
+//
+// tsup 의 `dts: true` 는 선언 파일 번들링을 별도 워커 스레드에서 돌린다
+// (rollup.js 를 worker_threads 로 띄운다). 워커로 옵션을 넘길 때 함수는
+// 구조화 복제가 안 되므로 tsup 자신이 `outExtension` 을 지워 버린다
+// (tsup/dist/index.js 의 `dtsTask` 참고, `outExtension: void 0`). 그 결과
+// 실제로 쓰이는 것은 tsup 내부 `defaultOutExtension` 인데, 이 함수는
+// `package.json` 의 `"type": "module"` 을 보고 "esm 은 이미 기본이니
+// `.d.ts` 로 충분하다" 고 가정해서 cjs 쪽만 `.d.cts` 로 바꾸고 esm 쪽은
+// `.d.ts` 그대로 남긴다. tsup.config.ts 에 dts 확장자를 지정해도 워커
+// 단계에서 사라지므로 tsup.config.ts 만으로는 고칠 수 없다.
+//
+// 이 패키지는 번들이 하나로 말려 있어(dts:true, 상대 경로 import 없음)
+// `csat-chart.d.ts` 와 `csat-chart.d.cts` 가 바이트 단위로 같다 — 실제로
+// `diff dist/csat-chart.d.ts dist/csat-chart.d.cts` 로 확인했다. 그래서
+// `.d.ts` 를 그대로 `.d.mts` 로 옮겨도 안전하다. `package.json` 의
+// `exports["."].import.types` 가 요구하는 파일명을 맞추기 위한 빌드 후
+// 처리 단계다. 복사가 아니라 이름 바꾸기(rename)로 처리하는 이유는,
+// `package.json` 그 무엇도 `csat-chart.d.ts` 라는 이름을 가리키지 않아서
+// (top-level `types` 는 `.d.cts`, `exports` 는 `.d.mts`/`.d.cts`) 그대로
+// 두면 아무도 안 쓰는 파일이 `npm pack` 산출물에 죽은 채로 얹히기 때문이다.
+
+import { renameSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const dist = join(here, '..', 'dist');
+const src = join(dist, 'csat-chart.d.ts');
+const dest = join(dist, 'csat-chart.d.mts');
+
+if (!existsSync(src)) {
+  console.error(`[fix-esm-dts-ext] ${src} 가 없습니다 — tsup build 가 먼저 끝나야 합니다.`);
+  process.exit(1);
+}
+
+renameSync(src, dest);
+console.log(`[fix-esm-dts-ext] ${src} → ${dest}`);
+```
+
 - [ ] **Step 4: 빌드하고 통과를 확인한다**
 
 Run: `npm run build`
@@ -2503,6 +2560,9 @@ Expected: `dist/` 에 5개 산출물, `docs/lib/csat-chart.umd.min.js` 생성
 
 Run: `npx vitest run test/bundle.test.ts`
 Expected: PASS — 8건
+
+`package.json` 이 가리키는 다섯 파일이 그 이름 그대로 있는지 직접 확인한다.
+특히 `dist/csat-chart.d.mts` 는 후처리 단계가 없으면 나오지 않는다.
 
 빌드 산출물의 크기를 확인한다.
 

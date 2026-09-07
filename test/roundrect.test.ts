@@ -26,11 +26,16 @@ function renderClimate(ctx: CanvasRenderingContext2D): void {
   renderClimateGraph(ctx, W, H, createDefaultClimateData(), createDefaultGraphOptions());
 }
 
+/** `roundRect` 만 선택으로 되돌린 프로토타입 모양 — `delete` 하려면 선택 필드여야 한다. */
+type PrototypeWithOptionalRoundRect = Omit<CanvasRenderingContext2D, 'roundRect'> & {
+  roundRect?: CanvasRenderingContext2D['roundRect'];
+};
+
 /** `@napi-rs/canvas` 의 컨텍스트가 실제로 물고 있는 클래스. 전역이 아니다 — 직접 찾는다. */
-function nativeCtxCtor(): { prototype: CanvasRenderingContext2D & { roundRect?: unknown } } {
+function nativeCtxCtor(): { prototype: PrototypeWithOptionalRoundRect } {
   const probe = createCanvas(1, 1).getContext('2d') as unknown as CanvasRenderingContext2D;
   return Object.getPrototypeOf(probe).constructor as {
-    prototype: CanvasRenderingContext2D & { roundRect?: unknown };
+    prototype: PrototypeWithOptionalRoundRect;
   };
 }
 

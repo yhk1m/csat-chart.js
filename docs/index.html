@@ -99,6 +99,116 @@ const FACTORY = {
   'ternary': 'createDefaultTernaryData', 'treemap': 'createDefaultTreemapData',
 };
 
+/**
+ * `createDefault*Data()`가 값을 전부 0으로 주는 여섯 종류의 대체 표본이다.
+ * (climate·deviation-a·deviation-b·hythergraph·pyramid·radar — 그대로 그리면
+ * 축·범례만 있고 자료는 안 보이는 빈 그림이 된다. README의 「내 자료 넣기」가
+ * 문서로 경고하는 바로 그 함정을, 처음 보는 그림에서까지 겪게 할 수는 없다.)
+ * 값은 test/core/fixtures.ts의 climateWithData 등에서 그대로 옮겨 왔다 —
+ * 이 파일은 빌드 없는 단일 HTML이라 test/를 import하지 않고 값만 복사한다.
+ */
+const SAMPLE_OVERRIDES = {
+  'climate': {
+    'months': [
+      { 'temp': 1, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+      { 'temp': 7, 'precip': 30 }, { 'temp': 13, 'precip': 140 },
+      { 'temp': 19, 'precip': 221 }, { 'temp': 23.4, 'precip': 250 },
+      { 'temp': 25, 'precip': 221 }, { 'temp': 23.4, 'precip': 140 },
+      { 'temp': 19, 'precip': 30 }, { 'temp': 13, 'precip': 30 },
+      { 'temp': 7, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+    ],
+    'monthInterval': 12, 'tempLabel': '(°C)', 'precipLabel': '(mm)',
+    'tempRange': { 'min': -10, 'max': 40, 'auto': true },
+    'precipRange': { 'min': 0, 'max': 400, 'auto': true },
+  },
+  'deviation-a': {
+    'baseMonths': [
+      { 'temp': 1, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+      { 'temp': 7, 'precip': 30 }, { 'temp': 13, 'precip': 140 },
+      { 'temp': 19, 'precip': 221 }, { 'temp': 23.4, 'precip': 250 },
+      { 'temp': 25, 'precip': 221 }, { 'temp': 23.4, 'precip': 140 },
+      { 'temp': 19, 'precip': 30 }, { 'temp': 13, 'precip': 30 },
+      { 'temp': 7, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+    ],
+    'months': [
+      { 'temp': -1, 'precip': 0 }, { 'temp': 1.6, 'precip': 25 },
+      { 'temp': 7, 'precip': 50 }, { 'temp': 14, 'precip': 185 },
+      { 'temp': 21, 'precip': 191 }, { 'temp': 21.4, 'precip': 245 },
+      { 'temp': 24, 'precip': 241 }, { 'temp': 23.4, 'precip': 185 },
+      { 'temp': 20, 'precip': 0 }, { 'temp': 15, 'precip': 25 },
+      { 'temp': 5, 'precip': 50 }, { 'temp': 1.6, 'precip': 75 },
+    ],
+    'monthInterval': 12, 'tempLabel': '(°C)', 'precipLabel': '(mm)',
+    'tempRange': { 'min': -10, 'max': 10, 'auto': true },
+    'precipRange': { 'min': -200, 'max': 200, 'auto': true },
+  },
+  'deviation-b': {
+    'baseTemp': 12, 'basePrecip': 1300,
+    'regions': [
+      { 'label': 'A', 'precip': 1550, 'temp': 9.5 },
+      { 'label': 'B', 'precip': 1180, 'temp': 14.2 },
+      { 'label': 'C', 'precip': 900, 'temp': 11.1 },
+    ],
+    'precipDiffLabel': '강수량 차이', 'tempDiffLabel': '기온 차이',
+    'precipUnit': '(mm)', 'tempUnit': '(°C)',
+    'precipRange': { 'min': -200, 'max': 200, 'auto': true },
+    'tempRange': { 'min': -10, 'max': 10, 'auto': true },
+  },
+  'hythergraph': {
+    'series': [
+      { 'label': '(가)', 'months': [
+        { 'temp': 1, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+        { 'temp': 7, 'precip': 30 }, { 'temp': 13, 'precip': 140 },
+        { 'temp': 19, 'precip': 221 }, { 'temp': 23.4, 'precip': 250 },
+        { 'temp': 25, 'precip': 221 }, { 'temp': 23.4, 'precip': 140 },
+        { 'temp': 19, 'precip': 30 }, { 'temp': 13, 'precip': 30 },
+        { 'temp': 7, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+      ] },
+      { 'label': '(나)', 'months': [
+        { 'temp': 7, 'precip': 15 }, { 'temp': 8.6, 'precip': 15 },
+        { 'temp': 13, 'precip': 15 }, { 'temp': 19, 'precip': 70 },
+        { 'temp': 25, 'precip': 110.5 }, { 'temp': 29.4, 'precip': 125 },
+        { 'temp': 31, 'precip': 110.5 }, { 'temp': 29.4, 'precip': 70 },
+        { 'temp': 25, 'precip': 15 }, { 'temp': 19, 'precip': 15 },
+        { 'temp': 13, 'precip': 15 }, { 'temp': 8.6, 'precip': 15 },
+      ] },
+    ],
+    'mode': 'both', 'monthLabelStyle': 'number', 'xUnit': '(°C)', 'yUnit': '(mm)',
+    'xRange': { 'min': -10, 'max': 40, 'auto': true },
+    'yRange': { 'min': 0, 'max': 400, 'auto': true },
+  },
+  'pyramid': {
+    'ages': [
+      { 'male': 4.2, 'female': 4.4 }, { 'male': 4, 'female': 4.2 },
+      { 'male': 3.8, 'female': 4 }, { 'male': 3.7, 'female': 3.9 },
+      { 'male': 3.5, 'female': 3.7 }, { 'male': 3.3, 'female': 3.5 },
+      { 'male': 3.1, 'female': 3.3 }, { 'male': 2.9, 'female': 3.1 },
+      { 'male': 2.8, 'female': 3 }, { 'male': 2.6, 'female': 2.8 },
+      { 'male': 2.4, 'female': 2.6 }, { 'male': 2.2, 'female': 2.4 },
+      { 'male': 2, 'female': 2.2 }, { 'male': 1.9, 'female': 2.1 },
+      { 'male': 1.7, 'female': 1.9 }, { 'male': 1.5, 'female': 1.7 },
+      { 'male': 1.3, 'female': 1.5 },
+    ],
+    'unit': 'percent', 'maleLabel': '남', 'femaleLabel': '여', 'axisLabel': '(%)',
+    'range': { 'max': 10, 'auto': true }, 'ageLabelSide': 'center',
+  },
+  'radar': {
+    'axisLabels': ['축1', '축2', '축3', '축4', '축5'],
+    'series': [
+      { 'label': '(가)', 'values': [80, 45, 60, 30, 70] },
+      { 'label': '(나)', 'values': [40, 75, 35, 85, 50] },
+    ],
+    'maxValue': 100, 'autoMax': true, 'gridSteps': 5, 'showFill': false,
+  },
+};
+
+/** 표본이 있으면 그 사본을, 없으면 라이브러리 기본값을 준다. 매번 새 객체를 준다 —
+ * 카드가 자기 데이터를 직접 고쳐도 다른 카드나 다음 되돌리기에 새지 않도록. */
+function sampleFor(type) {
+  const override = SAMPLE_OVERRIDES[type];
+  return override ? JSON.parse(JSON.stringify(override)) : CsatChart[FACTORY[type]]();
+}
+
 const ICON_DOWNLOAD =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
   ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -127,7 +237,21 @@ const ICON_COPY =
 const OPEN_SCRIPT_CDN = '<' + 'script src="https://cdn.jsdelivr.net/npm/csat-chart.js">';
 const CLOSE_SCRIPT = '<' + '/script>';
 
-function snippetFor(type) {
+/**
+ * JSON.stringify가 준 여러 줄 문자열을, 첫 줄을 뺀 나머지에 prefix를 앞에
+ * 붙여 코드 블록 안에서 "data:" 뒤에 그대로 얹었을 때 들여쓰기가 맞게 한다.
+ */
+function reindent(json, prefix) {
+  return json.split('\n').map((line, i) => (i === 0 ? line : prefix + line)).join('\n');
+}
+
+/**
+ * 카드에 실제로 걸려 있는 데이터를 그대로 박아 넣는다 — 공장 함수 호출로
+ * 적으면(예: CsatChart.createDefaultClimateData()) 화면엔 표본이 보이는데
+ * 복사한 코드는 빈 그림을 만드는 어긋남이 생긴다. 붙여넣기가 항상 화면과
+ * 같은 그림을 재현하도록, 지금 이 카드가 들고 있는 data를 그대로 적는다.
+ */
+function snippetFor(type, data) {
   return [
     '<canvas id="c" width="800" height="600"></canvas>',
     OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
@@ -135,7 +259,7 @@ function snippetFor(type) {
     '  CsatChart.ensureFonts().then(function () {',
     "    new CsatChart('c', {",
     "      type: '" + type + "',",
-    '      data: CsatChart.' + FACTORY[type] + '(),',
+    '      data: ' + reindent(JSON.stringify(data, null, 2), '      ') + ',',
     '    });',
     '  });',
     CLOSE_SCRIPT,
@@ -206,15 +330,23 @@ function card(type) {
   const area = el.querySelector('textarea');
   const err = el.querySelector('.err');
   const snippetCode = el.querySelector('.snippet code');
-  const fresh = () => CsatChart[FACTORY[type]]();
+  const fresh = () => sampleFor(type);
 
-  const chart = new CsatChart(canvas, { type: type, data: fresh() });
-  area.value = JSON.stringify(fresh(), null, 2);
-  snippetCode.textContent = snippetFor(type);
+  // 되돌리기는 라이브러리의 빈 기본값이 아니라 이 카드가 시작할 때 보여준
+  // 표본으로 되돌린다 — 그래야 여섯 종류가 되돌리기 한 번에 다시 빈 그림이
+  // 되는 일이 없다.
+  const initialData = fresh();
+  const chart = new CsatChart(canvas, { type: type, data: initialData });
+  area.value = JSON.stringify(initialData, null, 2);
+  snippetCode.textContent = snippetFor(type, initialData);
 
   area.addEventListener('input', function () {
     try {
-      chart.update({ data: JSON.parse(area.value) });
+      const parsed = JSON.parse(area.value);
+      chart.update({ data: parsed });
+      // 코드도 화면과 같은 자료를 보여준다 — 편집한 뒤 복사해도 방금 본
+      // 그림 그대로 재현되게.
+      snippetCode.textContent = snippetFor(type, parsed);
       err.textContent = '';
     } catch (e) {
       err.textContent = e.message;
@@ -222,8 +354,10 @@ function card(type) {
   });
 
   el.querySelector('[data-act=reset]').addEventListener('click', function () {
-    area.value = JSON.stringify(fresh(), null, 2);
-    chart.update({ data: fresh() });
+    const data = fresh();
+    area.value = JSON.stringify(data, null, 2);
+    chart.update({ data: data });
+    snippetCode.textContent = snippetFor(type, data);
     err.textContent = '';
   });
 
@@ -232,7 +366,7 @@ function card(type) {
   });
 
   el.querySelector('[data-act=copy]').addEventListener('click', function (ev) {
-    copyText(snippetFor(type), ev.currentTarget);
+    copyText(snippetCode.textContent, ev.currentTarget);
   });
 
   return el;

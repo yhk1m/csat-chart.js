@@ -72,5 +72,3 @@ export interface UpdateFor<T extends CsatChartType> {
   data?: ChartDataMap[T];
   options?: PartialGraphOptions;
 }
-
-export type CsatChartUpdate = { [K in CsatChartType]: UpdateFor<K> }[CsatChartType];

@@ -52,6 +52,10 @@ async function load(o: EnsureFontsOptions): Promise<boolean> {
   const families = o.families ?? DEFAULT_FAMILIES;
   const timeoutMs = o.timeoutMs ?? 5000;
 
+  // 이 구간까지 감싸야 «던지지 않는다» 가 완성된다. document 는 있는데 head 가
+  // 아직 없거나(문서 파싱 도중), createElement 가 막힌 환경(엄격한 CSP·샌드박스)
+  // 에서 여기서 던진다. load() 가 async 라 그 예외는 거부된 약속이 되어
+  // ensureFonts() 호출부로 그대로 새어 나간다.
   try {
     if (!document.getElementById(LINK_ID)) {
       const link = document.createElement('link');

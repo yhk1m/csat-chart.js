@@ -100,4 +100,27 @@ describe('ensureFonts', () => {
     await ensureFonts();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('head 가 아직 없어도 던지지 않는다', () => {
+    // 문서 파싱 도중에 부르면 head 가 없을 수 있다.
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => ({ id: '', rel: '', href: '' }) as FakeLink,
+      fonts: { load: () => Promise.resolve([]) },
+    });
+    return expect(ensureFonts()).resolves.toBe(false);
+  });
+
+  it('createElement 가 막혀 있어도 던지지 않는다', () => {
+    // 엄격한 CSP·샌드박스에서 일어난다.
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => {
+        throw new Error('막힘');
+      },
+      head: { appendChild: () => {} },
+      fonts: { load: () => Promise.resolve([]) },
+    });
+    return expect(ensureFonts()).resolves.toBe(false);
+  });
 });

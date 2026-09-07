@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>csat-chart.js — 수능 형식 그래프 라이브러리</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 13.5V7M6 13.5V3M10 13.5V9.5M14 13.5V5.5' stroke='%231f4b8e' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap">
+<style>
+  :root { --line:#d8d4cc; --ink:#1c1a17; --muted:#6b655c; --bg:#faf9f6; --accent:#1f4b8e; --card:#fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:'Noto Sans KR', system-ui, sans-serif; line-height:1.65; }
+  header { border-bottom:1px solid var(--line); padding:48px 24px 32px; }
+  .wrap { max-width:1040px; margin:0 auto; }
+  h1 { font-family:'Noto Serif KR', serif; font-size:32px; margin:0 0 8px; letter-spacing:-0.02em; }
+  .lede { color:var(--muted); margin:0 0 20px; max-width:60ch; }
+  .font-status { margin:0 0 20px; font-size:12px; color:var(--muted); }
+  .font-status.warn { color:#8a5a20; }
+  .start { background:var(--card); border:1px solid var(--line); border-radius:4px; padding:16px 18px; }
+  pre { margin:0; overflow-x:auto; font-size:13px; line-height:1.6;
+        font-family:ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+  main { padding:32px 24px 80px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:4px;
+          margin-bottom:28px; overflow:hidden; }
+  .card > h2 { font-size:16px; margin:0; padding:14px 18px; border-bottom:1px solid var(--line);
+               display:flex; align-items:center; gap:10px; }
+  .key { font-family:ui-monospace, Consolas, monospace; font-size:12px; color:var(--accent);
+         border:1px solid var(--line); border-radius:3px; padding:1px 6px; }
+  .body { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:18px; padding:18px; }
+  @media (max-width:860px) { .body { grid-template-columns:1fr; } }
+  canvas { width:100%; height:auto; border:1px solid var(--line); background:#fff; display:block; }
+  .hint { margin:8px 0 0; font-size:11.5px; color:var(--muted); }
+  label.field-label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  textarea { width:100%; height:190px; font-family:ui-monospace, Consolas, monospace;
+             font-size:12px; border:1px solid var(--line); border-radius:3px; padding:10px;
+             resize:vertical; background:#fdfdfb; color:var(--ink); }
+  .row { display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; font-size:13px; padding:6px 12px; border:1px solid var(--line);
+           background:#fff; border-radius:3px; cursor:pointer; display:inline-flex;
+           align-items:center; gap:6px; color:var(--ink); }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.copied { border-color:#2e7d32; color:#2e7d32; }
+  .err { color:#a4262c; font-size:12px; min-height:1.2em; margin:8px 0 0; }
+  .snippet-head { display:flex; align-items:center; justify-content:space-between;
+                  margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
+  .snippet-head span { font-size:12px; color:var(--muted); }
+  .snippet-head button { font-size:12px; padding:4px 10px; }
+  pre.snippet { margin-top:6px; background:#fdfdfb; border:1px solid var(--line); border-radius:3px;
+                padding:10px; font-size:11px; line-height:1.6; max-height:220px; overflow:auto; }
+  footer { border-top:1px solid var(--line); padding:24px; color:var(--muted); font-size:13px; }
+  footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>csat-chart.js</h1>
+    <p class="lede">수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그립니다.
+      런타임 의존성이 없고, 스크립트 한 줄로 시작합니다. 아래 16종 카드는 데이터를
+      바로 고쳐 다시 그려 보고, 쓰인 코드를 그대로 복사해 갈 수 있습니다.</p>
+    <p class="font-status" id="font-status">글꼴을 불러오는 중…</p>
+    <div class="start"><pre>&lt;script src="https://cdn.jsdelivr.net/npm/csat-chart.js"&gt;&lt;/script&gt;
+&lt;canvas id="c" width="800" height="600"&gt;&lt;/canvas&gt;
+&lt;script&gt;
+  CsatChart.ensureFonts().then(function () {
+    new CsatChart('c', { type: 'ternary', data: CsatChart.createDefaultTernaryData() });
+  });
+&lt;/script&gt;</pre></div>
+  </div>
+</header>
+
+<main class="wrap" id="gallery"></main>
+
+<footer class="wrap">
+  MIT © 2026 김용현 ·
+  <a href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
+</footer>
+
+<script src="./lib/csat-chart.umd.min.js"></script>
+<script>
+const LABELS = {
+  'absbar': '절댓값 막대', 'category-dot': '범주 점', 'climate': '기후 그래프',
+  'cube': '정육면체', 'data-table': '항목×지역 표', 'deviation-a': '월별 편차',
+  'deviation-b': '지역별 편차', 'hythergraph': '하이서그래프', 'line': '꺾은선',
+  'matrix-table': '계단식 행렬표', 'pyramid': '인구 피라미드', 'radar': '방사형',
+  'scatter': '산점도·버블', 'stacked': '100% 막대·원', 'ternary': '삼각 그래프',
+  'treemap': '트리맵',
+};
+
+const FACTORY = {
+  'absbar': 'createDefaultAbsBarData', 'category-dot': 'createDefaultCategoryDotData',
+  'climate': 'createDefaultClimateData', 'cube': 'createDefaultCubeData',
+  'data-table': 'createDefaultDataTableData', 'deviation-a': 'createDefaultDeviationAData',
+  'deviation-b': 'createDefaultDeviationBData', 'hythergraph': 'createDefaultHythergraphData',
+  'line': 'createDefaultLineData', 'matrix-table': 'createDefaultMatrixTableData',
+  'pyramid': 'createDefaultPyramidData', 'radar': 'createDefaultRadarData',
+  'scatter': 'createDefaultScatterData', 'stacked': 'createDefaultStackedData',
+  'ternary': 'createDefaultTernaryData', 'treemap': 'createDefaultTreemapData',
+};
+
+const ICON_DOWNLOAD =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13h11"/></svg>';
+
+const ICON_RESET =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M13 8a5 5 0 1 1-1.6-3.7M13 2v3h-3"/></svg>';
+
+const ICON_COPY =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="5.5" y="5.5" width="8" height="8" rx="1"/>' +
+  '<path d="M3.5 10.5h-1a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v1"/></svg>';
+
+// 카드마다 다시 그릴 실제 script 요소를 여는/닫는 것이 아니라, 화면에 «글로
+// 보여줄» 코드 문자열을 만든다. 이 파일 자신도 script 태그 안에서 실행되므로,
+// 그 안의 문자열에 script 여는/닫는 태그가 그대로 이어지면 두 가지가 문제다.
+//   · 닫는 태그가 이어지면, 이 파일을 파싱하는 HTML 파서가 거기서 진짜
+//     스크립트 블록이 끝난 것으로 오해한다.
+//   · src 속성이 붙은 여는 태그가 이어지면, 브라우저의 프리로드 스캐너가
+//     그 주소(jsdelivr)를 실제 리소스로 착각해 미리 받아 오려다 실패한다.
+// 둘 다 태그 문자열을 둘로 쪼개 피한다. (이 주석 자신도 그대로 옮겨 적지
+// 않는 이유다.)
+const OPEN_SCRIPT_CDN = '<' + 'script src="https://cdn.jsdelivr.net/npm/csat-chart.js">';
+const CLOSE_SCRIPT = '<' + '/script>';
+
+function snippetFor(type) {
+  return [
+    '<canvas id="c" width="800" height="600"></canvas>',
+    OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
+    '<script>',
+    '  CsatChart.ensureFonts().then(function () {',
+    "    new CsatChart('c', {",
+    "      type: '" + type + "',",
+    '      data: CsatChart.' + FACTORY[type] + '(),',
+    '    });',
+    '  });',
+    CLOSE_SCRIPT,
+  ].join('\n');
+}
+
+function copyText(text, btn) {
+  const done = function () {
+    const original = btn.dataset.label;
+    btn.classList.add('copied');
+    btn.textContent = '복사됨';
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      btn.innerHTML = original;
+    }, 1400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () {
+      fallbackCopy(text);
+      done();
+    });
+  } else {
+    fallbackCopy(text);
+    done();
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { /* 조용히 넘어간다 */ }
+  document.body.removeChild(ta);
+}
+
+function card(type) {
+  const el = document.createElement('section');
+  el.className = 'card';
+  const copyBtnLabel = ICON_COPY + '코드 복사';
+  el.innerHTML =
+    '<h2>' + LABELS[type] + ' <span class="key">' + type + '</span></h2>' +
+    '<div class="body">' +
+      '<div>' +
+        '<canvas width="800" height="600"></canvas>' +
+        '<p class="hint">화면은 800×600으로 보여주고, PNG 저장은 인쇄용으로' +
+        ' 2배 해상도인 1600×1200으로 내려받습니다.</p>' +
+      '</div>' +
+      '<div>' +
+        '<label class="field-label">데이터 (JSON) — 고치면 바로 다시 그립니다</label>' +
+        '<textarea spellcheck="false"></textarea>' +
+        '<p class="err"></p>' +
+        '<div class="row">' +
+          '<button data-act="reset">' + ICON_RESET + '되돌리기</button>' +
+          '<button data-act="png" title="1600×1200px, 인쇄용 2배 해상도">' + ICON_DOWNLOAD + 'PNG 저장 (2×)</button>' +
+        '</div>' +
+        '<div class="snippet-head">' +
+          '<span>이 그래프를 만드는 코드</span>' +
+          '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
+        '</div>' +
+        '<pre class="snippet"><code></code></pre>' +
+      '</div>' +
+    '</div>';
+
+  const canvas = el.querySelector('canvas');
+  const area = el.querySelector('textarea');
+  const err = el.querySelector('.err');
+  const snippetCode = el.querySelector('.snippet code');
+  const fresh = () => CsatChart[FACTORY[type]]();
+
+  const chart = new CsatChart(canvas, { type: type, data: fresh() });
+  area.value = JSON.stringify(fresh(), null, 2);
+  snippetCode.textContent = snippetFor(type);
+
+  area.addEventListener('input', function () {
+    try {
+      chart.update({ data: JSON.parse(area.value) });
+      err.textContent = '';
+    } catch (e) {
+      err.textContent = e.message;
+    }
+  });
+
+  el.querySelector('[data-act=reset]').addEventListener('click', function () {
+    area.value = JSON.stringify(fresh(), null, 2);
+    chart.update({ data: fresh() });
+    err.textContent = '';
+  });
+
+  el.querySelector('[data-act=png]').addEventListener('click', function () {
+    chart.download(type + '.png', { scale: 2 });
+  });
+
+  el.querySelector('[data-act=copy]').addEventListener('click', function (ev) {
+    copyText(snippetFor(type), ev.currentTarget);
+  });
+
+  return el;
+}
+
+function buildGallery() {
+  const gallery = document.getElementById('gallery');
+  CsatChart.CHART_TYPES.forEach(function (t) { gallery.appendChild(card(t)); });
+}
+
+const statusEl = document.getElementById('font-status');
+
+// ensureFonts() 는 절대 reject 하지 않고 성공 여부를 불리언으로 돌려준다
+// (문서 참고). 그래도 만에 하나 다른 예외가 새어 나오는 경우까지 대비해
+// .catch 로 한 번 더 감싸, 글꼴 사정과 무관하게 갤러리는 반드시 그려지게 한다.
+CsatChart.ensureFonts()
+  .then(function (ok) {
+    statusEl.textContent = ok
+      ? '시험지 명조체(Noto Serif KR)를 불러왔습니다.'
+      : '명조체를 불러오지 못해 시스템 대체 글꼴로 표시됩니다.';
+    if (!ok) statusEl.classList.add('warn');
+  })
+  .catch(function () {
+    statusEl.textContent = '명조체를 불러오지 못해 시스템 대체 글꼴로 표시됩니다.';
+    statusEl.classList.add('warn');
+  })
+  .then(buildGallery, buildGallery);
+</script>
+</body>
+</html>

@@ -7,74 +7,189 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 13.5V7M6 13.5V3M10 13.5V9.5M14 13.5V5.5' stroke='%231f4b8e' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap">
 <style>
-  :root { --line:#d8d4cc; --ink:#1c1a17; --muted:#6b655c; --bg:#faf9f6; --accent:#1f4b8e; --card:#fff; }
+  :root {
+    --line:#d8d4cc;        /* 장식용 구분선 전용. 대비가 낮다 — 통제선(입력칸 등)에 쓰지 않는다 */
+    --control-line:#948d7f;/* 입력칸·버튼 테두리. 흰 바탕에서 3.29:1 — WCAG 1.4.11 통과 */
+    --ink:#1c1a17;
+    --muted:#6b655c;
+    --bg:#faf9f6;
+    --accent:#1f4b8e;
+    --card:#fff;
+  }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
-         font-family:'Noto Sans KR', system-ui, sans-serif; line-height:1.65; }
-  header { border-bottom:1px solid var(--line); padding:48px 24px 32px; }
+         font-family:'Noto Sans KR', system-ui, sans-serif; line-height:1.65; font-size:14px; }
+  h1, h2, h3 { font-family:'Noto Serif KR', serif; }
+
+  /* 스킵 링크 — 포커스를 받기 전까지는 화면 밖에 둔다 */
+  .skip-link {
+    position:absolute; left:8px; top:-48px; z-index:100;
+    background:var(--accent); color:#fff; padding:10px 16px; border-radius:4px;
+    font-size:13px; text-decoration:none; transition:top .15s;
+  }
+  .skip-link:focus { top:8px; }
+
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  header { border-bottom:1px solid var(--line); padding:44px 24px 36px; }
   .wrap { max-width:1040px; margin:0 auto; }
-  h1 { font-family:'Noto Serif KR', serif; font-size:32px; margin:0 0 8px; letter-spacing:-0.02em; }
-  .lede { color:var(--muted); margin:0 0 20px; max-width:60ch; }
-  .font-status { margin:0 0 20px; font-size:12px; color:var(--muted); }
+  h1 { font-size:32px; margin:0 0 8px; letter-spacing:-0.02em; }
+  .lede { color:var(--muted); margin:0 0 16px; max-width:60ch; font-size:15px; }
+  .font-status { margin:0 0 24px; font-size:12px; color:var(--muted); }
   .font-status.warn { color:#8a5a20; }
-  .start { background:var(--card); border:1px solid var(--line); border-radius:4px; padding:16px 18px; }
-  pre { margin:0; overflow-x:auto; font-size:13px; line-height:1.6;
+
+  /* 히어로 — 접히지 않는 완성된 그래프 한 장. 이 페이지에서 위로 접히는 화면(스크롤 전)에
+     놓이는 가장 큰 것이 <script> 태그가 아니라 그래프 자체이게 한다. */
+  .hero { background:var(--card); border:1px solid var(--line); border-radius:6px;
+          padding:20px; margin-bottom:22px; }
+  .hero-head { display:flex; justify-content:space-between; align-items:baseline;
+               gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .hero-head h2 { font-size:15px; margin:0; color:var(--muted); font-weight:500;
+                  font-family:'Noto Sans KR', sans-serif; }
+  .hero-head a { font-size:13px; color:var(--accent); }
+  .hero img { width:100%; height:auto; display:block; border:1px solid var(--control-line);
+              background:#fff; border-radius:2px; }
+  .hero-note { margin:10px 2px 0; font-size:12px; color:var(--muted); }
+
+  /* 16종 색인 — 이름을 알면 바로 그 카드로 뛴다 */
+  nav.index { margin:0 0 14px; }
+  nav.index ul { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px 8px; }
+  nav.index a { font-size:12.5px; color:var(--ink); text-decoration:none; padding:4px 9px;
+                border:1px solid var(--control-line); border-radius:12px; display:inline-block; }
+  nav.index a:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .doc-links { margin:0 0 22px; font-size:13px; color:var(--muted); }
+  .doc-links a { color:var(--accent); }
+  .doc-links .sep { margin:0 8px; color:var(--line); }
+
+  /* 시작 코드 — 접어 둔다. 그래프가 먼저다 */
+  details.start { background:var(--card); border:1px solid var(--line); border-radius:4px; }
+  details.start > summary { padding:12px 16px; cursor:pointer; font-size:13px; color:var(--muted);
+                             list-style:none; display:flex; align-items:center; gap:8px; }
+  details.start > summary::-webkit-details-marker { display:none; }
+  details.start .chevron { transition:transform .15s; flex:none; }
+  details.start[open] .chevron { transform:rotate(90deg); }
+  details.start .inner { padding:0 16px 16px; }
+  pre { margin:0; overflow-x:auto; font-size:12.5px; line-height:1.6;
         font-family:ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+  .cdn-note { margin:10px 0 0; font-size:12px; color:var(--muted); }
+  .cdn-note code { font-size:11.5px; }
+
   main { padding:32px 24px 80px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:4px;
-          margin-bottom:28px; overflow:hidden; }
-  .card > h2 { font-size:16px; margin:0; padding:14px 18px; border-bottom:1px solid var(--line);
-               display:flex; align-items:center; gap:10px; }
+          margin-bottom:28px; overflow:hidden; scroll-margin-top:16px; }
+  .card > .card-head { padding:14px 18px; border-bottom:1px solid var(--line); }
+  .card > .card-head h2 { font-size:20px; margin:0; display:flex; align-items:center; gap:10px; }
+  .card .usage-hint { margin:6px 0 0; font-size:13px; color:var(--muted); font-family:'Noto Sans KR', sans-serif; }
   .key { font-family:ui-monospace, Consolas, monospace; font-size:12px; color:var(--accent);
-         border:1px solid var(--line); border-radius:3px; padding:1px 6px; }
+         border:1px solid var(--control-line); border-radius:3px; padding:1px 6px; }
+
   .body { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:18px; padding:18px; }
-  @media (max-width:860px) { .body { grid-template-columns:1fr; } }
-  canvas { width:100%; height:auto; border:1px solid var(--line); background:#fff; display:block; }
-  .hint { margin:8px 0 0; font-size:11.5px; color:var(--muted); }
+  @media (max-width:860px) {
+    /* bare 1fr 은 min-content 최소폭을 갖는다 — 800px 캔버스·긴 코드 줄이 그 최소폭을
+       420px 안팎으로 밀어 올려, 좁은 화면에서 카드가 넘치고 overflow:hidden 이 그걸
+       가려 버린다(스크롤바가 안 생기니 "괜찮아 보였다"). minmax(0,1fr) 로 최소폭을
+       없애야 실제로 좁아진다. */
+    .body { grid-template-columns:minmax(0,1fr); }
+  }
+
+  img.chart-preview { width:100%; height:auto; display:block; border:1px solid var(--control-line);
+                       background:#fff; }
+
   label.field-label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
   textarea { width:100%; height:190px; font-family:ui-monospace, Consolas, monospace;
-             font-size:12px; border:1px solid var(--line); border-radius:3px; padding:10px;
+             font-size:12px; border:1px solid var(--control-line); border-radius:3px; padding:10px;
              resize:vertical; background:#fdfdfb; color:var(--ink); }
+
   .row { display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
-  button { font:inherit; font-size:13px; padding:6px 12px; border:1px solid var(--line);
+  button { font:inherit; font-size:13px; padding:7px 13px; border:1px solid var(--control-line);
            background:#fff; border-radius:3px; cursor:pointer; display:inline-flex;
            align-items:center; gap:6px; color:var(--ink); }
-  button:hover { border-color:var(--accent); color:var(--accent); }
+  button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
   button.copied { border-color:#2e7d32; color:#2e7d32; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { background:#183c70; border-color:#183c70; color:#fff; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button:disabled:hover { border-color:var(--control-line); color:var(--ink); }
+
   .err { color:#a4262c; font-size:12px; min-height:1.2em; margin:8px 0 0; }
-  .snippet-head { display:flex; align-items:center; justify-content:space-between;
-                  margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
-  .snippet-head span { font-size:12px; color:var(--muted); }
-  .snippet-head button { font-size:12px; padding:4px 10px; }
-  pre.snippet { margin-top:6px; background:#fdfdfb; border:1px solid var(--line); border-radius:3px;
-                padding:10px; font-size:11px; line-height:1.6; max-height:220px; overflow:auto; }
+
+  details.snippet-details { margin-top:16px; border-top:1px solid var(--line); padding-top:12px; }
+  details.snippet-details > summary { display:flex; align-items:center; justify-content:space-between;
+                                       cursor:pointer; list-style:none; gap:8px; }
+  details.snippet-details > summary::-webkit-details-marker { display:none; }
+  .summary-label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .summary-label .chevron { transition:transform .15s; flex:none; }
+  details.snippet-details[open] .summary-label .chevron { transform:rotate(90deg); }
+  pre.snippet { margin-top:8px; background:#fdfdfb; border:1px solid var(--control-line); border-radius:3px;
+                padding:10px; font-size:12px; line-height:1.6; max-height:260px; overflow:auto; }
+
   footer { border-top:1px solid var(--line); padding:24px; color:var(--muted); font-size:13px; }
   footer a { color:var(--accent); }
+  footer .sep { margin:0 8px; color:var(--line); }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#gallery">그래프 목록으로 건너뛰기</a>
+
 <header>
   <div class="wrap">
     <h1>csat-chart.js</h1>
     <p class="lede">수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그립니다.
-      런타임 의존성이 없고, 스크립트 한 줄로 시작합니다. 아래 16종 카드는 데이터를
-      바로 고쳐 다시 그려 보고, 쓰인 코드를 그대로 복사해 갈 수 있습니다.</p>
+      런타임 의존성이 없고, 스크립트 한 줄로 시작합니다.</p>
     <p class="font-status" id="font-status">글꼴을 불러오는 중…</p>
-    <div class="start"><pre>&lt;script src="https://cdn.jsdelivr.net/npm/csat-chart.js"&gt;&lt;/script&gt;
-&lt;canvas id="c" width="800" height="600"&gt;&lt;/canvas&gt;
-&lt;script&gt;
-  CsatChart.ensureFonts().then(function () {
-    new CsatChart('c', { type: 'ternary', data: CsatChart.createDefaultTernaryData() });
-  });
-&lt;/script&gt;</pre></div>
+
+    <section class="hero" aria-label="예시 그래프">
+      <div class="hero-head">
+        <h2 id="hero-caption">예시 — 아래 16종 중 하나</h2>
+        <a href="#card-climate">데이터 편집하러 가기
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="vertical-align:-1px"><path d="M8 2v10M3.5 8L8 12.5 12.5 8"/></svg>
+        </a>
+      </div>
+      <img id="hero-img" alt="">
+      <p class="hero-note">모든 그래프는 인쇄용 해상도(1600×1200)로 그려지고, PNG로도 같은 해상도로 저장됩니다.</p>
+    </section>
+
+    <nav class="index" aria-label="그래프 16종 색인">
+      <ul id="index-list"></ul>
+    </nav>
+
+    <p class="doc-links">
+      README의
+      <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">「내 자료 넣기」</a><span class="sep">·</span>
+      <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">「그림이 이상할 때」</a>
+      도 참고하세요.
+    </p>
+
+    <details class="start">
+      <summary>
+        <svg class="chevron" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 2l6 6-6 6"/>
+        </svg>
+        스크립트 한 줄로 시작하기
+      </summary>
+      <div class="inner">
+        <pre id="start-code"></pre>
+        <p class="cdn-note">이 데모가 보인다면 위 주소가 이미 동작하고 있는 것입니다. 이 패키지가
+          npm에 올라온 뒤에는 <code>https://cdn.jsdelivr.net/npm/csat-chart.js</code> 로 더 짧게 쓸 수
+          있습니다.</p>
+      </div>
+    </details>
   </div>
 </header>
 
-<main class="wrap" id="gallery"></main>
+<main class="wrap" id="gallery" tabindex="-1"></main>
 
 <footer class="wrap">
   MIT © 2026 김용현 ·
   <a href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
+  <span class="sep">·</span>
+  <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
+  <span class="sep">·</span>
+  <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">그림이 이상할 때</a>
 </footer>
 
 <script src="./lib/csat-chart.umd.min.js"></script>
@@ -86,6 +201,25 @@ const LABELS = {
   'matrix-table': '계단식 행렬표', 'pyramid': '인구 피라미드', 'radar': '방사형',
   'scatter': '산점도·버블', 'stacked': '100% 막대·원', 'ternary': '삼각 그래프',
   'treemap': '트리맵',
+};
+
+const USAGE_HINTS = {
+  'absbar': '이럴 때 씁니다 — 두세 항목을 지역별로 나란히 비교할 때',
+  'category-dot': '이럴 때 씁니다 — 범주별 값을 점으로 흩어 비교할 때',
+  'climate': '이럴 때 씁니다 — 기온·강수량의 월별 변화를 함께 볼 때',
+  'cube': '이럴 때 씁니다 — 세 요인의 상대적 위치로 대상을 분류할 때',
+  'data-table': '이럴 때 씁니다 — 항목과 지역을 표로 정리해 수치를 비교할 때',
+  'deviation-a': '이럴 때 씁니다 — 월별로 평년값과의 편차를 볼 때',
+  'deviation-b': '이럴 때 씁니다 — 지역별로 기준값과의 편차를 볼 때',
+  'hythergraph': '이럴 때 씁니다 — 기온·강수량의 조합으로 기후형을 비교할 때',
+  'line': '이럴 때 씁니다 — 시간에 따른 값의 변화 추세를 볼 때',
+  'matrix-table': '이럴 때 씁니다 — 지역 간 거리·교류량을 행렬로 볼 때',
+  'pyramid': '이럴 때 씁니다 — 연령·성별 인구 구조를 볼 때',
+  'radar': '이럴 때 씁니다 — 여러 항목의 균형을 한눈에 비교할 때',
+  'scatter': '이럴 때 씁니다 — 두 변수의 관계를 점(버블)으로 볼 때',
+  'stacked': '이럴 때 씁니다 — 전체에서 항목별 비중을 볼 때',
+  'ternary': '이럴 때 씁니다 — 세 성분의 구성비를 삼각형 하나로 볼 때',
+  'treemap': '이럴 때 씁니다 — 전체를 차지하는 항목별 비중을 사각형 크기로 볼 때',
 };
 
 const FACTORY = {
@@ -100,12 +234,14 @@ const FACTORY = {
 };
 
 /**
- * `createDefault*Data()`가 값을 전부 0으로 주는 여섯 종류의 대체 표본이다.
- * (climate·deviation-a·deviation-b·hythergraph·pyramid·radar — 그대로 그리면
- * 축·범례만 있고 자료는 안 보이는 빈 그림이 된다. README의 「내 자료 넣기」가
- * 문서로 경고하는 바로 그 함정을, 처음 보는 그림에서까지 겪게 할 수는 없다.)
- * 값은 test/core/fixtures.ts의 climateWithData 등에서 그대로 옮겨 왔다 —
- * 이 파일은 빌드 없는 단일 HTML이라 test/를 import하지 않고 값만 복사한다.
+ * `createDefault*Data()`가 값을 전부 0으로 주거나(climate·deviation-a·deviation-b·
+ * hythergraph·pyramid·radar), 기본값 자체가 서로 겹치거나(cube — 축의 "낮음"
+ * 라벨 셋과 점 하나가 원점에서 정확히 포갠다) 톱니처럼 기계적인 값이라(line의
+ * i*2 대각선) 첫 그림으로 보여주기엔 부족한 종류의 대체 표본이다.
+ * climate·deviation-a·hythergraph 일부 값은 test/core/fixtures.ts 의
+ * climateWithData·deviationAExam·hythergraphWithData 에서 옮겨 왔다 — 이 파일은
+ * 빌드 없는 단일 HTML이라 test/를 import하지 않고 값만 복사한다. cube·line·
+ * deviation-a(편차값)는 겹침·직선을 피하려고 이 파일에서 새로 골랐다.
  */
 const SAMPLE_OVERRIDES = {
   'climate': {
@@ -121,26 +257,25 @@ const SAMPLE_OVERRIDES = {
     'tempRange': { 'min': -10, 'max': 40, 'auto': true },
     'precipRange': { 'min': 0, 'max': 400, 'auto': true },
   },
+  // 실제 2026학년도 9월 한국지리 모의평가 12번 문항과 같은 모양의 편차값.
+  // 계산식으로 만든 톱니(온도차 -2,-1,0,1,2 반복)가 아니라 손으로 고른 실측
+  // 성격의 값이라 오르내림이 불규칙하다 — 시험지 편차 그래프가 실제로 이렇다.
   'deviation-a': {
-    'baseMonths': [
-      { 'temp': 1, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
-      { 'temp': 7, 'precip': 30 }, { 'temp': 13, 'precip': 140 },
-      { 'temp': 19, 'precip': 221 }, { 'temp': 23.4, 'precip': 250 },
-      { 'temp': 25, 'precip': 221 }, { 'temp': 23.4, 'precip': 140 },
-      { 'temp': 19, 'precip': 30 }, { 'temp': 13, 'precip': 30 },
-      { 'temp': 7, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
-    ],
+    'baseMonths': Array.from({ length: 12 }, () => ({ 'temp': 0, 'precip': 0 })),
     'months': [
-      { 'temp': -1, 'precip': 0 }, { 'temp': 1.6, 'precip': 25 },
-      { 'temp': 7, 'precip': 50 }, { 'temp': 14, 'precip': 185 },
-      { 'temp': 21, 'precip': 191 }, { 'temp': 21.4, 'precip': 245 },
-      { 'temp': 24, 'precip': 241 }, { 'temp': 23.4, 'precip': 185 },
-      { 'temp': 20, 'precip': 0 }, { 'temp': 15, 'precip': 25 },
-      { 'temp': 5, 'precip': 50 }, { 'temp': 1.6, 'precip': 75 },
+      { 'temp': 6.5, 'precip': 100 }, { 'temp': 4.2, 'precip': 65 },
+      { 'temp': 1.5, 'precip': 35 }, { 'temp': -0.2, 'precip': 18 },
+      { 'temp': -1.2, 'precip': 5 }, { 'temp': -2.5, 'precip': -8 },
+      { 'temp': -2.0, 'precip': -215 }, { 'temp': -1.0, 'precip': -140 },
+      { 'temp': 0.8, 'precip': 20 }, { 'temp': 3.4, 'precip': 50 },
+      { 'temp': 5.3, 'precip': 75 }, { 'temp': 7.0, 'precip': 110 },
     ],
     'monthInterval': 12, 'tempLabel': '(°C)', 'precipLabel': '(mm)',
-    'tempRange': { 'min': -10, 'max': 10, 'auto': true },
-    'precipRange': { 'min': -200, 'max': 200, 'auto': true },
+    'tempAxisName': '기온 차이', 'precipAxisName': '강수량 차이',
+    'tempRange': { 'min': -10, 'max': 8, 'auto': false, 'step': 2 },
+    'precipRange': { 'min': -250, 'max': 200, 'auto': false, 'step': 50 },
+    'barFill': '#e6e6e6', 'barStroke': '#000000', 'markerShape': 'square',
+    'showFrame': true, 'insideLegend': 'bottom-right',
   },
   'deviation-b': {
     'baseTemp': 12, 'basePrecip': 1300,
@@ -154,29 +289,35 @@ const SAMPLE_OVERRIDES = {
     'precipRange': { 'min': -200, 'max': 200, 'auto': true },
     'tempRange': { 'min': -10, 'max': 10, 'auto': true },
   },
+  // 두 도시(서울형 온대 계절풍·로마형 지중해성)의 실제에 가까운 월별 기온·강수량.
+  // 겨울 강수량을 30으로 반복하던 이전 값은 여러 달이 정확히 같은 자리에 찍혀
+  // 숫자가 서로 겹쳤다 — 열두 달을 서로 다른 값으로 갈라 그 문제를 없앴다.
   'hythergraph': {
     'series': [
-      { 'label': '(가)', 'months': [
-        { 'temp': 1, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
-        { 'temp': 7, 'precip': 30 }, { 'temp': 13, 'precip': 140 },
-        { 'temp': 19, 'precip': 221 }, { 'temp': 23.4, 'precip': 250 },
-        { 'temp': 25, 'precip': 221 }, { 'temp': 23.4, 'precip': 140 },
-        { 'temp': 19, 'precip': 30 }, { 'temp': 13, 'precip': 30 },
-        { 'temp': 7, 'precip': 30 }, { 'temp': 2.6, 'precip': 30 },
+      { 'label': '서울', 'months': [
+        { 'temp': -2.4, 'precip': 20 }, { 'temp': 0.4, 'precip': 25 },
+        { 'temp': 5.7, 'precip': 37 }, { 'temp': 12.5, 'precip': 77 },
+        { 'temp': 17.8, 'precip': 105 }, { 'temp': 22.2, 'precip': 133 },
+        { 'temp': 24.9, 'precip': 395 }, { 'temp': 25.7, 'precip': 300 },
+        { 'temp': 20.8, 'precip': 145 }, { 'temp': 14.5, 'precip': 50 },
+        { 'temp': 7.6, 'precip': 47 }, { 'temp': -0.9, 'precip': 31 },
       ] },
-      { 'label': '(나)', 'months': [
-        { 'temp': 7, 'precip': 15 }, { 'temp': 8.6, 'precip': 15 },
-        { 'temp': 13, 'precip': 15 }, { 'temp': 19, 'precip': 70 },
-        { 'temp': 25, 'precip': 110.5 }, { 'temp': 29.4, 'precip': 125 },
-        { 'temp': 31, 'precip': 110.5 }, { 'temp': 29.4, 'precip': 70 },
-        { 'temp': 25, 'precip': 15 }, { 'temp': 19, 'precip': 15 },
-        { 'temp': 13, 'precip': 15 }, { 'temp': 8.6, 'precip': 15 },
+      { 'label': '로마', 'months': [
+        { 'temp': 6.8, 'precip': 78 }, { 'temp': 9.6, 'precip': 62 },
+        { 'temp': 11.9, 'precip': 52 }, { 'temp': 13.9, 'precip': 46 },
+        { 'temp': 18.1, 'precip': 34 }, { 'temp': 22.0, 'precip': 20 },
+        { 'temp': 24.9, 'precip': 15 }, { 'temp': 24.7, 'precip': 26 },
+        { 'temp': 21.4, 'precip': 63 }, { 'temp': 17.0, 'precip': 92 },
+        { 'temp': 12.5, 'precip': 106 }, { 'temp': 9.2, 'precip': 92 },
       ] },
     ],
     'mode': 'both', 'monthLabelStyle': 'number', 'xUnit': '(°C)', 'yUnit': '(mm)',
     'xRange': { 'min': -10, 'max': 40, 'auto': true },
     'yRange': { 'min': 0, 'max': 400, 'auto': true },
   },
+  // 시험지 피라미드 — 연령대 이름 대신 나이 수치 축을 쓴다(src/core/types/pyramid.ts:
+  // "시험지 피라미드가 이 방식이다"). 기존 ageLabelSide:'center'는 막대 위에
+  // 글자를 얹어 회색 바탕에 검정 글자가 겹쳐 보였다.
   'pyramid': {
     'ages': [
       { 'male': 4.2, 'female': 4.4 }, { 'male': 4, 'female': 4.2 },
@@ -190,7 +331,9 @@ const SAMPLE_OVERRIDES = {
       { 'male': 1.3, 'female': 1.5 },
     ],
     'unit': 'percent', 'maleLabel': '남', 'femaleLabel': '여', 'axisLabel': '(%)',
-    'range': { 'max': 10, 'auto': true }, 'ageLabelSide': 'center',
+    'range': { 'max': 5, 'auto': false }, 'ageLabelSide': 'center',
+    'numericAgeAxis': true, 'ageUnit': '(세)', 'axisLabelInline': true,
+    'sexFills': ['#d9d9d9', '#d9d9d9'],
   },
   'radar': {
     'axisLabels': ['축1', '축2', '축3', '축4', '축5'],
@@ -200,13 +343,71 @@ const SAMPLE_OVERRIDES = {
     ],
     'maxValue': 100, 'autoMax': true, 'gridSteps': 5, 'showFill': false,
   },
+  // 기본 세 점이 전부 원점(0,0,0) 근처에 있어 X축·Y축·Z축의 "낮음" 라벨 셋과
+  // 점 하나가 한곳에서 겹쳤다. 점을 서로 다른 위치로 옮기고, 세 "낮음"·"높음"
+  // 라벨은 CubeAxisConfig 의 lowOffset/highOffset(이 필드가 있는 이유이기도
+  // 하다)으로 서로 다른 방향으로 밀어 냈다.
+  'cube': {
+    'points': [
+      { 'x': 0.25, 'y': 0.85, 'z': 0.65, 'label': '가', 'labelDx': 8, 'labelDy': -4 },
+      { 'x': 0.8, 'y': 0.6, 'z': 0.3, 'label': '나', 'labelDx': 10, 'labelDy': 0 },
+      { 'x': 0.85, 'y': 0.4, 'z': 0.75, 'label': '다', 'labelDx': 14, 'labelDy': -6 },
+    ],
+    'xAxis': { 'name': 'X축', 'lowLabel': '낮음', 'highLabel': '높음',
+      'lowOffset': { 'x': -55, 'y': 32 }, 'highOffset': { 'x': -40, 'y': 0 } },
+    'yAxis': { 'name': 'Y축', 'lowLabel': '낮음', 'highLabel': '높음',
+      'lowOffset': { 'x': -25, 'y': -8 }, 'highOffset': { 'x': 0, 'y': 0 } },
+    'zAxis': { 'name': 'Z축', 'lowLabel': '낮음', 'highLabel': '높음',
+      'lowOffset': { 'x': 55, 'y': 10 }, 'highOffset': { 'x': 0, 'y': 0 } },
+  },
+  // 기본값 i*2 는 정직선이다. 실제로 굽이치는 자료 — 우리나라 합계출산율
+  // 추이(1970~2025, 명) — 로 바꿔 «꺾은선» 이라는 이름값을 하게 했다.
+  'line': {
+    'series': [
+      { 'label': '합계출산율', 'values': [4.53, 2.82, 1.57, 1.47, 1.23, 1.24, 0.84, 0.81, 0.78, 0.72, 0.75, 0.75] },
+    ],
+    'xLabels': ['1970', '1980', '1990', '2000', '2010', '2015', '2020', '2021', '2022', '2023', '2024', '2025'],
+    'xUnit': '(년)', 'yUnit': '(명)',
+    'yRange': { 'min': 0, 'max': 5, 'auto': true },
+    'labelPlacement': 'lineEnd', 'showMarkers': true,
+  },
 };
 
-/** 표본이 있으면 그 사본을, 없으면 라이브러리 기본값을 준다. 매번 새 객체를 준다 —
- * 카드가 자기 데이터를 직접 고쳐도 다른 카드나 다음 되돌리기에 새지 않도록. */
+/** 「타입 검사가 없는 사용자를 겨냥한다」는 이 라이브러리의 전제와 같은 이유로,
+ * 표본이 정말 SAMPLE_OVERRIDES 의 키와 어긋나지 않는지 여기서 다시 확인하지
+ * 않는다 — CsatChart 생성자의 assertChartData 가 그 역할을 한다. */
 function sampleFor(type) {
   const override = SAMPLE_OVERRIDES[type];
   return override ? JSON.parse(JSON.stringify(override)) : CsatChart[FACTORY[type]]();
+}
+
+/**
+ * README가 이끄는 두 관습 — 제목과 출처 — 을 카드 몇 장에 실제로 붙인다.
+ * 전부에 붙이면 「이 라이브러리가 무엇을 더하는가」가 흐려지고, 하나도 안
+ * 붙이면 시험지 양식의 핵심(제목·출처·각주)이 데모에서 통째로 빠진다.
+ * climate·scatter·stacked·pyramid 네 장에 붙인다.
+ */
+const OPTIONS_OVERRIDES = {
+  'climate': { 'title': '서울의 기후', 'source': '기상청', 'footnotes': ['1991~2020년의 평년값임.'] },
+  'scatter': { 'title': '시·도별 인구밀도와 1인당 지역내총생산', 'source': '통계청, 2023' },
+  'stacked': { 'title': '(가)~(다) 지역의 산업별 취업자 비중', 'source': '통계청' },
+  'pyramid': { 'title': '우리나라의 인구 피라미드', 'source': '통계청, 2023' },
+};
+
+/** scatter 는 옵션만으로는 제목과 축 이름이 어긋나 보여 데이터도 함께 손본다
+ * (기본 xLabel/yLabel 이 그냥 "X축"/"Y축"이다). 값 자체(점 4개)는 그대로 둔다. */
+const DATA_PATCHES = {
+  'scatter': (d) => {
+    d.xLabel = '인구밀도'; d.xUnit = '(명/㎢)';
+    d.yLabel = '1인당 지역내총생산'; d.yUnit = '(백만 원)';
+    return d;
+  },
+};
+
+function sampleWithPatch(type) {
+  const d = sampleFor(type);
+  const patch = DATA_PATCHES[type];
+  return patch ? patch(d) : d;
 }
 
 const ICON_DOWNLOAD =
@@ -225,16 +426,25 @@ const ICON_COPY =
   '<rect x="5.5" y="5.5" width="8" height="8" rx="1"/>' +
   '<path d="M3.5 10.5h-1a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v1"/></svg>';
 
+const CHEVRON =
+  '<svg class="chevron" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M5 2l6 6-6 6"/></svg>';
+
 // 카드마다 다시 그릴 실제 script 요소를 여는/닫는 것이 아니라, 화면에 «글로
 // 보여줄» 코드 문자열을 만든다. 이 파일 자신도 script 태그 안에서 실행되므로,
 // 그 안의 문자열에 script 여는/닫는 태그가 그대로 이어지면 두 가지가 문제다.
 //   · 닫는 태그가 이어지면, 이 파일을 파싱하는 HTML 파서가 거기서 진짜
 //     스크립트 블록이 끝난 것으로 오해한다.
 //   · src 속성이 붙은 여는 태그가 이어지면, 브라우저의 프리로드 스캐너가
-//     그 주소(jsdelivr)를 실제 리소스로 착각해 미리 받아 오려다 실패한다.
+//     그 주소를 실제 리소스로 착각해 미리 받아 오려다 실패한다.
 // 둘 다 태그 문자열을 둘로 쪼개 피한다. (이 주석 자신도 그대로 옮겨 적지
 // 않는 이유다.)
-const OPEN_SCRIPT_CDN = '<' + 'script src="https://cdn.jsdelivr.net/npm/csat-chart.js">';
+//
+// 데모가 실려 있는 바로 그 주소를 쓴다 — jsdelivr의 npm 경로는 이 패키지가
+// 아직 npm에 없어 404가 난다. 이 데모를 읽고 있다면 이 주소는 이미 살아 있다.
+const CDN_SRC = 'https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js';
+const OPEN_SCRIPT_CDN = '<' + 'script src="' + CDN_SRC + '">';
 const CLOSE_SCRIPT = '<' + '/script>';
 
 /**
@@ -246,13 +456,15 @@ function reindent(json, prefix) {
 }
 
 /**
- * 카드에 실제로 걸려 있는 데이터를 그대로 박아 넣는다 — 공장 함수 호출로
- * 적으면(예: CsatChart.createDefaultClimateData()) 화면엔 표본이 보이는데
- * 복사한 코드는 빈 그림을 만드는 어긋남이 생긴다. 붙여넣기가 항상 화면과
- * 같은 그림을 재현하도록, 지금 이 카드가 들고 있는 data를 그대로 적는다.
+ * 카드에 실제로 걸려 있는 데이터(와 있다면 옵션)를 그대로 박아 넣는다 —
+ * 공장 함수 호출로 적으면(예: CsatChart.createDefaultClimateData()) 화면엔
+ * 표본이 보이는데 복사한 코드는 빈 그림을 만드는 어긋남이 생긴다. 붙여넣기가
+ * 항상 화면과 같은 그림을 재현하도록, 지금 이 카드가 들고 있는 값을 그대로
+ * 적는다 — climate 처럼 제목·출처가 있는 카드는 그것도 함께 적어야 붙여넣은
+ * 결과가 화면과 같은 "완성된" 그림이 된다.
  */
-function snippetFor(type, data) {
-  return [
+function snippetFor(type, data, options) {
+  const lines = [
     '<canvas id="c" width="800" height="600"></canvas>',
     OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
     '<script>',
@@ -260,10 +472,12 @@ function snippetFor(type, data) {
     "    new CsatChart('c', {",
     "      type: '" + type + "',",
     '      data: ' + reindent(JSON.stringify(data, null, 2), '      ') + ',',
-    '    });',
-    '  });',
-    CLOSE_SCRIPT,
-  ].join('\n');
+  ];
+  if (options && Object.keys(options).length > 0) {
+    lines.push('      options: ' + reindent(JSON.stringify(options, null, 2), '      ') + ',');
+  }
+  lines.push('    });', '  });', CLOSE_SCRIPT);
+  return lines.join('\n');
 }
 
 function copyText(text, btn) {
@@ -298,66 +512,105 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
+/**
+ * 화면에 보이는 그래프는 <canvas> 가 아니라 <img> 다.
+ *
+ * 이 라이브러리의 여백·글꼴 크기는 절대 픽셀이다(README 「인쇄용으로
+ * 뽑기」). 그래서 화면용 캔버스를 그냥 1600×1200 으로 키우면 "두 배 선명한
+ * 같은 그림"이 아니라 "글자가 절반으로 작아진 다른 그림"이 된다 — 실제로
+ * 렌더러에 대고 재 보면 제목 글자 높이가 두 캔버스에서 28px 로 똑같다
+ * (캔버스가 클수록 그 28px 이 차지하는 비율만 준다). `toDataURL({scale:2})`
+ * 는 반대로 캔버스를 키우면서 그리기 좌표계는 800×600 그대로 두어(내부에서
+ * setTransform으로 2배 확대) 비율이 같은 채로 픽셀만 는다 — 화면에 보이는
+ * <img> 도 그 결과를 그대로 쓴다. 데이터 모델은 화면에 없는 800×600 캔버스가
+ * 그대로 들고 있고(CsatChart 의 검증·update()·download() 가 전부 정상 동작),
+ * <img> 는 그 모델의 2배 스냅샷일 뿐이다.
+ */
 function card(type) {
   const el = document.createElement('section');
   el.className = 'card';
+  el.id = 'card-' + type;
   const copyBtnLabel = ICON_COPY + '코드 복사';
+  const fieldId = 'data-' + type;
+  const options = OPTIONS_OVERRIDES[type];
+
   el.innerHTML =
-    '<h2>' + LABELS[type] + ' <span class="key">' + type + '</span></h2>' +
+    '<div class="card-head">' +
+      '<h2>' + LABELS[type] + ' <span class="key">' + type + '</span></h2>' +
+      '<p class="usage-hint">' + USAGE_HINTS[type] + '</p>' +
+    '</div>' +
     '<div class="body">' +
       '<div>' +
-        '<canvas width="800" height="600"></canvas>' +
-        '<p class="hint">화면은 800×600으로 보여주고, PNG 저장은 인쇄용으로' +
-        ' 2배 해상도인 1600×1200으로 내려받습니다.</p>' +
+        '<img class="chart-preview" alt="">' +
       '</div>' +
       '<div>' +
-        '<label class="field-label">데이터 (JSON) — 고치면 바로 다시 그립니다</label>' +
-        '<textarea spellcheck="false"></textarea>' +
-        '<p class="err"></p>' +
+        '<label class="field-label" for="' + fieldId + '">데이터 (JSON) — 고치면 바로 다시 그립니다</label>' +
+        '<textarea id="' + fieldId + '" spellcheck="false"></textarea>' +
+        '<p class="err" role="status"></p>' +
         '<div class="row">' +
-          '<button data-act="reset">' + ICON_RESET + '되돌리기</button>' +
-          '<button data-act="png" title="1600×1200px, 인쇄용 2배 해상도">' + ICON_DOWNLOAD + 'PNG 저장 (2×)</button>' +
+          '<button class="primary" data-act="png" title="1600×1200px, 인쇄용 해상도">' + ICON_DOWNLOAD + 'PNG 저장</button>' +
+          '<button data-act="reset" disabled>' + ICON_RESET + '되돌리기</button>' +
         '</div>' +
-        '<div class="snippet-head">' +
-          '<span>이 그래프를 만드는 코드</span>' +
-          '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
-        '</div>' +
-        '<pre class="snippet"><code></code></pre>' +
+        '<details class="snippet-details">' +
+          '<summary>' +
+            '<span class="summary-label">' + CHEVRON + '이 그래프를 만드는 코드</span>' +
+            '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
+          '</summary>' +
+          '<pre class="snippet"><code></code></pre>' +
+        '</details>' +
       '</div>' +
     '</div>';
 
-  const canvas = el.querySelector('canvas');
+  const img = el.querySelector('img.chart-preview');
   const area = el.querySelector('textarea');
   const err = el.querySelector('.err');
   const snippetCode = el.querySelector('.snippet code');
-  const fresh = () => sampleFor(type);
+  const resetBtn = el.querySelector('[data-act=reset]');
+  const fresh = () => sampleWithPatch(type);
 
-  // 되돌리기는 라이브러리의 빈 기본값이 아니라 이 카드가 시작할 때 보여준
-  // 표본으로 되돌린다 — 그래야 여섯 종류가 되돌리기 한 번에 다시 빈 그림이
-  // 되는 일이 없다.
+  // 화면에는 안 보이는 800×600 "모델" 캔버스. 검증·update()·download() 를
+  // 포함한 CsatChart 의 정상 동작을 여기서 그대로 받는다.
+  const model = document.createElement('canvas');
+  model.width = 800;
+  model.height = 600;
+
   const initialData = fresh();
-  const chart = new CsatChart(canvas, { type: type, data: initialData });
-  area.value = JSON.stringify(initialData, null, 2);
-  snippetCode.textContent = snippetFor(type, initialData);
+  const chart = new CsatChart(model, { type: type, data: initialData, options: options });
+  const pristine = JSON.stringify(initialData, null, 2);
+  area.value = pristine;
+  img.alt = LABELS[type] + ' 예시 그래프';
+
+  function refreshPreview() {
+    img.src = chart.toDataURL({ scale: 2 });
+  }
+  function refreshSnippet(data) {
+    snippetCode.textContent = snippetFor(type, data, options);
+  }
+  refreshPreview();
+  refreshSnippet(initialData);
 
   area.addEventListener('input', function () {
+    resetBtn.disabled = (area.value === pristine);
     try {
       const parsed = JSON.parse(area.value);
       chart.update({ data: parsed });
+      refreshPreview();
       // 코드도 화면과 같은 자료를 보여준다 — 편집한 뒤 복사해도 방금 본
       // 그림 그대로 재현되게.
-      snippetCode.textContent = snippetFor(type, parsed);
+      refreshSnippet(parsed);
       err.textContent = '';
     } catch (e) {
       err.textContent = e.message;
     }
   });
 
-  el.querySelector('[data-act=reset]').addEventListener('click', function () {
+  resetBtn.addEventListener('click', function () {
+    area.value = pristine;
+    resetBtn.disabled = true;
     const data = fresh();
-    area.value = JSON.stringify(data, null, 2);
     chart.update({ data: data });
-    snippetCode.textContent = snippetFor(type, data);
+    refreshPreview();
+    refreshSnippet(data);
     err.textContent = '';
   });
 
@@ -366,13 +619,60 @@ function card(type) {
   });
 
   el.querySelector('[data-act=copy]').addEventListener('click', function (ev) {
+    // <summary> 안의 버튼이다 — 그냥 두면 클릭이 <details> 를 여닫는 기본
+    // 동작까지 함께 트리거해, 닫힌 채로도 복사만 하려는 게 안 된다.
+    ev.preventDefault();
+    ev.stopPropagation();
     copyText(snippetCode.textContent, ev.currentTarget);
   });
 
   return el;
 }
 
+function buildIndex() {
+  const list = document.getElementById('index-list');
+  CsatChart.CHART_TYPES.forEach(function (t) {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#card-' + t;
+    a.textContent = LABELS[t];
+    li.appendChild(a);
+    list.appendChild(li);
+  });
+}
+
+function buildHero() {
+  const type = 'climate';
+  const data = sampleWithPatch(type);
+  const options = OPTIONS_OVERRIDES[type];
+  const model = document.createElement('canvas');
+  model.width = 800;
+  model.height = 600;
+  const chart = new CsatChart(model, { type: type, data: data, options: options });
+  const img = document.getElementById('hero-img');
+  img.src = chart.toDataURL({ scale: 2 });
+  img.alt = (options.title || LABELS[type]) + ' 예시 그래프';
+  document.getElementById('hero-caption').textContent =
+    '예시 — ' + LABELS[type] + ' (전체 16종 중 하나)';
+}
+
+function buildStartCode() {
+  const pre = document.getElementById('start-code');
+  pre.textContent = [
+    OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
+    '<canvas id="c" width="800" height="600"></canvas>',
+    '<script>',
+    '  CsatChart.ensureFonts().then(function () {',
+    "    new CsatChart('c', { type: 'ternary', data: CsatChart.createDefaultTernaryData() });",
+    '  });',
+    CLOSE_SCRIPT,
+  ].join('\n');
+}
+
 function buildGallery() {
+  buildStartCode();
+  buildHero();
+  buildIndex();
   const gallery = document.getElementById('gallery');
   CsatChart.CHART_TYPES.forEach(function (t) { gallery.appendChild(card(t)); });
 }
@@ -381,7 +681,8 @@ const statusEl = document.getElementById('font-status');
 
 // ensureFonts() 는 절대 reject 하지 않고 성공 여부를 불리언으로 돌려준다
 // (문서 참고). 그래도 만에 하나 다른 예외가 새어 나오는 경우까지 대비해
-// .catch 로 한 번 더 감싸, 글꼴 사정과 무관하게 갤러리는 반드시 그려지게 한다.
+// .catch 로 한 번 더 감싸, 글꼴 사정과 무관하게 히어로와 갤러리가 반드시
+// 그려지게 한다.
 CsatChart.ensureFonts()
   .then(function (ok) {
     statusEl.textContent = ok

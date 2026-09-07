@@ -596,7 +596,6 @@ export interface UpdateFor<T extends CsatChartType> {
   options?: PartialGraphOptions;
 }
 
-export type CsatChartUpdate = { [K in CsatChartType]: UpdateFor<K> }[CsatChartType];
 ```
 
 - [ ] **Step 4: `src/registry.ts` 를 쓴다**
@@ -2114,6 +2113,38 @@ describe('공개 표면', () => {
     expect('REGISTRY' in lib).toBe(false);
   });
 });
+
+describe('타입 표면', () => {
+  // 타입은 런타임에 남지 않으므로 `in lib` 로는 확인할 수 없다.
+  // 여기서 실제로 써 보는 것 자체가 «내보내지고 있다» 의 증거이고,
+  // `npm run typecheck` 가 그것을 검사한다.
+  it('설정 타입을 공개한다', () => {
+    const cfg: lib.CsatChartConfig = {
+      type: 'ternary',
+      data: lib.createDefaultTernaryData(),
+    };
+    const one: lib.ConfigFor<'climate'> = {
+      type: 'climate',
+      data: lib.createDefaultClimateData(),
+    };
+    const patch: lib.UpdateFor<'climate'> = { options: { title: '제목' } };
+    const opts: lib.PartialGraphOptions = { fontSize: { title: 44 } };
+    const t: lib.CsatChartType = 'pyramid';
+    const map: lib.ChartDataMap['radar'] = lib.createDefaultRadarData();
+
+    expect([cfg.type, one.type, t]).toEqual(['ternary', 'climate', 'pyramid']);
+    expect(patch.options?.title).toBe('제목');
+    expect(opts.fontSize?.title).toBe(44);
+    expect(map).toBeTypeOf('object');
+  });
+
+  it('데이터 타입과 오류 타입을 공개한다', () => {
+    const data: lib.ClimateGraphData = lib.createDefaultClimateData();
+    const err: lib.CsatChartError = new lib.CsatChartError('시험');
+    expect(data.months).toHaveLength(12);
+    expect(err.name).toBe('CsatChartError');
+  });
+});
 ```
 
 - [ ] **Step 2: 실패를 확인한다**
@@ -2142,7 +2173,7 @@ export type {
   ConfigFor,
   CsatChartConfig,
   CsatChartType,
-  CsatChartUpdate,
+  PartialGraphOptions,
   UpdateFor,
 } from './types';
 
@@ -2267,7 +2298,7 @@ export type {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/index.test.ts`
-Expected: PASS — 41건
+Expected: PASS — 42건 (실제 개수를 세어 보고할 것)
 
 - [ ] **Step 5: 전체 검사를 돌린다**
 

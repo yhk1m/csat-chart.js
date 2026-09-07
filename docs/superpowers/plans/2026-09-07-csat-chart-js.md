@@ -1169,9 +1169,15 @@ Expected: FAIL — `Failed to resolve import "../src/fonts"`
 // 사람만 내려받도록 이 헬퍼를 둔다.
 
 export interface EnsureFontsOptions {
-  /** 글꼴 CSS 주소. 기본은 Google Fonts. 사내망·오프라인이면 바꾼다. */
+  /**
+   * 글꼴 CSS 주소. 기본은 Google Fonts. 사내망·오프라인이면 바꾼다.
+   *
+   * `families` 와 짝이다. 한쪽만 바꾸면 어긋난다 — 예컨대 `families` 만
+   * 바꾸면 기본 구글 스타일시트가 그 글꼴을 제공하지 않는데도 `true` 가
+   * 나온다(아래 반환값 설명 참고).
+   */
   href?: string;
-  /** 확인할 글꼴 이름. 기본은 Noto Serif KR, Noto Sans KR */
+  /** 확인할 글꼴 이름. 기본은 Noto Serif KR, Noto Sans KR. `href` 와 함께 바꾼다. */
   families?: string[];
   /** 이 시간(ms) 안에 준비되지 않으면 false 를 돌려주고 넘어간다. 기본 5000 */
   timeoutMs?: number;
@@ -1195,7 +1201,18 @@ let pending: Promise<boolean> | null = null;
  * 브라우저가 `document.fonts` 를 모르면 `false` 를 돌려준다. **던지지 않는다** —
  * 글꼴이 없어도 그림은 대체 글꼴로 그려져야 하기 때문이다.
  *
- * 여러 번 불러도 실제 작업은 한 번만 한다.
+ * ⚠️ `true` 가 «그 글꼴로 그려진다» 를 보장하지는 않는다. `document.fonts.load`
+ * 는 페이지에 `@font-face` 가 없는 이름에 대해 거부하지 않고 **빈 배열로
+ * 이행한다**. 그래서 `href` 없이 `families` 만 바꾸면 없는 글꼴에도 `true` 가
+ * 나온다. 둘은 함께 바꾼다.
+ *
+ * ⚠️ 여러 번 불러도 실제 작업은 한 번만 하는데, **나중 호출의 옵션은 조용히
+ * 버려진다.** 앞선 호출이 이미 시작했으면 그 약속을 그대로 돌려준다. 사내망
+ * 주소를 쓸 것이라면 **가장 먼저** 그 옵션으로 부른다.
+ *
+ * ⚠️ «한 번만» 은 이 모듈 한 벌 기준이다. 한 페이지에 ESM 판과 CDN 판이 함께
+ * 올라오면 각자 한 번씩 한다. `<link>` 는 id 로 걸러지므로 두 번 들어가지는
+ * 않는다.
  */
 export function ensureFonts(options: EnsureFontsOptions = {}): Promise<boolean> {
   if (typeof document === 'undefined') return Promise.resolve(false);
@@ -1422,6 +1439,44 @@ describe('CsatChart', () => {
   it('ensureFonts 를 정적 메서드로 노출한다', () => {
     expect(typeof CsatChart.ensureFonts).toBe('function');
   });
+
+  it('글꼴이 늦게 도착하면 한 번 다시 그린다', async () => {
+    let settle!: () => void;
+    const ready = new Promise<void>((r) => {
+      settle = r;
+    });
+    vi.stubGlobal('document', { fonts: { ready } });
+
+    const c = canvas();
+    new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+
+    // 그려 놓은 것을 지운다 — 다시 그리는지 보려는 것이다.
+    const ctx = c.getContext('2d') as unknown as CanvasRenderingContext2D;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    expect(nonWhitePixels(c)).toBe(0);
+
+    settle();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(nonWhitePixels(c)).toBeGreaterThan(50);
+  });
+
+  it('destroy 된 뒤에 글꼴이 도착하면 다시 그리지 않는다', async () => {
+    let settle!: () => void;
+    const ready = new Promise<void>((r) => {
+      settle = r;
+    });
+    vi.stubGlobal('document', { fonts: { ready } });
+
+    const c = canvas();
+    const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    chart.destroy();
+    expect(nonWhitePixels(c)).toBe(0);
+
+    settle();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(nonWhitePixels(c)).toBe(0);
+  });
 });
 
 describe('타입', () => {
@@ -1508,6 +1563,7 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     if (!this.canvas.height) this.canvas.height = DEFAULT_HEIGHT;
 
     this.draw();
+    this.redrawWhenFontsArrive();
   }
 
   /** `data`·`options` 중 준 것만 덮고 다시 그린다. 어긋나면 던지고 이전 상태를 지킨다. */
@@ -1563,6 +1619,33 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     this.destroyed = true;
   }
 
+  /**
+   * 글꼴이 늦게 도착하면 한 번 다시 그린다.
+   *
+   * `await CsatChart.ensureFonts()` 를 빠뜨리는 실수가 이 라이브러리에서 가장
+   * 흔할 실패다. 그런데 증상이 조용하고 영구적이다 — 대체 글꼴로 «멀쩡히»
+   * 그려지고, 잠시 뒤 글꼴이 도착해도 아무도 다시 그리지 않는다. 시험지 서체를
+   * 모르는 사람은 무엇이 잘못됐는지조차 알 수 없다. 빌드 도구도 타입 검사도
+   * 없는 사용자에게 그 책임을 문서로만 지울 수는 없다.
+   *
+   * ⚠️ 만능이 아니다. `document.fonts.ready` 는 **부르는 시점에** 로딩 중인
+   * 것이 끝나면 이행한다. 그래서 차트를 먼저 만들고 `ensureFonts()` 를 나중에
+   * 부르면 이 약속은 이미 이행된 뒤라 도움이 안 된다. 순서를 지켜 부르거나,
+   * 그냥 `await` 하는 것이 여전히 옳다.
+   */
+  private redrawWhenFontsArrive(): void {
+    if (typeof document === 'undefined') return;
+    const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+    if (!fonts?.ready) return;
+    void Promise.resolve(fonts.ready)
+      .then(() => {
+        if (!this.destroyed) this.draw();
+      })
+      .catch(() => {
+        // 글꼴 때문에 그림이 멈추면 안 된다.
+      });
+  }
+
   private draw(): void {
     const { width, height } = this.canvas;
     clearCanvas(this.ctx, width, height);
@@ -1596,7 +1679,7 @@ Node 에 없어서 참조하는 순간 터진다.
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/chart.test.ts`
-Expected: PASS — 17건
+Expected: PASS — 19건
 
 Run: `npx tsc --noEmit`
 Expected: 오류 없음. `@ts-expect-error` 두 줄이 «실제로 오류인» 곳을 가리켜야 한다 —

@@ -4,9 +4,15 @@
 // 사람만 내려받도록 이 헬퍼를 둔다.
 
 export interface EnsureFontsOptions {
-  /** 글꼴 CSS 주소. 기본은 Google Fonts. 사내망·오프라인이면 바꾼다. */
+  /**
+   * 글꼴 CSS 주소. 기본은 Google Fonts. 사내망·오프라인이면 바꾼다.
+   *
+   * `families` 와 짝이다. 한쪽만 바꾸면 어긋난다 — 예컨대 `families` 만
+   * 바꾸면 기본 구글 스타일시트가 그 글꼴을 제공하지 않는데도 `true` 가
+   * 나온다(아래 반환값 설명 참고).
+   */
   href?: string;
-  /** 확인할 글꼴 이름. 기본은 Noto Serif KR, Noto Sans KR */
+  /** 확인할 글꼴 이름. 기본은 Noto Serif KR, Noto Sans KR. `href` 와 함께 바꾼다. */
   families?: string[];
   /** 이 시간(ms) 안에 준비되지 않으면 false 를 돌려주고 넘어간다. 기본 5000 */
   timeoutMs?: number;
@@ -30,7 +36,18 @@ let pending: Promise<boolean> | null = null;
  * 브라우저가 `document.fonts` 를 모르면 `false` 를 돌려준다. **던지지 않는다** —
  * 글꼴이 없어도 그림은 대체 글꼴로 그려져야 하기 때문이다.
  *
- * 여러 번 불러도 실제 작업은 한 번만 한다.
+ * ⚠️ `true` 가 «그 글꼴로 그려진다» 를 보장하지는 않는다. `document.fonts.load`
+ * 는 페이지에 `@font-face` 가 없는 이름에 대해 거부하지 않고 **빈 배열로
+ * 이행한다**. 그래서 `href` 없이 `families` 만 바꾸면 없는 글꼴에도 `true` 가
+ * 나온다. 둘은 함께 바꾼다.
+ *
+ * ⚠️ 여러 번 불러도 실제 작업은 한 번만 하는데, **나중 호출의 옵션은 조용히
+ * 버려진다.** 앞선 호출이 이미 시작했으면 그 약속을 그대로 돌려준다. 사내망
+ * 주소를 쓸 것이라면 **가장 먼저** 그 옵션으로 부른다.
+ *
+ * ⚠️ «한 번만» 은 이 모듈 한 벌 기준이다. 한 페이지에 ESM 판과 CDN 판이 함께
+ * 올라오면 각자 한 번씩 한다. `<link>` 는 id 로 걸러지므로 두 번 들어가지는
+ * 않는다.
  */
 export function ensureFonts(options: EnsureFontsOptions = {}): Promise<boolean> {
   if (typeof document === 'undefined') return Promise.resolve(false);

@@ -1,5 +1,10 @@
 # csat-chart.js Implementation Plan
 
+> **기록물 안내:** 이 문서는 csat-chart.js 1.0.0 을 어떻게 만들었는지 남긴 이력이다.
+> 작업 당시 세션에서 단계별 진행 상황을 추적하려고 아래 체크박스(`- [ ]`)를 썼을
+> 뿐이며, 지금은 전부 끝난 일이다 — 다시 체크하지 않는다. 남은 할 일 목록이
+> 아니라 «어떻게 만들었는가» 의 기록으로 읽는다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 수능 형식 그래프 렌더러 16종을 npm·CDN 양쪽으로 쓸 수 있는 독립 오픈소스 패키지로 낸다.
@@ -8,7 +13,7 @@
 
 **Tech Stack:** TypeScript 5 · tsup(esbuild) · vitest 4 · @napi-rs/canvas(테스트 전용) · ESLint 9. **런타임 의존성 0.**
 
-**설계 문서:** `docs/superpowers/specs/2026-09-07-csat-chart-js-design.md`
+**설계 문서:** `planning/specs/2026-09-07-csat-chart-js-design.md`
 
 ---
 
@@ -26,8 +31,8 @@
    `cp -r`·`sed -i` 는 PowerShell 에서 동작하지 않는다. PowerShell 을 써야 한다면
    `$env:SKIP_GOLDEN='1'; npm test` 로 바꿔 쓴다.
 
-**원본 경로 (읽기 전용):**
-`C:/Users/김용현/Desktop/vibecoding/geotester-v2/src/lib/geo-graph`
+**원본 경로 (읽기 전용, 이 저장소와 같은 작업 폴더의 형제 저장소):**
+`../geotester-v2/src/lib/geo-graph`
 아래에서 `$SRC`로 줄여 쓴다.
 
 ---
@@ -248,8 +253,8 @@ git commit -m "chore: 저장소 뼈대 — tsup·vitest·eslint·MIT 라이선�
 Bash 도구로 실행한다. **Node `fs`의 재귀 복사를 쓰지 않는다** (한글 경로 크래시).
 
 ```bash
-SRC="/c/Users/김용현/Desktop/vibecoding/geotester-v2/src/lib/geo-graph"
-DEST="/c/Users/김용현/Desktop/vibecoding/csat-chart.js/src/core"
+SRC="../geotester-v2/src/lib/geo-graph"
+DEST="src/core"
 mkdir -p "$DEST"
 cp -r "$SRC/canvas" "$SRC/graphs" "$SRC/types" "$DEST/"
 cp "$SRC/index.ts" "$DEST/index.ts"
@@ -261,7 +266,7 @@ cp "$SRC/index.ts" "$DEST/index.ts"
 - [ ] **Step 2: `export.ts` 를 지운다**
 
 ```bash
-rm "/c/Users/김용현/Desktop/vibecoding/csat-chart.js/src/core/canvas/export.ts"
+rm "src/core/canvas/export.ts"
 ```
 
 이유: GeoGrapher 전용이다. 파일명을 `GeoGrapher_*.png`로 짓고, 공개 표면에서
@@ -311,8 +316,8 @@ canvas/export.ts 만 제외했다 (GeoGrapher 전용 죽은 코드)."
 - [ ] **Step 1: 테스트와 기준 이미지를 복사한다**
 
 ```bash
-SRC="/c/Users/김용현/Desktop/vibecoding/geotester-v2/src/lib/geo-graph/__tests__"
-DEST="/c/Users/김용현/Desktop/vibecoding/csat-chart.js/test/core"
+SRC="../geotester-v2/src/lib/geo-graph/__tests__"
+DEST="test/core"
 mkdir -p "$DEST"
 cp "$SRC"/*.ts "$DEST/"
 cp -r "$SRC/__snapshots__" "$DEST/"
@@ -325,7 +330,7 @@ ls "$DEST/__snapshots__"/*.png | wc -l    # 31 이어야 한다
 `src/core/`를 가리켜야 한다.
 
 ```bash
-cd "/c/Users/김용현/Desktop/vibecoding/csat-chart.js/test/core"
+cd "test/core"
 sed -i "s|from '\.\./index'|from '../../src/core/index'|g" *.ts
 sed -i "s|from '\.\./graphs/|from '../../src/core/graphs/|g" *.ts
 grep -n "from '\.\." *.ts

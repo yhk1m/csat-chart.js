@@ -214,8 +214,8 @@ export type CsatChartConfig =
 실패하면 한국어로 무엇이 어떻게 어긋났는지 던진다.
 
 ```
-csat-chart: type "climate" 의 data.months 는 12개여야 합니다 (지금 11개)
-csat-chart: type "pyramid" 의 data 에 ages 가 없습니다
+csat-chart: type "climate" 의 data.months: 12개여야 합니다 (지금 11개)
+csat-chart: type "pyramid" 의 data 에 ages 항목이 없습니다
 csat-chart: 알 수 없는 type "piramid" — 혹시 "pyramid"?
 ```
 

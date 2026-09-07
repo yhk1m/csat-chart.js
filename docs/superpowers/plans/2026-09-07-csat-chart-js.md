@@ -775,26 +775,39 @@ describe('assertChartData', () => {
     const data = { ...REGISTRY.pyramid.createDefaultData() } as Record<string, unknown>;
     delete data.ages;
     expect(() => assertChartData('pyramid', data)).toThrow(
-      /type "pyramid" 의 data 에 ages 가 없습니다/,
+      /type "pyramid" 의 data 에 ages 항목이 없습니다/,
     );
   });
 
   it('키의 종류가 다르면 무엇이어야 하는지 말한다', () => {
     const data = { ...REGISTRY.ternary.createDefaultData(), points: 3 };
     expect(() => assertChartData('ternary', data)).toThrow(
-      /data.points 는 배열여야 합니다 \(지금 숫자\)/,
+      /data\.points: 배열이어야 합니다 \(지금 숫자\)/,
     );
+  });
+
+  it('받침에 따라 «이어야»와 «여야»를 가른다', () => {
+    // 조사를 하나로 고정하면 «배열여야»·«문자열여야» 같은 문장이 나온다.
+    const t = REGISTRY.ternary.createDefaultData() as { axisLabels: string[] };
+    expect(() => assertChartData('ternary', { ...t, axisLabels: 3 })).toThrow(
+      /배열이어야 합니다/,
+    );
+    const c = REGISTRY.climate.createDefaultData() as { tempLabel: string };
+    expect(() => assertChartData('climate', { ...c, tempLabel: [] })).toThrow(
+      /문자열이어야 합니다/,
+    );
+    expect(() => assertChartData('ternary', 3)).toThrow(/객체여야 합니다/);
   });
 
   it('길이가 고정된 배열은 길이도 본다', () => {
     const data = REGISTRY.climate.createDefaultData() as { months: unknown[] };
     expect(() =>
       assertChartData('climate', { ...data, months: data.months.slice(0, 11) }),
-    ).toThrow(/data.months 는 12개여야 합니다 \(지금 11개\)/);
+    ).toThrow(/data\.months: 12개여야 합니다 \(지금 11개\)/);
 
     const t = REGISTRY.ternary.createDefaultData() as { axisLabels: string[] };
     expect(() => assertChartData('ternary', { ...t, axisLabels: ['A', 'B'] })).toThrow(
-      /data.axisLabels 는 3개여야 합니다 \(지금 2개\)/,
+      /data\.axisLabels: 3개여야 합니다 \(지금 2개\)/,
     );
   });
 
@@ -855,6 +868,20 @@ function kindOf(v: unknown): string {
   return KIND_NAMES[typeof v] ?? typeof v;
 }
 
+/**
+ * «…이어야 합니다» / «…여야 합니다» 를 받침에 따라 고른다.
+ *
+ * 하나로 고정하면 «배열여야»·«문자열여야» 같은 문장이 나온다. 한글 음절은
+ * (코드 − 0xAC00) % 28 로 받침 유무를 알 수 있고, 한글이 아니면(`null` 처럼)
+ * 받침이 있는 것으로 친다 — 개발 문서에서 흔히 쓰는 «null이어야» 쪽이다.
+ */
+function shouldBe(word: string): string {
+  const last = word.charCodeAt(word.length - 1);
+  const isHangul = last >= 0xac00 && last <= 0xd7a3;
+  const hasFinal = isHangul ? (last - 0xac00) % 28 !== 0 : true;
+  return `${word}${hasFinal ? '이어야' : '여야'} 합니다`;
+}
+
 /** 두 문자열의 편집 거리 (Levenshtein) */
 function distance(a: string, b: string): number {
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -896,7 +923,9 @@ export function assertChartType(type: unknown): asserts type is CsatChartType {
 
 export function assertChartData(type: CsatChartType, data: unknown): void {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-    throw new CsatChartError(`type "${type}" 의 data 는 객체여야 합니다 (지금 ${kindOf(data)})`);
+    throw new CsatChartError(
+      `type "${type}" 의 data 는 ${shouldBe('객체')} (지금 ${kindOf(data)})`,
+    );
   }
 
   const given = data as Record<string, unknown>;
@@ -907,14 +936,17 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
 
   for (const key of Object.keys(shape)) {
     if (!(key in given)) {
-      throw new CsatChartError(`type "${type}" 의 data 에 ${key} 가 없습니다`);
+      // 키 이름 뒤에 «이/가» 를 붙이면 영문 식별자마다 조사가 어긋난다.
+      // «항목이» 를 세우면 어떤 키가 와도 문장이 성립한다.
+      throw new CsatChartError(`type "${type}" 의 data 에 ${key} 항목이 없습니다`);
     }
 
     const want = kindOf(shape[key]);
     const got = kindOf(given[key]);
     if (want !== got) {
+      // 키 이름 뒤는 «는/은» 대신 콜론을 쓴다 — 영문 식별자에 조사를 붙이지 않는다.
       throw new CsatChartError(
-        `type "${type}" 의 data.${key} 는 ${want}여야 합니다 (지금 ${got})`,
+        `type "${type}" 의 data.${key}: ${shouldBe(want)} (지금 ${got})`,
       );
     }
 
@@ -923,7 +955,7 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
       const len = (given[key] as unknown[]).length;
       if (len !== n) {
         throw new CsatChartError(
-          `type "${type}" 의 data.${key} 는 ${n}개여야 합니다 (지금 ${len}개)`,
+          `type "${type}" 의 data.${key}: ${n}개여야 합니다 (지금 ${len}개)`,
         );
       }
     }
@@ -934,7 +966,7 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/validate.test.ts`
-Expected: PASS — 27건 (4 + 16 + 7)
+Expected: PASS — 28건 (4 + 16 + 8)
 
 - [ ] **Step 5: 커밋**
 

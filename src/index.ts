@@ -72,15 +72,39 @@ export {
 } from './core/index';
 
 // ── 상수 ───────────────────────────────────────────────
-export {
-  AGE_GROUPS,
-  DOT_MARKER_ORDER,
-  LINE_DASH,
-  LINE_MARKER_ORDER,
-  LINE_STYLE_ORDER,
-  MONTH_LABELS_EN,
-  MONTH_LABELS_NUM,
+import {
+  AGE_GROUPS as coreAgeGroups,
+  DOT_MARKER_ORDER as coreDotMarkerOrder,
+  LINE_DASH as coreLineDash,
+  LINE_MARKER_ORDER as coreLineMarkerOrder,
+  LINE_STYLE_ORDER as coreLineStyleOrder,
+  MONTH_LABELS_EN as coreMonthLabelsEn,
+  MONTH_LABELS_NUM as coreMonthLabelsNum,
 } from './core/index';
+
+/**
+ * 상수는 얼려서 내보낸다.
+ *
+ * 여기서 내보내는 것은 렌더러가 기본값으로 읽는 **바로 그 객체**다. 얼리지 않으면
+ * `CsatChart.DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
+ * 조용히 어긋난다. 타입 검사를 받지 않는 CDN 사용자를 겨냥한 패키지라 특히 그렇다.
+ * `CHART_TYPES` 를 얼린 것과 같은 이유다.
+ */
+export const AGE_GROUPS = Object.freeze(coreAgeGroups);
+export const DOT_MARKER_ORDER = Object.freeze(coreDotMarkerOrder);
+export const LINE_MARKER_ORDER = Object.freeze(coreLineMarkerOrder);
+export const LINE_STYLE_ORDER = Object.freeze(coreLineStyleOrder);
+export const MONTH_LABELS_EN = Object.freeze(coreMonthLabelsEn);
+export const MONTH_LABELS_NUM = Object.freeze(coreMonthLabelsNum);
+
+// LINE_DASH 는 Record<LineStyle, number[]> 다. 얕게 얼리면 LINE_DASH.dashed 를
+// 갈아 끼우는 것만 막고, LINE_DASH.dashed.push(1) 은 그대로 통한다.
+export const LINE_DASH = Object.freeze({
+  solid: Object.freeze(coreLineDash.solid),
+  dashed: Object.freeze(coreLineDash.dashed),
+  dotted: Object.freeze(coreLineDash.dotted),
+  dashdot: Object.freeze(coreLineDash.dashdot),
+});
 
 // ── 타입 ───────────────────────────────────────────────
 export type {

@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { describe, it, expect } from 'vitest';
 import * as lib from '../src/index';
-import { CHART_TYPES } from '../src/registry';
+import { CHART_TYPES, REGISTRY } from '../src/registry';
 
 const RENDERERS = [
   'renderAbsBarGraph', 'renderCategoryDotGraph', 'renderClimateGraph', 'renderCubeGraph',
@@ -40,9 +40,37 @@ describe('공개 표면', () => {
     expect(typeof (lib as Record<string, unknown>)[name]).toBe('function');
   });
 
+  it('REGISTRY 의 모든 렌더러와 기본값 생성기가 공개 표면에 있다', () => {
+    // 손으로 적은 목록은 «빠뜨린 것» 을 못 잡는다. 레지스트리에서 끌어와 센다.
+    const exported = new Set(Object.values(lib as Record<string, unknown>));
+    for (const type of CHART_TYPES) {
+      const entry = REGISTRY[type];
+      expect(exported.has(entry.render), `${type} 의 렌더러`).toBe(true);
+      expect(exported.has(entry.createDefaultData), `${type} 의 기본값 생성기`).toBe(true);
+    }
+  });
+
   it('축 계산 유틸을 내보낸다', () => {
     expect(lib.niceStep(100, 5)).toBeGreaterThan(0);
     expect(lib.autoRange([1, 2, 3]).step).toBeGreaterThan(0);
+  });
+
+  it('상수를 얼려서 내보낸다', () => {
+    expect(lib.AGE_GROUPS).toHaveLength(17);
+    expect(lib.DOT_MARKER_ORDER).toHaveLength(4);
+    expect(lib.LINE_MARKER_ORDER).toHaveLength(4);
+    expect(lib.LINE_STYLE_ORDER).toHaveLength(4);
+    expect(lib.MONTH_LABELS_EN).toHaveLength(12);
+    expect(lib.MONTH_LABELS_NUM).toHaveLength(12);
+    expect(Array.isArray(lib.LINE_DASH.solid)).toBe(true);
+
+    for (const c of [
+      lib.AGE_GROUPS, lib.DOT_MARKER_ORDER, lib.LINE_MARKER_ORDER,
+      lib.LINE_STYLE_ORDER, lib.MONTH_LABELS_EN, lib.MONTH_LABELS_NUM,
+      lib.LINE_DASH, lib.LINE_DASH.solid,
+    ]) {
+      expect(Object.isFrozen(c)).toBe(true);
+    }
   });
 
   it.each(EXCLUDED)('GeoGrapher 전용 %s 는 내보내지 않는다', (name) => {
@@ -84,5 +112,15 @@ describe('타입 표면', () => {
     const err: lib.CsatChartError = new lib.CsatChartError('시험');
     expect(data.months).toHaveLength(12);
     expect(err.name).toBe('CsatChartError');
+  });
+
+  it('GeoGrapher UI 의 타입은 공개 표면에 없다', () => {
+    // @ts-expect-error GraphType 은 지도 4종과 'guide' 를 담은 메뉴 목록이다
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    type _NoGraphType = lib.GraphType;
+    // @ts-expect-error ExportSettings 는 GeoGrapher 내보내기 대화상자의 상태다
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    type _NoExportSettings = lib.ExportSettings;
+    expect(true).toBe(true);
   });
 });

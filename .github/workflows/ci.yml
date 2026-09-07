@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    # 기본 브랜치 이름이 확정되기 전이라 둘 다 받는다.
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+        env:
+          # 골든 이미지는 시스템 글꼴 대체 결과에 의존해 기계마다 다르다.
+          # 이식 검증은 저자 기계에서 하고, CI 에서는 «빈 캔버스가 아니다» 만 본다.
+          SKIP_GOLDEN: '1'
+
+      # 주의: `.d.mts` 를 직접 import 하면 `TS2846: A declaration file cannot be
+      # imported without 'import type'` 로 막힌다. 구현 파일 `.mjs` 를 가리켜야
+      # TypeScript 가 옆의 `.d.mts` 를 찾아 쓴다 — 실제 소비자가 겪는 경로와도 같다.
+      # 검사 파일은 작업 폴더 안에 둔다. /tmp 에 두면 상대 경로가 저장소를 벗어난다.
+      - name: 만들어진 선언 파일이 실제로 쓰이는지 확인
+        run: |
+          mkdir -p .dtscheck
+          cat > .dtscheck/use.ts <<'EOF'
+          import { CsatChart, createDefaultTernaryData } from '../dist/csat-chart.mjs';
+          const cfg = { type: 'ternary' as const, data: createDefaultTernaryData() };
+          export const ok: typeof CsatChart = CsatChart;
+          export const t = cfg.type;
+          EOF
+          npx tsc --noEmit --strict --moduleResolution bundler --module esnext \
+            --target es2020 --lib es2020,dom .dtscheck/use.ts
+          rm -rf .dtscheck
+
+      # docs/lib 는 커밋된 빌드 산출물이다. 누가 src 를 고치고 다시 빌드하는 걸
+      # 잊으면 데모 페이지가 실제 라이브러리와 어긋난 채 배포된다.
+      - name: docs/lib 가 최신인지 확인
+        run: |
+          git diff --exit-code -- docs/lib/csat-chart.umd.min.js \
+            || (echo "docs/lib/csat-chart.umd.min.js 가 낡았습니다 — npm run build 후 커밋하세요" && exit 1)

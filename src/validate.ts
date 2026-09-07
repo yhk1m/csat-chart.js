@@ -23,6 +23,10 @@ const FIXED_LENGTHS: Partial<Record<CsatChartType, Record<string, number>>> = {
   climate: { months: 12 },
   'deviation-a': { baseMonths: 12, months: 12 },
   ternary: { axisLabels: 3 },
+  // ⚠️ quadrantLabels 는 지금 어느 렌더러도 읽지 않는다 — 이식해 온 죽은 필드다.
+  // 그래도 검사한다. 타입이 4-튜플이라 TypeScript 사용자는 이미 4개를 강요받고,
+  // 기본 데이터에 있으니 필수 키 검사도 이미 걸린다. 여기서만 빼면
+  // «기본 데이터가 곧 정답 모양» 이라는 규칙에 예외가 하나 생길 뿐이다.
   scatter: { quadrantLabels: 4 },
 };
 

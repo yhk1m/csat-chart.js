@@ -1052,7 +1052,10 @@ function installFakeDom() {
 }
 
 beforeEach(() => resetFontsForTest());
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('ensureFonts', () => {
   it('Node(문서 없음)에서는 아무 일도 하지 않고 false 를 돌려준다', async () => {
@@ -1092,6 +1095,39 @@ describe('ensureFonts', () => {
     const [a, b] = await Promise.all([ensureFonts(), ensureFonts()]);
     expect(a).toBe(b);
     expect(appended).toHaveLength(1);
+  });
+
+  it('글꼴을 못 받아도 던지지 않고 false 를 돌려준다', () => {
+    // 문서가 «던지지 않는다» 고 약속한다. 네트워크가 막히면 fonts.load 가
+    // reject 하는데, 그게 그대로 새어 나가면 약속이 깨진다.
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => ({ id: '', rel: '', href: '' }) as FakeLink,
+      head: { appendChild: () => {} },
+      fonts: { load: () => Promise.reject(new Error('네트워크 오류')) },
+    });
+    return expect(ensureFonts()).resolves.toBe(false);
+  });
+
+  it('시간 안에 못 받으면 false 를 돌려준다', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', {
+      getElementById: () => null,
+      createElement: () => ({ id: '', rel: '', href: '' }) as FakeLink,
+      head: { appendChild: () => {} },
+      fonts: { load: () => new Promise(() => {}) }, // 영원히 끝나지 않는다
+    });
+    const p = ensureFonts({ timeoutMs: 100 });
+    await vi.advanceTimersByTimeAsync(100);
+    await expect(p).resolves.toBe(false);
+  });
+
+  it('성공한 뒤에 타임아웃 타이머를 남기지 않는다', async () => {
+    // 남기면 Node 에서 5초 동안 프로세스가 안 끝난다.
+    vi.useFakeTimers();
+    installFakeDom();
+    await ensureFonts();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 ```
@@ -1177,11 +1213,21 @@ async function load(o: EnsureFontsOptions): Promise<boolean> {
     return true;
   })();
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<boolean>((resolve) => {
-    setTimeout(() => resolve(false), timeoutMs);
+    timer = setTimeout(() => resolve(false), timeoutMs);
   });
 
-  return Promise.race([work, timeout]);
+  try {
+    // `work.catch` 가 있어야 «던지지 않는다» 는 약속이 지켜진다. 네트워크가
+    // 막히면 fonts.load 가 reject 하는데, 그게 새어 나가면 글꼴 하나 때문에
+    // 그림 그리기 자체가 멈춘다.
+    return await Promise.race([work.catch(() => false), timeout]);
+  } finally {
+    // 타이머를 지우지 않으면 일이 끝난 뒤에도 살아남아, Node 에서는
+    // 프로세스가 timeoutMs 만큼 더 붙들린다.
+    clearTimeout(timer);
+  }
 }
 ```
 
@@ -1191,7 +1237,7 @@ async function load(o: EnsureFontsOptions): Promise<boolean> {
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run test/fonts.test.ts`
-Expected: PASS — 5건
+Expected: PASS — 8건
 
 - [ ] **Step 5: 커밋**
 

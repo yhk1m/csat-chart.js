@@ -46,7 +46,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/fix-esm-dts-ext.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern src test",

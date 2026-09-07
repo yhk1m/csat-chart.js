@@ -394,6 +394,23 @@ git commit -m "test: 골든 이미지 31장과 단위 테스트 이관
 골든은 글꼴 대체 결과에 의존하므로 SKIP_GOLDEN=1 로 CI에서 건너뛴다."
 ```
 
+- [ ] **Step 7: `.gitattributes` 로 기준 이미지를 이진 파일로 못박는다**
+
+```
+* text=auto eol=lf
+
+*.png binary
+```
+
+**순서가 중요하다 — 뒤에 오는 규칙이 이긴다.** `*.png binary` 를 위에 두면
+포괄 규칙이 덮어써서 아무 효과가 없다.
+
+없어도 지금은 동작한다. git 이 첫 8000바이트에서 NUL 을 찾아 이진 파일로
+알아서 판정하기 때문이다. 하지만 그건 그림 내용에 기댄 추론이라, 앞으로
+아주 단순한 그림이 기준으로 들어오면 조건을 벗어나 CRLF 변환으로 조용히
+망가질 수 있다. `git check-attr text diff -- test/core/__snapshots__/absbar.png`
+가 둘 다 `unset` 을 돌려주는지로 확인한다.
+
 ---
 
 ### Task 4: 종류 지도와 레지스트리

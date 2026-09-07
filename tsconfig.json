@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts", "eslint.config.mjs"]
+  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
 }

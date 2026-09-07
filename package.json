@@ -49,8 +49,8 @@
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src test",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "lint": "eslint --no-error-on-unmatched-pattern src test",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run test",
     "prepublishOnly": "npm run verify"
   },
   "devDependencies": {

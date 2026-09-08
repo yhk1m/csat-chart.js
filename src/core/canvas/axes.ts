@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type Padding, getFont } from './renderer';
 import { labelStride, widestLabel } from './labels';
+import { EDGE, nudgeInside, shrinkToWidth } from './fit';
 
 interface AxisOptions {
   ctx: CanvasRenderingContext2D;
@@ -104,14 +105,24 @@ export function drawYAxis({
   }
 
   // 축 라벨 (축 상단, 숫자 열에 맞춤)
-  ctx.save();
-  ctx.font = getFont(labelFontSize, fontFamily, customFont, 'bold');
-  ctx.fillStyle = '#000';
-  ctx.textBaseline = 'bottom';
-  const labelX = side === 'left' ? x - 12 : x + 12;
-  ctx.textAlign = side === 'left' ? 'right' : 'left';
-  ctx.fillText(label, labelX, plot.y - tickFontSize * 0.5 - 8);
-  ctx.restore();
+  //
+  // 이 글자는 플롯 **위 여백**에 떠 있다 — 옆으로 밀거나 조금 내려도 자료를
+  // 가리지 않는다. 그래서 캔버스를 벗어날 때는 플롯을 줄이는 대신 안으로 민다.
+  // (「(°C)」의 여는 괄호가 위로 3.2px, 「월평균 기온(°C)」 같은 긴 이름이
+  //  왼쪽으로 72.9px 넘던 자리다.)
+  if (label) {
+    ctx.save();
+    const makeFont = (size: number) => getFont(size, fontFamily, customFont, 'bold');
+    ctx.fillStyle = '#000';
+    ctx.textBaseline = 'bottom';
+    ctx.textAlign = side === 'left' ? 'right' : 'left';
+    // 캔버스보다 넓은 이름은 밀어서 될 일이 아니다 — 글꼴부터 줄인다
+    ctx.font = makeFont(shrinkToWidth(ctx, [label], labelFontSize, width - EDGE * 2, makeFont));
+    const labelX = side === 'left' ? x - 12 : x + 12;
+    const at = nudgeInside(ctx, label, labelX, plot.y - tickFontSize * 0.5 - 8, width, height);
+    ctx.fillText(label, at.x, at.y);
+    ctx.restore();
+  }
 }
 
 export function drawXAxis({

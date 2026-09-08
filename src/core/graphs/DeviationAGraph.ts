@@ -4,6 +4,7 @@ import { type DeviationAData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
 
 const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -260,11 +261,11 @@ export function renderDeviationAGraph(
 
   // 축 이름 — 눈금 숫자 바깥에 한 글자씩 세로로 쌓는다
   if (data.tempAxisName) {
-    drawVerticalAxisName(ctx, data.tempAxisName, plotX - 22 - tempTickW - nameW / 2, plotY, plotH,
+    drawVerticalAxisName(ctx, data.tempAxisName, plotX - 22 - tempTickW - nameW / 2, plotY, plotH, h,
       options.fontSize.axisLabel, font, customFont);
   }
   if (data.precipAxisName) {
-    drawVerticalAxisName(ctx, data.precipAxisName, plotX + plotW + 22 + precipTickW + nameW / 2, plotY, plotH,
+    drawVerticalAxisName(ctx, data.precipAxisName, plotX + plotW + 22 + precipTickW + nameW / 2, plotY, plotH, h,
       options.fontSize.axisLabel, font, customFont);
   }
 
@@ -325,25 +326,42 @@ function drawDeviationYAxis(
     maxTickW = Math.max(maxTickW, ctx.measureText(valStr).width);
   }
 
-  ctx.save();
-  ctx.font = getFont(fontSize.axisLabel, fontFamily, customFont, 'bold');
-  ctx.fillStyle = '#000';
-  ctx.textBaseline = 'bottom';
-  const labelX = side === 'left' ? x - 12 : x + 12;
-  ctx.textAlign = side === 'left' ? 'right' : 'left';
-  ctx.fillText(label, labelX, plotY - 16);
-  ctx.restore();
+  // 단위 표기는 플롯 **위 여백**에 떠 있다 — 캔버스를 벗어나면 플롯을 줄이는
+  // 대신 안으로 민다 (「평년 대비 기온 차이(°C)」가 좌우로 129.5px 넘던 자리).
+  if (label) {
+    ctx.save();
+    const makeFont = (size: number) => getFont(size, fontFamily, customFont, 'bold');
+    ctx.fillStyle = '#000';
+    ctx.textBaseline = 'bottom';
+    ctx.textAlign = side === 'left' ? 'right' : 'left';
+    ctx.font = makeFont(shrinkToWidth(ctx, [label], fontSize.axisLabel, width - EDGE * 2, makeFont));
+    const labelX = side === 'left' ? x - 12 : x + 12;
+    const at = nudgeInside(ctx, label, labelX, plotY - 16, width, height);
+    ctx.fillText(label, at.x, at.y);
+    ctx.restore();
+  }
 
   return maxTickW;
 }
 
-/** 축 이름을 한 글자씩 세로로 쌓아 그린다 (플롯 세로 가운데 정렬) */
+/**
+ * 축 이름을 한 글자씩 세로로 쌓아 그린다 (플롯 세로 가운데 정렬).
+ *
+ * **세로로 세운 이름은 플롯의 «높이»에 갇힌다.** 좌우 여백을 아무리 넓혀도
+ * 자리가 늘지 않으므로 다른 글자에 쓰는 «여백을 넓힌다» 가 여기서는 무효다.
+ * 줄을 늘리는 수(두 칸으로 세우기)도 세로 이름의 뜻을 흐린다 — 어느 칸부터
+ * 읽어야 하는지가 그림에 안 적혀 있다. 그래서 남는 수는 글꼴을 줄이는 것이고,
+ * 바닥(`MIN_SCALE`)까지 줄여도 넘치면 플롯 위아래 여백까지 빌린다.
+ * 캔버스보다도 긴 이름이라면 그때만 바닥을 깨고 더 줄인다 — 잘라 내는 것보다
+ * 작게 쓰는 편이 시험지에서 낫다.
+ */
 function drawVerticalAxisName(
   ctx: CanvasRenderingContext2D,
   name: string,
   cx: number,
   plotY: number,
   plotH: number,
+  canvasH: number,
   fontSize: number,
   fontFamily: 'serif' | 'sans' | 'custom',
   customFont: string | undefined
@@ -351,13 +369,27 @@ function drawVerticalAxisName(
   const chars = [...name].filter((c) => c.trim() !== '');
   if (chars.length === 0) return;
 
+  const stack = (size: number) => (chars.length - 1) * size * 1.15 + size;
+  let size = fontSize;
+  if (stack(size) > plotH) {
+    size = Math.max(fontSize * MIN_SCALE, plotH / stack(1));
+  }
+  if (stack(size) > canvasH - EDGE * 2) size = (canvasH - EDGE * 2) / stack(1);
+
   ctx.save();
-  ctx.font = getFont(fontSize, fontFamily, customFont, 'bold');
+  ctx.font = getFont(size, fontFamily, customFont, 'bold');
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const lineH = fontSize * 1.15;
-  let y = plotY + plotH / 2 - ((chars.length - 1) * lineH) / 2;
+  const lineH = size * 1.15;
+  // 플롯 가운데에 맞추되, 캔버스를 넘으면 위아래 여백 쪽으로 민다
+  const half = ((chars.length - 1) * lineH) / 2;
+  let mid = plotY + plotH / 2;
+  const top = mid - half - size / 2;
+  const bottom = mid + half + size / 2;
+  if (top < EDGE) mid += EDGE - top;
+  else if (bottom > canvasH - EDGE) mid -= bottom - (canvasH - EDGE);
+  let y = mid - half;
   for (const c of chars) {
     ctx.fillText(c, cx, y);
     y += lineH;

@@ -2,6 +2,7 @@
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, getFont, autoRange, fillTextMultiline } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
+import { clampLinesMiddle, drawFloatingLabel, fillLines, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
 
 export function renderScatterGraph(
   ctx: CanvasRenderingContext2D,
@@ -51,6 +52,21 @@ function renderNormal(
     return width;
   })();
 
+  // 축 범위 — 여백보다 **먼저** 잡는다. 눈금 숫자의 폭과 y축 이름의 폭이
+  // 왼쪽 여백을 정하는데, 범위는 자료만으로 정해지므로 순환이 없다.
+  const xs = data.points.map((p) => p.x);
+  const ys = data.points.map((p) => p.y);
+  const xAuto = autoRange(xs);
+  const yAuto = autoRange(ys);
+  const xMin = data.xRange.auto ? xAuto.min : data.xRange.min;
+  const xMax = data.xRange.auto ? xAuto.max : data.xRange.max;
+  const yMin = data.yRange.auto ? yAuto.min : data.yRange.min;
+  const yMax = data.yRange.auto ? yAuto.max : data.yRange.max;
+  const xStep = data.xRange.step ?? (data.xRange.auto ? xAuto.step : (xMax - xMin) / 5);
+  const yStep = data.yRange.step ?? (data.yRange.auto ? yAuto.step : (yMax - yMin) / 5);
+
+  const yName = measureYAxisName(ctx, data, w, yMin, yMax, yStep, fs, font, cf);
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: legendW > 0 ? legendW + 40 : Math.max(60, examUnitW + 34),
@@ -62,25 +78,16 @@ function renderNormal(
       b += notes * 22;
       return b;
     })(),
-    left: 130,
+    // 130 은 「Y축」 정도를 담을 만큼이다. 이름이 길면 그만큼 더 비운다 —
+    // 「1인당 지역내총생산」이 왼쪽으로 77.6px 넘던 자리다. 이미 130 으로
+    // 충분하면 130 이 이겨 예전 그림이 한 픽셀도 안 움직인다.
+    left: Math.max(130, yName.reserve),
   };
 
   const plotX = padding.left;
   const plotY = padding.top;
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
-
-  // 축 범위
-  const xs = data.points.map((p) => p.x);
-  const ys = data.points.map((p) => p.y);
-  const xAuto = autoRange(xs);
-  const yAuto = autoRange(ys);
-  const xMin = data.xRange.auto ? xAuto.min : data.xRange.min;
-  const xMax = data.xRange.auto ? xAuto.max : data.xRange.max;
-  const yMin = data.yRange.auto ? yAuto.min : data.yRange.min;
-  const yMax = data.yRange.auto ? yAuto.max : data.yRange.max;
-  const xStep = data.xRange.step ?? (data.xRange.auto ? xAuto.step : (xMax - xMin) / 5);
-  const yStep = data.yRange.step ?? (data.yRange.auto ? yAuto.step : (yMax - yMin) / 5);
 
   const toCanvasX = (v: number) => plotX + ((v - xMin) / (xMax - xMin)) * plotW;
   const toCanvasY = (v: number) => plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
@@ -157,7 +164,8 @@ function renderNormal(
   for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) yTicks.push(v);
   const yStride = labelStride(plotH / Math.max(1, yTicks.length - 1), fs.tick * 1.1);
   // 축 이름이 눈금 숫자를 밟지 않도록, 가장 넓은 숫자만큼 밀어낼 거리를 재 둔다
-  const yTickTextW = widestLabel(ctx, yTicks.map(formatTick));
+  // (여백을 정할 때 이미 잰 값이다 — 같은 것을 두 번 세지 않는다)
+  const yTickTextW = yName.tickW;
   yTicks.forEach((v, i) => {
     const y = toCanvasY(v);
     ctx.lineWidth = 1;
@@ -171,10 +179,12 @@ function renderNormal(
   // 축 라벨
   ctx.font = getFont(fs.axisLabel, font, cf, 'bold');
 
-  // X축 라벨 (하단 중앙)
+  // X축 라벨 (하단 중앙) — 플롯 가운데에 놓이므로 캔버스 양쪽으로 넘칠 수 있다
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(data.xLabel, plotX + plotW / 2, plotY + plotH + 40);
+  drawFloatingLabel(ctx, data.xLabel, plotX + plotW / 2, plotY + plotH + 40, w, h,
+    fs.axisLabel, (size) => getFont(size, font, cf, 'bold'));
+  ctx.font = getFont(fs.axisLabel, font, cf, 'bold');
 
   // X축 단위 — 시험지 틀이면 마지막 눈금 옆(`4(℃)` 꼴),
   // 아니면 기존대로 축 이름과 같은 줄 오른쪽 끝
@@ -193,17 +203,22 @@ function renderNormal(
     }
   }
 
-  // Y축 단위 (상단 끝)
+  // Y축 단위 (상단 끝) — 플롯 위 여백에 떠 있다
   if (data.yUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(data.yUnit, plotX - 10, plotY - 16);
+    drawFloatingLabel(ctx, data.yUnit, plotX - 10, plotY - 16, w, h,
+      fs.axisLabel, (size) => getFont(size, font, cf, 'bold'));
   }
 
-  // Y축 라벨 (Y축 중간, 줄바꿈 지원)
+  // Y축 라벨 (Y축 중간) — 왼쪽 여백은 이미 이 이름 몫만큼 비워 두었다
+  ctx.font = getFont(yName.size, font, cf, 'bold');
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  fillTextMultiline(ctx, data.yLabel, plotX - 18 - yTickTextW, plotY + plotH / 2, fs.axisLabel * 1.3);
+  const yNameLineH = yName.size * 1.3;
+  fillLines(ctx, yName.lines, plotX - 18 - yTickTextW,
+    clampLinesMiddle(ctx, yName.lines, plotY + plotH / 2, yNameLineH, h), yNameLineH);
+  ctx.font = getFont(fs.axisLabel, font, cf, 'bold');
 
   // 데이터 포인트
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, font, cf, options.showDataLabels,
@@ -552,6 +567,53 @@ function symmetricRange(absMax: number): { limit: number; step: number } {
 
 function formatTick(v: number): string {
   return Math.abs(v) < 0.0001 ? '0' : Number(v.toFixed(2)).toString();
+}
+
+/**
+ * y축 이름이 **왼쪽에 얼마나 자리를 요구하는지** 재고, 필요하면 접거나 줄인다.
+ *
+ * 이름은 눈금 숫자 열 바깥에 가로로 놓인다. 그래서 왼쪽 여백은
+ * `18 + 눈금숫자폭 + 이름폭 + 12` 이상이라야 하고, 예전 상수 `130` 은
+ * 「Y축」 정도만 감당했다 — 「1인당 지역내총생산」은 77.6px 이 캔버스 밖이었다.
+ *
+ * 여백만 넓히면 이름 하나가 그림을 다 먹으므로, 이름 몫을 캔버스 너비의 30%
+ * 로 묶고 그보다 길면 **줄을 늘린다**. 한 글자가 이미 그 몫보다 넓은
+ * 극단에서만 그 이름의 글꼴을 줄인다. 어느 경우에도 이름을 자르지 않는다.
+ */
+function measureYAxisName(
+  ctx: CanvasRenderingContext2D,
+  data: ScatterGraphData,
+  w: number,
+  yMin: number,
+  yMax: number,
+  yStep: number,
+  fs: GraphOptions['fontSize'],
+  font: GraphOptions['fontFamily'],
+  cf: string,
+): { lines: string[]; size: number; tickW: number; reserve: number } {
+  ctx.save();
+
+  ctx.font = getFont(fs.tick, font, cf, 'bold');
+  const ticks: number[] = [];
+  for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) ticks.push(v);
+  const tickW = widestLabel(ctx, ticks.map(formatTick));
+
+  const makeFont = (size: number) => getFont(size, font, cf, 'bold');
+  ctx.font = makeFont(fs.axisLabel);
+  // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
+  const given = (data.yLabel || '').split('\\n');
+  const budget = Math.max(40, w * 0.3 - 18 - tickW - 12);
+  let lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
+  let size = fs.axisLabel;
+  if (widestLine(ctx, lines) > budget) {
+    size = shrinkToWidth(ctx, lines, fs.axisLabel, budget, makeFont);
+    ctx.font = makeFont(size);
+    lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
+  }
+  const nameW = widestLine(ctx, lines);
+
+  ctx.restore();
+  return { lines, size, tickW, reserve: 18 + tickW + nameW + 12 };
 }
 
 interface Rect { x0: number; y0: number; x1: number; y1: number }

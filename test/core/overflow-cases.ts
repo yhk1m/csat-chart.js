@@ -1,8 +1,10 @@
 // © 2026 김용현
-// 범례 넘침 진단·회귀용 케이스 16종 × 두 자료 × 두 범례 위치.
+// 넘침 진단·회귀용 케이스 16종 × 두 자료 × 두 범례 위치.
 //
 // 자료 A 는 데모 페이지(docs/index.html)의 표본을 그대로 옮긴 것이고,
 // 자료 B 는 «선생님이 실제로 칠 만한» 긴 한글 이름(시·군·구 이름 등)이다.
+// 자료 B 는 범례뿐 아니라 **글자가 나오는 모든 자리**를 길게 채운다 — 축 이름·
+// 축 단위·눈금 이름·제목·출처·각주·값 라벨·그림 안 점 이름·표 머리글.
 import {
   renderAbsBarGraph, renderCategoryDotGraph, renderClimateGraph, renderCubeGraph,
   renderDataTable, renderDeviationAGraph, renderDeviationBGraph, renderHythergraph,
@@ -189,6 +191,9 @@ const B_DEVIATION_A: Maker = () => {
   const d = clone(A_DEVIATION_A) as unknown as ReturnType<typeof createDefaultDeviationAData>;
   d.precipLabel = '평년 대비 강수량 차이(mm)';
   d.tempLabel = '평년 대비 기온 차이(°C)';
+  // 세로로 세운 축 이름 — 이것만은 플롯의 **높이**에 갇힌다
+  d.tempAxisName = '평년 대비 월평균 기온 차이';
+  d.precipAxisName = '평년 대비 월 강수량 차이';
   return d;
 };
 
@@ -280,6 +285,56 @@ const A_ABSBAR_INSIDE: Maker = () => {
   return d;
 };
 
+// 범례가 없는 종류들 — 여기서 넘칠 만한 글자는 축 이름·표 머리글·칸 이름이다
+const B_DATA_TABLE: Maker = () => {
+  const d = createDefaultDataTableData();
+  d.cornerLabel = '조사 항목';
+  d.columns = ['서울특별시 강남구', '경기도 성남시 분당구', '강원특별자치도 춘천시', '전라남도 여수시'];
+  d.rows = [
+    { label: '기온의 연교차', unit: '(℃)', values: [40.5, 29.9, 3.8, 3.8] },
+    { label: '최한월 평균 기온', unit: '(℃)', values: [-21.4, -24.4, 24.6, 19.5] },
+    { label: '1월 강수량', unit: '(mm)', values: [1.8, 4.6, 28.8, 206.8] },
+  ];
+  return d;
+};
+
+const B_MATRIX_TABLE: Maker = () => {
+  const d = createDefaultMatrixTableData();
+  d.names = ['서울특별시 강남구', '경기도 성남시 분당구', '강원특별자치도 춘천시'];
+  d.unit = '(단위 : 킬로미터)';
+  return d;
+};
+
+const B_TERNARY: Maker = () => {
+  const d = createDefaultTernaryData();
+  d.axisLabels = ['1차 산업 비중', '2차 산업 비중', '3차 산업 비중'];
+  d.points = [
+    { a: 33, b: 33, c: 34, label: '서울특별시 강남구' },
+    { a: 60, b: 20, c: 20, label: '강원특별자치도 춘천시' },
+  ];
+  return d;
+};
+
+const B_TREEMAP: Maker = () => {
+  const d = createDefaultTreemapData();
+  d.cells = [
+    { label: '중화인민공화국', value: 50 },
+    { label: '아메리카합중국', value: 20 },
+    { label: '인도네시아', value: 12 },
+    { label: '그 밖의 나라', value: 18 },
+  ];
+  return d;
+};
+
+const B_CUBE: Maker = () => {
+  const d = createDefaultCubeData();
+  d.xAxis = { ...d.xAxis, name: '1인당 지역내총생산', lowLabel: '매우 낮음', highLabel: '매우 높음' };
+  d.yAxis = { ...d.yAxis, name: '노년 인구 비율', lowLabel: '매우 낮음', highLabel: '매우 높음' };
+  d.zAxis = { ...d.zAxis, name: '주간 인구 지수', lowLabel: '매우 낮음', highLabel: '매우 높음' };
+  d.points = d.points.map((p, i) => ({ ...p, label: LONG[i % LONG.length] }));
+  return d;
+};
+
 const OPT_A: Record<string, Partial<GraphOptions>> = {
   climate: { title: '서울의 기후', source: '기상청', footnotes: ['1991~2020년의 평년값임.'] },
   scatter: { title: '시·도별 인구밀도와 1인당 지역내총생산', source: '통계청, 2023' },
@@ -287,7 +342,8 @@ const OPT_A: Record<string, Partial<GraphOptions>> = {
   pyramid: { title: '우리나라의 인구 피라미드', source: '통계청, 2023' },
 };
 
-const B_TITLE = '지역별 통계 비교';
+const B_TITLE = '시·도별 인구밀도와 1인당 지역내총생산 비교';
+const B_FOOTNOTE = '통계 작성 기준 시점은 2023년 12월 31일이며, 반올림하여 소수 첫째 자리까지 적었음.';
 
 function opts(position: LegendPosition, patch?: Partial<GraphOptions>): () => GraphOptions {
   return () => ({ ...createDefaultGraphOptions(), showLegend: true, legendPosition: position, ...patch });
@@ -301,20 +357,20 @@ const TYPES: Entry[] = [
   ['absbar(안쪽범례)', renderAbsBarGraph as ProbeCase['render'], A_ABSBAR_INSIDE, B_ABSBAR_INSIDE],
   ['category-dot', renderCategoryDotGraph as ProbeCase['render'], createDefaultCategoryDotData, B_CATEGORY_DOT],
   ['climate', renderClimateGraph as ProbeCase['render'], () => clone(A_CLIMATE), B_CLIMATE],
-  ['cube', renderCubeGraph as ProbeCase['render'], () => clone(A_CUBE), createDefaultCubeData],
-  ['data-table', renderDataTable as ProbeCase['render'], createDefaultDataTableData, createDefaultDataTableData],
+  ['cube', renderCubeGraph as ProbeCase['render'], () => clone(A_CUBE), B_CUBE],
+  ['data-table', renderDataTable as ProbeCase['render'], createDefaultDataTableData, B_DATA_TABLE],
   ['deviation-a(안쪽범례)', renderDeviationAGraph as ProbeCase['render'], () => clone(A_DEVIATION_A), B_DEVIATION_A],
   ['deviation-a', renderDeviationAGraph as ProbeCase['render'], createDefaultDeviationAData, B_DEVIATION_A_OUT],
   ['deviation-b', renderDeviationBGraph as ProbeCase['render'], () => clone(A_DEVIATION_B), B_DEVIATION_B],
   ['hythergraph', renderHythergraph as ProbeCase['render'], () => clone(A_HYTHER), B_HYTHER],
   ['line', renderLineGraph as ProbeCase['render'], () => clone(A_LINE), B_LINE],
-  ['matrix-table', renderMatrixTable as ProbeCase['render'], createDefaultMatrixTableData, createDefaultMatrixTableData],
+  ['matrix-table', renderMatrixTable as ProbeCase['render'], createDefaultMatrixTableData, B_MATRIX_TABLE],
   ['pyramid', renderPyramidGraph as ProbeCase['render'], () => clone(A_PYRAMID), B_PYRAMID],
   ['radar', renderRadarChart as ProbeCase['render'], () => clone(A_RADAR), B_RADAR],
   ['scatter', renderScatterGraph as ProbeCase['render'], A_SCATTER, B_SCATTER],
   ['stacked', renderStackedGraph as ProbeCase['render'], A_STACKED, B_STACKED],
-  ['ternary', renderTernaryGraph as ProbeCase['render'], createDefaultTernaryData, createDefaultTernaryData],
-  ['treemap', renderTreemapGraph as ProbeCase['render'], createDefaultTreemapData, createDefaultTreemapData],
+  ['ternary', renderTernaryGraph as ProbeCase['render'], createDefaultTernaryData, B_TERNARY],
+  ['treemap', renderTreemapGraph as ProbeCase['render'], createDefaultTreemapData, B_TREEMAP],
 ];
 
 const POSITIONS: LegendPosition[] = ['bottom', 'right'];
@@ -332,5 +388,10 @@ export const CASES_B: ProbeCase[] = TYPES.flatMap(([name, render, , makeB]) =>
     name: `${name} · 긴이름 · ${position}`,
     render,
     data: makeB,
-    options: opts(position, { title: B_TITLE, source: '통계청' }),
+    options: opts(position, {
+      title: B_TITLE,
+      source: '통계청 「지역소득」, 2023',
+      footnotes: [B_FOOTNOTE],
+      showDataLabels: true,
+    }),
   })));

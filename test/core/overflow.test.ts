@@ -1,16 +1,25 @@
 // © 2026 김용현
-// 범례가 캔버스 밖으로 나가는지 — 그리기 호출을 직접 기록해서 본다.
+// 잉크가 캔버스 밖으로 나가는지 — 그리기 호출을 직접 기록해서 본다.
 //
 // 가장자리 픽셀을 세는 방법으로는 두 가지를 놓친다. 플롯 틀은 넘었지만 캔버스
 // 안에 머무는 범례를 못 보고, 닿는 것이 정상인 축 테두리를 넘쳤다고 잘못 잡는다.
 // 그래서 `fillText`·`fillRect`·`strokeRect`·경로 그리기를 감싸 **호출마다 실제로
 // 덮는 사각형**을 적어 두고 캔버스·범례 상자와 견준다.
 //
-// 진단표: `LEGEND_REPORT=경로.txt npx vitest run test/core/legend-overflow.test.ts`
+// 지키는 것은 두 가지다.
+//  1. **범례**가 캔버스를 넘지 않는다 (1.1.1).
+//  2. **글자**는 무엇이든 캔버스를 넘지 않는다 (1.2.0). 캔버스 밖 글자는 언제나
+//     결함이다 — 잉크 일반과 달리(그림은 경계를 넘어 그린 뒤 잘라 낼 수 있다)
+//     읽히지 않는 글자를 그리는 것이 옳은 경우가 없다.
+//
+// 세로로 세운 축 이름은 `rotate` 뒤에 찍히므로 **변환을 먹인 사각형**을 잰다.
+// 재는 시점의 `getTransform()` 으로 네 모서리를 옮겨 감싸는 상자를 만든다.
+//
+// 진단표: `OVERFLOW_REPORT=경로.txt npx vitest run test/core/overflow.test.ts`
 import { describe, it, vi, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync } from 'node:fs';
-import { CASES_A, CASES_B, type ProbeCase } from './legend-overflow-cases';
+import { CASES_A, CASES_B, type ProbeCase } from './overflow-cases';
 
 /** drawLegend/drawInsideLegend 안에서 일어난 그리기인지 표시하는 깃발 */
 const flag = vi.hoisted(() => ({
@@ -44,7 +53,15 @@ vi.mock('../../src/core/canvas/legend', async (importOriginal) => {
 });
 
 interface Rect { x0: number; y0: number; x1: number; y1: number }
-interface Hit extends Rect { op: string; legend: boolean; call: number; kind: string; plot: Rect | null; where: string }
+interface Hit extends Rect {
+  op: string;
+  text: string;
+  legend: boolean;
+  call: number;
+  kind: string;
+  plot: Rect | null;
+  where: string;
+}
 
 const W = 800;
 const H = 600;
@@ -74,9 +91,9 @@ function instrument(ctx: CanvasRenderingContext2D, hits: Hit[]) {
       ? { x0: Math.min(path.x0, x), y0: Math.min(path.y0, y), x1: Math.max(path.x1, x), y1: Math.max(path.y1, y) }
       : { x0: x, y0: y, x1: x, y1: y };
   };
-  const record = (r: Rect, op: string) => {
+  const record = (r: Rect, op: string, text = '') => {
     hits.push({
-      ...r, op,
+      ...r, op, text,
       legend: flag.depth > 0,
       call: flag.depth > 0 ? flag.call : -1,
       kind: flag.depth > 0 ? flag.kind : '',
@@ -85,22 +102,59 @@ function instrument(ctx: CanvasRenderingContext2D, hits: Hit[]) {
     });
   };
 
-  const textRect = (text: string, x: number, y: number): Rect => {
-    const m = ctx.measureText(String(text));
-    return {
-      x0: x - (m.actualBoundingBoxLeft ?? 0),
-      x1: x + (m.actualBoundingBoxRight ?? 0),
-      y0: y - (m.actualBoundingBoxAscent ?? 0),
-      y1: y + (m.actualBoundingBoxDescent ?? 0),
-    };
+  /**
+   * 글자가 덮는 사각형.
+   *
+   * 가로는 `actualBoundingBoxLeft/Right` 가 아니라 **보내는 폭**과 `textAlign`
+   * 으로 잰다. @napi-rs/canvas 는 글꼴 대체가 일어나면 그 두 값을 «첫 글꼴
+   * 조각만» 재서 돌려준다 — 「평년 대비 강수량 차이(mm)」의 오른쪽 끝을 63px
+   * 짧게 말한다. 그대로 믿으면 정말로 잘린 글자를 통과시킨다.
+   * 세로는 **글자마다 따로** 재서 가장 높은·낮은 것을 취한다 (한 글자는 언제나
+   * 한 조각이다).
+   *
+   * `maxWidth` 를 준 호출은 캔버스가 글자를 그 폭으로 **눌러** 그리므로
+   * 가로 폭을 그 비율로 줄여 잡는다. 안 그러면 이미 눌러 담은 제목·각주를
+   * 넘쳤다고 잘못 잡는다.
+   *
+   * 마지막으로 **현재 변환**을 먹여 세운 글자도 제자리에서 재게 한다.
+   */
+  const textRect = (text: string, x: number, y: number, maxWidth?: number): Rect => {
+    const s = String(text);
+    const m = ctx.measureText(s);
+    const w = (maxWidth != null && Number.isFinite(maxWidth) && maxWidth > 0)
+      ? Math.min(m.width, maxWidth)
+      : m.width;
+    const left = ctx.textAlign === 'right' || ctx.textAlign === 'end' ? w
+      : ctx.textAlign === 'center' ? w / 2 : 0;
+    let up = 0;
+    let down = 0;
+    for (const ch of s) {
+      if (!ch.trim()) continue;
+      const cm = ctx.measureText(ch);
+      up = Math.max(up, cm.actualBoundingBoxAscent ?? 0);
+      down = Math.max(down, cm.actualBoundingBoxDescent ?? 0);
+    }
+    const local = { x0: x - left, x1: x + (w - left), y0: y - up, y1: y + down };
+    const t = ctx.getTransform();
+    if (t.a === 1 && t.b === 0 && t.c === 0 && t.d === 1 && t.e === 0 && t.f === 0) return local;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const [px, py] of [
+      [local.x0, local.y0], [local.x1, local.y0],
+      [local.x0, local.y1], [local.x1, local.y1],
+    ]) {
+      xs.push(t.a * px + t.c * py + t.e);
+      ys.push(t.b * px + t.d * py + t.f);
+    }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
   };
 
   c.fillText = ((t: string, x: number, y: number, mw?: number) => {
-    if (String(t).length > 0) record(textRect(t, x, y), 'fillText');
+    if (String(t).trim().length > 0) record(textRect(t, x, y, mw), 'fillText', String(t));
     return raw.fillText(t as never, x as never, y as never, mw as never);
   }) as never;
   c.strokeText = ((t: string, x: number, y: number, mw?: number) => {
-    if (String(t).length > 0) record(pad(textRect(t, x, y), ctx.lineWidth / 2), 'strokeText');
+    if (String(t).trim().length > 0) record(pad(textRect(t, x, y, mw), ctx.lineWidth / 2), 'strokeText', String(t));
     return raw.strokeText(t as never, x as never, y as never, mw as never);
   }) as never;
   c.fillRect = ((x: number, y: number, w: number, h: number) => {
@@ -168,6 +222,8 @@ function run(c: ProbeCase) {
   return hits;
 }
 
+const isText = (h: Hit) => h.op === 'fillText' || h.op === 'strokeText';
+
 /** 이 케이스에서 범례가 캔버스를 넘어간 최대 픽셀 */
 function legendCanvasOverflow(hits: Hit[]) {
   let max = 0;
@@ -182,10 +238,21 @@ function legendCanvasOverflow(hits: Hit[]) {
   return { max, acc };
 }
 
-/** 진단표를 적을 파일. 없으면 표를 만들지 않는다 (평소에는 아래 검사만 돈다). */
-const REPORT_OUT = process.env.LEGEND_REPORT;
+/** 이 케이스에서 캔버스를 넘어간 글자 하나하나 */
+function textOverflows(hits: Hit[]) {
+  const out: { hit: Hit; o: ReturnType<typeof outCanvas> }[] = [];
+  for (const hit of hits) {
+    if (!isText(hit)) continue;
+    const o = outCanvas(hit);
+    if (worst(o) > EPS) out.push({ hit, o });
+  }
+  return out;
+}
 
-describe('범례 넘침', () => {
+/** 진단표를 적을 파일. 없으면 표를 만들지 않는다 (평소에는 아래 검사만 돈다). */
+const REPORT_OUT = process.env.OVERFLOW_REPORT;
+
+describe('넘침', () => {
   const all = [...CASES_A, ...CASES_B];
 
   if (REPORT_OUT) {
@@ -194,7 +261,8 @@ describe('범례 넘침', () => {
       for (const c of all) {
         const hits = run(c);
         const legendHits = hits.filter((x) => x.legend);
-        const handRolled = hits.filter((x) => !x.legend && worst(outCanvas(x)) > EPS);
+        const texts = hits.filter(isText);
+        const bad = textOverflows(hits);
         const cv = legendCanvasOverflow(hits);
 
         // 범례 호출마다 «첫 사각형» 이 상자다 (drawLegend·drawInsideLegend 모두
@@ -210,12 +278,13 @@ describe('범례 넘침', () => {
         }
         rows.push([
           c.name,
-          legendHits.length === 0 ? '(범례 없음)' : `호출 ${legendHits.length}`,
-          cv.max > EPS ? `캔버스밖: ${dirs(cv.acc)}` : '캔버스 OK',
+          legendHits.length === 0 ? '(범례 없음)' : `범례 호출 ${legendHits.length}`,
+          cv.max > EPS ? `범례 캔버스밖: ${dirs(cv.acc)}` : '범례 OK',
           worst(boxAcc) > EPS ? `상자밖: ${dirs(boxAcc)}` : '상자 OK',
-          handRolled.length
-            ? `범례 아닌 캔버스밖: ${handRolled.map((x) => `${x.where} ${dirs(outCanvas(x))}`).join(' / ')}`
-            : '',
+          `글자 ${texts.length}`,
+          bad.length === 0
+            ? '글자 OK'
+            : `글자 캔버스밖: ${bad.map(({ hit, o }) => `«${hit.text}» ${hit.where}${hit.legend ? '(범례)' : ''} ${dirs(o)}`).join(' / ')}`,
         ].join(' | '));
       }
       writeFileSync(REPORT_OUT, rows.join('\n'), 'utf8');
@@ -226,5 +295,14 @@ describe('범례 넘침', () => {
     const hits = run(c);
     const { max, acc } = legendCanvasOverflow(hits);
     expect(max, `범례가 캔버스를 벗어났습니다 — ${dirs(acc)}`).toBeLessThanOrEqual(EPS);
+  });
+
+  // 범례든 축 이름이든 눈금 숫자든, **읽히지 않는 글자**를 그리는 것은 언제나
+  // 결함이다. 그래서 종류를 가리지 않고 글자 전부에 같은 잣대를 댄다.
+  it.each(all.map((c) => [c.name, c] as const))('%s — 글자가 캔버스를 넘지 않는다', (_name, c) => {
+    const hits = run(c);
+    const bad = textOverflows(hits);
+    const why = bad.map(({ hit, o }) => `«${hit.text}» (${hit.where}) ${dirs(o)}`).join('\n  ');
+    expect(bad.length, `글자가 캔버스를 벗어났습니다 —\n  ${why}`).toBe(0);
   });
 });

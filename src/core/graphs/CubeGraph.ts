@@ -2,6 +2,7 @@
 import { type CubeGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, getFont } from '../canvas/renderer';
 import { drawSourceAndFootnote } from '../canvas/labels';
+import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 
 // 사각 투영 (oblique / cabinet)
 // 앞면: Z→오른쪽, Y→위 (직사각형)
@@ -74,7 +75,13 @@ export function renderCubeGraph(
 
   const availW = w - 240;
   const availH = h - topPad - bottomPad;
-  const scale = Math.min(availW * 0.5, availH * 0.55);
+
+  // 240 은 축 이름 「X축」 몫으로 잡은 상수였다. 「1인당 지역내총생산」 같은
+  // 이름은 오른쪽으로 58.1px 이 캔버스 밖이었다. 이름이 놓일 자리는 큐브
+  // 배율에 딸려 있으므로, 여백을 넓히는 것이 곧 **배율을 줄이는 것**이다.
+  const fit = fitCubeScale(ctx, data, w, h, topPad, availH,
+    Math.min(availW * 0.5, availH * 0.55), fs, font, cf);
+  const scale = fit.scale;
 
   // 큐브 중심을 화면 중심에 맞추기
   const cubeCenter = project(0.5, 0.5, 0.5, 0, 0, scale);
@@ -110,7 +117,7 @@ export function renderCubeGraph(
   }
 
   // 축 화살표 + 라벨
-  drawAxes(ctx, data, cx, cy, scale, font, cf, fs);
+  drawAxes(ctx, data, cx, cy, scale, w, h, font, cf, fs, fit.names, fit.nameSize);
 
   // 데이터 포인트
   // 큐브 중심 (2D)
@@ -135,8 +142,17 @@ export function renderCubeGraph(
 
     const dx = autoDx + pt.labelDx;
     const dy = autoDy + pt.labelDy;
-    const lx = px + dx;
-    const ly = py + dy;
+
+    // 점 이름은 유도선 끝에 붙는다 — 캔버스를 넘으면 이름과 유도선 끝을
+    // **함께** 안으로 민다. 유도선이 그대로 점을 가리키므로 어느 점의
+    // 이름인지가 흐려지지 않는다. (「서울특별시 강남구」가 왼쪽으로 53.4px
+    // 넘던 자리다. 들어가 있으면 좌표가 한 픽셀도 안 움직인다.)
+    ctx.font = getFont(fs.dataLabel + 10, font, cf, 'bold');
+    ctx.textAlign = dx >= 0 ? 'left' : 'right';
+    ctx.textBaseline = 'middle';
+    const anchor = nudgeInside(ctx, pt.label, px + dx + (dx >= 0 ? 4 : -4), py + dy, w, h);
+    const lx = anchor.x - (dx >= 0 ? 4 : -4);
+    const ly = anchor.y;
 
     // 유도선
     ctx.strokeStyle = '#000';
@@ -148,10 +164,7 @@ export function renderCubeGraph(
 
     // 라벨
     ctx.fillStyle = '#000';
-    ctx.font = getFont(fs.dataLabel + 10, font, cf, 'bold');
-    ctx.textAlign = dx >= 0 ? 'left' : 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(pt.label, lx + (dx >= 0 ? 4 : -4), ly);
+    ctx.fillText(pt.label, anchor.x, anchor.y);
   }
 
   // 큐브 좌우 범위 기준으로 정렬
@@ -192,13 +205,151 @@ function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
   ctx.fill();
 }
 
+/** 축 이름 세 개를 접은 결과 (접을 일이 없으면 한 줄짜리 그대로) */
+interface AxisNameLines { x: string[]; y: string[]; z: string[] }
+
+/** 축 둘레 글자가 놓이는 자리 — 재는 쪽과 그리는 쪽이 이 하나를 함께 쓴다 */
+interface AxisText {
+  lines: string[];
+  x: number;
+  y: number;
+  align: CanvasTextAlign;
+  baseline: CanvasTextBaseline;
+  /** 축 이름인지(`name`) 낮음·높음 표시인지(`dir`) — 글꼴이 다르다 */
+  kind: 'name' | 'dir';
+}
+
+/** 축 이름의 줄 간격 (글꼴 크기 대비) */
+const NAME_LINE_RATIO = 1.2;
+
+/** 이름을 접느니 큐브를 줄이겠다고 보는 한계 — 이보다 작아지면 접는다 */
+const SHRINK_LIMIT = 0.8;
+
+function axisTexts(
+  data: CubeGraphData,
+  cx: number, cy: number, scale: number,
+  names: AxisNameLines,
+): AxisText[] {
+  const ext = 1.25;
+  const xEnd = project(ext, 0, 0, cx, cy, scale);
+  const yEnd = project(0, ext, 0, cx, cy, scale);
+  const zEnd = project(0, 0, ext, cx, cy, scale);
+  const zHighPos = project(1, 0, 0, cx, cy, scale);
+  const yHigh = project(0, 1, 0, cx, cy, scale);
+  const zHigh = project(0, 0, 1, cx, cy, scale);
+  const origin = project(0, 0, 0, cx, cy, scale);
+
+  return [
+    // 좌하 깊이 → Z축 이름
+    { lines: names.z, x: xEnd[0] - 6, y: xEnd[1] + 20, align: 'right', baseline: 'middle', kind: 'name' },
+    { lines: [data.zAxis.highLabel], x: zHighPos[0] + 3 + data.zAxis.highOffset.x, y: zHighPos[1] + 10 + data.zAxis.highOffset.y, align: 'center', baseline: 'top', kind: 'dir' },
+    // 위 → Y축 이름
+    { lines: names.y, x: yEnd[0], y: yEnd[1] - 10, align: 'center', baseline: 'bottom', kind: 'name' },
+    { lines: [data.yAxis.highLabel], x: yHigh[0] + 6 + data.yAxis.highOffset.x, y: yHigh[1] - 20 + data.yAxis.highOffset.y, align: 'left', baseline: 'middle', kind: 'dir' },
+    // 오른쪽 → X축 이름
+    { lines: names.x, x: zEnd[0] + 6, y: zEnd[1], align: 'left', baseline: 'middle', kind: 'name' },
+    { lines: [data.xAxis.highLabel], x: zHigh[0] + data.xAxis.highOffset.x, y: zHigh[1] + 14 + data.xAxis.highOffset.y, align: 'center', baseline: 'top', kind: 'dir' },
+    // 각 축 낮음 라벨 — 원점(0,0,0) 주변
+    { lines: [data.xAxis.lowLabel], x: origin[0] + data.xAxis.lowOffset.x, y: origin[1] + 12 + data.xAxis.lowOffset.y, align: 'center', baseline: 'top', kind: 'dir' },
+    { lines: [data.yAxis.lowLabel], x: origin[0] - 10 + data.yAxis.lowOffset.x, y: origin[1] - 4 + data.yAxis.lowOffset.y, align: 'right', baseline: 'bottom', kind: 'dir' },
+    { lines: [data.zAxis.lowLabel], x: origin[0] + 10 + data.zAxis.lowOffset.x, y: origin[1] + 12 + data.zAxis.lowOffset.y, align: 'left', baseline: 'top', kind: 'dir' },
+  ];
+}
+
+/** 배율 s 에서의 큐브 중심 좌표 */
+function centerAt(w: number, topPad: number, availH: number, s: number): [number, number] {
+  const c = project(0.5, 0.5, 0.5, 0, 0, s);
+  return [w / 2 - c[0], topPad + availH / 2 - c[1]];
+}
+
+/**
+ * 축 둘레 글자가 캔버스 안에 들어가는 가장 큰 배율을 찾는다.
+ *
+ * 배율을 키우면 축 끝이 바깥으로 밀리므로 «들어가는가» 는 배율에 대해
+ * 단조롭다 — 이분 탐색이 맞는다. 예전 배율에서 이미 들어가면 **그 값을
+ * 그대로** 돌려주므로 멀쩡한 그림은 한 픽셀도 움직이지 않는다.
+ *
+ * 순서는 (1) 배율을 줄여 자리를 낸다, (2) 큐브가 5분의 1 넘게 줄어들 판이면
+ * 축 이름을 여러 줄로 접고 다시 잰다, (3) 그래도 모자라면 이름 글꼴을 줄인다.
+ * 어느 단계에서도 이름을 잘라 내지 않는다.
+ */
+function fitCubeScale(
+  ctx: CanvasRenderingContext2D,
+  data: CubeGraphData,
+  w: number, h: number,
+  topPad: number, availH: number,
+  maxScale: number,
+  fs: GraphOptions['fontSize'],
+  font: GraphOptions['fontFamily'],
+  cf: string,
+): { scale: number; names: AxisNameLines; nameSize: number } {
+  ctx.save();
+
+  let nameSize = fs.axisLabel;
+  const makeNameFont = (size: number) => getFont(size, font, cf, 'bold');
+  const dirFont = getFont(fs.axisLabel * 0.9, font, cf, 'normal');
+  let names: AxisNameLines = { x: [data.xAxis.name], y: [data.yAxis.name], z: [data.zAxis.name] };
+
+  const fits = (s: number) => {
+    const [cx, cy] = centerAt(w, topPad, availH, s);
+    return axisTexts(data, cx, cy, s, names).every((t) => {
+      ctx.font = t.kind === 'name' ? makeNameFont(nameSize) : dirFont;
+      ctx.textAlign = t.align;
+      ctx.textBaseline = t.baseline;
+      const lineH = nameSize * NAME_LINE_RATIO;
+      const es = t.lines.map((l) => textExtent(ctx, l));
+      const half = ((t.lines.length - 1) * lineH) / 2;
+      return t.x - Math.max(...es.map((e) => e.left)) >= EDGE
+        && t.x + Math.max(...es.map((e) => e.right)) <= w - EDGE
+        && t.y - half - Math.max(...es.map((e) => e.up)) >= EDGE
+        && t.y + half + Math.max(...es.map((e) => e.down)) <= h - EDGE;
+    });
+  };
+
+  let scale = largestFitting(20, maxScale, fits);
+
+  if (scale < maxScale * SHRINK_LIMIT) {
+    // 예전 배율에서 각 이름이 가로로 쓸 수 있는 몫만큼 접는다
+    const [cx, cy] = centerAt(w, topPad, availH, maxScale);
+    ctx.font = makeNameFont(nameSize);
+    const room = (t: AxisText) => (t.align === 'left' ? w - EDGE - t.x
+      : t.align === 'right' ? t.x - EDGE
+        : 2 * Math.min(t.x - EDGE, w - EDGE - t.x));
+    const at = axisTexts(data, cx, cy, maxScale, names);
+    names = {
+      z: wrapToWidth(ctx, data.zAxis.name, Math.max(30, room(at[0]))),
+      y: wrapToWidth(ctx, data.yAxis.name, Math.max(30, room(at[2]))),
+      x: wrapToWidth(ctx, data.xAxis.name, Math.max(30, room(at[4]))),
+    };
+    scale = largestFitting(20, maxScale, fits);
+  }
+
+  if (scale <= 20) {
+    // 배율을 바닥까지 줄여도 안 들어간다 — 이름 글꼴을 줄여 본다
+    nameSize = fs.axisLabel * MIN_SCALE;
+    ctx.font = makeNameFont(nameSize);
+    names = {
+      x: names.x.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))),
+      y: names.y.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))),
+      z: names.z.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))),
+    };
+    scale = largestFitting(20, maxScale, fits);
+  }
+
+  ctx.restore();
+  return { scale, names, nameSize };
+}
+
 function drawAxes(
   ctx: CanvasRenderingContext2D,
   data: CubeGraphData,
   cx: number, cy: number, scale: number,
+  w: number, h: number,
   font: GraphOptions['fontFamily'],
   cf: string,
-  fs: GraphOptions['fontSize']
+  fs: GraphOptions['fontSize'],
+  names: AxisNameLines,
+  nameSize: number,
 ) {
   const ext = 1.25;
 
@@ -221,65 +372,19 @@ function drawAxes(
   const zEnd = project(0, 0, ext, cx, cy, scale);
   drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1]);
 
-  const nameFont = getFont(fs.axisLabel, font, cf, 'bold');
+  const nameFont = getFont(nameSize, font, cf, 'bold');
   const dirFont = getFont(fs.axisLabel * 0.9, font, cf, 'normal');
 
-  // 좌하 깊이 → Z축 라벨
-  ctx.font = nameFont;
+  // 배율을 이미 맞췄으므로 여기서 미는 일은 거의 없다. 사용자가 준 오프셋이
+  // 캔버스 밖을 가리키는 경우를 위한 마지막 안전장치다.
   ctx.fillStyle = '#000';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(data.zAxis.name, xEnd[0] - 6, xEnd[1] + 20);
-
-  // Z축 높음 (좌하 깊이 방향)
-  ctx.font = dirFont;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const zHighPos = project(1, 0, 0, cx, cy, scale);
-  ctx.fillText(data.zAxis.highLabel, zHighPos[0] + 3 + data.zAxis.highOffset.x, zHighPos[1] + 10 + data.zAxis.highOffset.y);
-
-  // 위 → Y축 라벨
-  ctx.font = nameFont;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(data.yAxis.name, yEnd[0], yEnd[1] - 10);
-
-  // Y축 높음 (위)
-  ctx.font = dirFont;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  const yHigh = project(0, 1, 0, cx, cy, scale);
-  ctx.fillText(data.yAxis.highLabel, yHigh[0] + 6 + data.yAxis.highOffset.x, yHigh[1] - 20 + data.yAxis.highOffset.y);
-
-  // 오른쪽 → X축 라벨
-  ctx.font = nameFont;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(data.xAxis.name, zEnd[0] + 6, zEnd[1]);
-
-  // X축 높음 (오른쪽)
-  ctx.font = dirFont;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const zHigh = project(0, 0, 1, cx, cy, scale);
-  ctx.fillText(data.xAxis.highLabel, zHigh[0] + data.xAxis.highOffset.x, zHigh[1] + 14 + data.xAxis.highOffset.y);
-
-  // 각 축 낮음 라벨 — 원점(0,0,0) 주변
-  ctx.font = dirFont;
-  const origin = project(0, 0, 0, cx, cy, scale);
-
-  // X축 낮음
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(data.xAxis.lowLabel, origin[0] + data.xAxis.lowOffset.x, origin[1] + 12 + data.xAxis.lowOffset.y);
-
-  // Y축 낮음
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(data.yAxis.lowLabel, origin[0] - 10 + data.yAxis.lowOffset.x, origin[1] - 4 + data.yAxis.lowOffset.y);
-
-  // Z축 낮음
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(data.zAxis.lowLabel, origin[0] + 10 + data.zAxis.lowOffset.x, origin[1] + 12 + data.zAxis.lowOffset.y);
+  for (const t of axisTexts(data, cx, cy, scale, names)) {
+    if (t.lines.every((l) => !l)) continue;
+    ctx.font = t.kind === 'name' ? nameFont : dirFont;
+    ctx.textAlign = t.align;
+    ctx.textBaseline = t.baseline;
+    const lineH = nameSize * NAME_LINE_RATIO;
+    const at = nudgeLinesInside(ctx, t.lines, t.x, t.y, lineH, w, h);
+    fillLines(ctx, t.lines, at.x, at.y, lineH);
+  }
 }

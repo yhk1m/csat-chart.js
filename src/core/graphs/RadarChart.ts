@@ -2,7 +2,7 @@
 import { type RadarGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 
 // 계열별 선 스타일
 const LINE_STYLES: { dash: number[]; width: number }[] = [
@@ -38,12 +38,17 @@ export function renderRadarChart(
     : 0;
 
   const topPad = options.title ? 60 : 10;
-  let bottomPad = 10;
-  if (showLegend && legendPos === 'bottom') bottomPad += 70;
-  if (options.source) bottomPad += 25;
-  bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
   const rightPad = 60 + legendW;
   const leftPad = 60;
+  let bottomPad = 10;
+  if (showLegend && legendPos === 'bottom') {
+    bottomPad += 70;
+    // 상수 70 은 한 줄짜리 상자(높이 55.7)에도 모자랐다 — 실제 높이를 재서 잡는다
+    bottomPad = Math.max(bottomPad, measureBottomLegend(
+      ctx, legendLabels, fs.dataLabel * 0.85 + 5, w - leftPad - rightPad, 'line', 30));
+  }
+  if (options.source) bottomPad += 25;
+  bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
 
   const availW = w - leftPad - rightPad;
   const availH = h - topPad - bottomPad;
@@ -212,6 +217,7 @@ export function renderRadarChart(
     drawLegend({
       ctx, items, position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: fs.dataLabel * 0.85 + 5,
       bottomOffset: 30,
     });

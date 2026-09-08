@@ -3,7 +3,7 @@ import { type ClimateGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawYAxis, drawXAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 
 const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -32,12 +32,19 @@ export function renderClimateGraph(
     ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
     : 0;
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
+        w - 130 - (130 + legendW), ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: 130 + legendW,
     bottom: (() => {
       let b = 60;
       if (showLegend && legendPos === 'bottom') b += 70;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -216,6 +223,7 @@ export function renderClimateGraph(
       ],
       position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
       rightGap: 80,
     });

@@ -13,7 +13,7 @@ import {
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, type LegendItem } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
 
 /** 기호 하나를 (cx, cy)에 그린다 */
 function drawMarker(
@@ -70,12 +70,18 @@ export function renderCategoryDotGraph(
     ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, 'circle')
     : 0;
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85, w - 130 - (60 + legendW), 'circle')
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: 60 + legendW,
     bottom: (() => {
       let b = 70;
       if (showLegend && legendPos === 'bottom') b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -201,6 +207,7 @@ export function renderCategoryDotGraph(
     drawLegend({
       ctx, items, position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85,
     });
   }

@@ -3,7 +3,7 @@
 import { type DeviationAData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 
 const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -41,18 +41,27 @@ export function renderDeviationAGraph(
     ctx.restore();
   }
 
+  const padRight = 130 + legendW + (data.precipAxisName ? nameW : 0);
+  const padLeft = 130 + (data.tempAxisName ? nameW : 0);
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
+    ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
+        w - padLeft - padRight, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
-    right: 130 + legendW + (data.precipAxisName ? nameW : 0),
+    right: padRight,
     bottom: (() => {
       let b = 60;
       // 플롯 안에 범례를 그릴 때는 아래에 자리를 비워 둘 이유가 없다
       if (showLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
     })(),
-    left: 130 + (data.tempAxisName ? nameW : 0),
+    left: padLeft,
   };
 
   const plotX = padding.left;
@@ -229,6 +238,7 @@ export function renderDeviationAGraph(
       ],
       corner: data.insideLegend,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
       font: getFont(options.fontSize.dataLabel * 0.9, font, customFont, 'bold'),
       avoid: inkRects,
@@ -242,6 +252,7 @@ export function renderDeviationAGraph(
       ],
       position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
       rightGap: 80,
     });

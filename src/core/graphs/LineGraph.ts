@@ -21,7 +21,7 @@ import {
   labelStride,
   widestLabel,
 } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, type LegendItem } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
 
 /** 꼭짓점 기호 하나 */
 function drawMarker(
@@ -93,14 +93,22 @@ export function renderLineGraph(
     ? ctx.measureText(data.xUnit).width + ctx.measureText(data.xLabels[n - 1] ?? '').width / 2 + 12
     : 0;
 
+  const padRight = 24 + legendW + Math.max(endLabelW, xUnitW);
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (useLegend && legendPos === 'bottom' && !data.insideLegend)
+    ? measureBottomLegend(ctx, data.series.map((s) => s.label),
+        options.fontSize.dataLabel * 0.85, w - 130 - padRight, 'line')
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
-    right: 24 + legendW + Math.max(endLabelW, xUnitW),
+    right: padRight,
     bottom: (() => {
       let b = 70;
       // 범례를 플롯 **안쪽**에 두면 아래에 자리를 비울 필요가 없다.
       // 예전에는 그래도 60을 비워, 연도 눈금 밑에 빈 띠가 남고 플롯만 눌렸다.
       if (useLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter((f) => f.trim()).length * 22;
       return b;
@@ -344,6 +352,7 @@ export function renderLineGraph(
     drawLegend({
       ctx, items, position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85,
     });
   }

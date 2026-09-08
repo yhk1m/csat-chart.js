@@ -7,7 +7,7 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, getFont, autoRange } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { measureLegendWidth } from '../canvas/legend';
+import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
 
 // 계열별 선 스타일
 const LINE_STYLES: { dash: number[]; width: number }[] = [
@@ -85,12 +85,20 @@ export function renderHythergraph(
     ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5)
     : 0;
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다.
+  // 아이콘 너비·간격은 아래 범례 그리기와 같은 값을 써야 한다.
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? 65 + layoutBottomLegend(ctx, legendLabels, data.series.map(() => 36),
+        fs.dataLabel * 0.85 + 5, w - 80 - (80 + legendW), { iconGap: 8 }).boxH + 2
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 110 : 60,
     right: 80 + legendW,
     bottom: (() => {
       let b = 90;
       if (showLegend && legendPos === 'bottom') b += 80;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -264,12 +272,14 @@ export function renderHythergraph(
     const itemWidths = data.series.map((s) => iconW + iconGap + ctx.measureText(s.label).width);
 
     if (legendPos === 'bottom') {
+      // 한 줄에 다 못 넣으면 줄을 늘린다 (이름은 자르지 않는다) — 바깥 범례와 같은 규칙
       const spacing = 30;
-      const totalW = itemWidths.reduce((a, b) => a + b, 0) + spacing * (n - 1);
       const boxW = plotW;
-      const boxH = lineH + pad * 2;
+      const layout = layoutBottomLegend(ctx, data.series.map((s) => s.label),
+        data.series.map(() => iconW), lfSize, boxW, { iconGap, padding: pad, spacing });
+      const boxH = layout.boxH;
       const boxX = plotX;
-      const boxY = plotY + plotH + 65;
+      const boxY = Math.max(0, Math.min(plotY + plotH + 65, h - boxH - 1));
 
       ctx.strokeStyle = '#888';
       ctx.lineWidth = 1.5;
@@ -279,37 +289,40 @@ export function renderHythergraph(
       ctx.fill();
       ctx.stroke();
 
-      let cx = boxX + (boxW - totalW) / 2;
-      const cy = boxY + boxH / 2;
-
-      for (let i = 0; i < n; i++) {
-        const style = LINE_STYLES[i % LINE_STYLES.length];
-        // 선
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = style.width;
-        ctx.setLineDash(style.dash);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + iconW, cy);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // 기호
-        drawMarkerLegendIcon(ctx, MARKERS[i % MARKERS.length], cx + iconW / 2, cy);
-        // 라벨
-        ctx.font = `bold ${lfSize}px ${LEGEND_FONT}`;
-        ctx.fillStyle = '#000';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(data.series[i].label, cx + iconW + iconGap, cy);
-        cx += itemWidths[i] + spacing;
+      for (let r = 0; r < layout.rows.length; r++) {
+        const row = layout.rows[r];
+        const rowW = row.reduce((a, it) => a + it.width, 0) + spacing * (row.length - 1);
+        let cx = boxX + (boxW - rowW) / 2;
+        const cy = boxY + pad + r * (layout.lineHeight + layout.rowGap) + layout.lineHeight / 2;
+        for (const { index: i, width } of row) {
+          const style = LINE_STYLES[i % LINE_STYLES.length];
+          // 선
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = style.width;
+          ctx.setLineDash(style.dash);
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + iconW, cy);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // 기호
+          drawMarkerLegendIcon(ctx, MARKERS[i % MARKERS.length], cx + iconW / 2, cy);
+          // 라벨
+          ctx.font = `bold ${layout.fontSize}px ${LEGEND_FONT}`;
+          ctx.fillStyle = '#000';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(data.series[i].label, cx + iconW + iconGap, cy);
+          cx += width + spacing;
+        }
       }
     } else {
       const itemGap = 10;
       const maxItemW = Math.max(...itemWidths);
       const boxW = maxItemW + pad * 2;
       const boxH = lineH * n + itemGap * (n - 1) + pad * 2;
-      const boxX = plotX + plotW + 20;
-      const boxY = plotY + plotH - boxH;
+      const boxX = Math.max(0, Math.min(plotX + plotW + 20, w - boxW - 1));
+      const boxY = Math.max(0, Math.min(plotY + plotH - boxH, h - boxH - 1));
 
       ctx.strokeStyle = '#888';
       ctx.lineWidth = 1.5;

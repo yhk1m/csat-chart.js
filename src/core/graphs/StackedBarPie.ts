@@ -2,7 +2,7 @@
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 
 export function renderStackedGraph(
@@ -36,12 +36,19 @@ function renderStackedBar(
 
   const isVertical = data.barDirection === 'vertical';
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
+        w - (isVertical ? 80 : 100) - (isVertical ? 60 + legendW : 160 + legendW))
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: isVertical ? 60 + legendW : 160 + legendW,
     bottom: (() => {
       let b = isVertical ? 70 : 60;
       if (showLegend && legendPos === 'bottom') b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -243,6 +250,7 @@ function renderStackedBar(
     drawLegend({
       ctx, items, position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
     });
   }
@@ -264,12 +272,19 @@ function renderPieChart(
     ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5)
     : 0;
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
+        w - 60 - (60 + legendW), 'rect', 16)
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: 60 + legendW,
     bottom: (() => {
       let b = 50;
       if (showLegend && legendPos === 'bottom') b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -383,6 +398,7 @@ function renderPieChart(
       drawLegend({
         ctx, items, position: legendPos,
         plotX, plotY, plotW: effectivePlotW, plotH: effectivePlotH,
+        canvasW: w, canvasH: h,
         fontSize: options.fontSize.dataLabel * 0.85 + 5,
       });
     } else {
@@ -394,6 +410,7 @@ function renderPieChart(
       drawLegend({
         ctx, items, position: legendPos,
         plotX, plotY, plotW, plotH: effectivePlotH,
+        canvasW: w, canvasH: h,
         fontSize: options.fontSize.dataLabel * 0.85 + 5,
         bottomOffset: 16,
       });

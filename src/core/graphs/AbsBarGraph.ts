@@ -3,7 +3,7 @@ import { type AbsBarGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 
 export function renderAbsBarGraph(
@@ -44,22 +44,30 @@ export function renderAbsBarGraph(
     ctx.restore();
   }
 
+  const padRight = isVertical
+    ? 60 + legendW
+    : (data.unitAdjacent ? 40 + unitW : 160 + legendW);
+  const padLeft = isVertical
+    ? 130
+    : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100);
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, w - padLeft - padRight)
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
-    right: isVertical
-      ? 60 + legendW
-      : (data.unitAdjacent ? 40 + unitW : 160 + legendW),
+    right: padRight,
     bottom: (() => {
       let b = isVertical ? 70 : 60;
       // 플롯 안에 범례를 그릴 때는 아래에 자리를 비워 둘 이유가 없다
       if (showLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
     })(),
-    left: isVertical
-      ? 130
-      : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100),
+    left: padLeft,
   };
 
   const plotX = padding.left;
@@ -400,6 +408,7 @@ export function renderAbsBarGraph(
       })),
       corner: data.insideLegend,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
       font: getFont(options.fontSize.dataLabel * 0.9, font, customFont, 'bold'),
       avoid: barRects,
@@ -415,6 +424,7 @@ export function renderAbsBarGraph(
     drawLegend({
       ctx, items, position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
     });
   }

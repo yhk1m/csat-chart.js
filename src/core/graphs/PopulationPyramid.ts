@@ -2,7 +2,7 @@
 import { type PyramidGraphData, type GraphOptions, AGE_GROUPS } from '../types/index';
 import { type Padding, clearCanvas, getFont, niceStep } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawLegend, measureLegendWidth } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
 
 /** 눈금 숫자 서식 — 정수는 그대로, 아니면 소수 한 자리 */
@@ -69,12 +69,19 @@ export function renderPyramidGraph(
     ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
     : 0;
 
+  // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  const legendReserve = (showLegend && legendPos === 'bottom')
+    ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
+        w - 60 - (80 + legendW))
+    : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: 80 + legendW,
     bottom: (() => {
       let b = 90;
       if (showLegend && legendPos === 'bottom') b += 60;
+      b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
@@ -371,6 +378,7 @@ export function renderPyramidGraph(
       ],
       position: legendPos,
       plotX, plotY, plotW, plotH,
+      canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
     });
   }

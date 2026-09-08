@@ -2,7 +2,7 @@
 import { type TernaryGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { EDGE, MIN_SCALE, fillLines, largestFitting, shrinkToWidth, textExtent, wrapToWidth } from '../canvas/fit';
+import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, textExtent, wrapToWidth } from '../canvas/fit';
 
 // 삼각좌표 → 캔버스 좌표 변환
 // a = 하단좌, b = 하단우, c = 상단
@@ -178,8 +178,11 @@ export function renderTernaryGraph(
     ctx.stroke();
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    // 「100 (%)」는 우하 꼭짓점 바깥이라 삼각형이 크면 캔버스를 넘는다.
+    // 눈금 숫자는 여백에 떠 있으므로 안으로 민다.
     const cLabel = val === 100 ? '100 (%)' : String(val);
-    ctx.fillText(cLabel, cPos.x + cTick.x * tickLen + 4, cPos.y + cTick.y * tickLen);
+    const cAt = nudgeInside(ctx, cLabel, cPos.x + cTick.x * tickLen + 4, cPos.y + cTick.y * tickLen, w, h);
+    ctx.fillText(cLabel, cAt.x, cAt.y);
   }
 
   // 축 라벨 — 자리는 재는 쪽(fitAxisNames)과 같은 계산을 쓴다

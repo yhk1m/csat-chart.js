@@ -2,6 +2,7 @@
 import { type PyramidGraphData, type GraphOptions, AGE_GROUPS } from '../types/index';
 import { type Padding, clearCanvas, getFont, niceStep } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
 
@@ -239,8 +240,11 @@ export function renderPyramidGraph(
       ctx.fillText(String(age), plotX - 10, y);
     }
     if (data.ageUnit) {
+      // 나이 단위는 축 위 여백에 떠 있다 — 캔버스를 벗어나면 안으로 민다
       ctx.textBaseline = 'bottom';
-      ctx.fillText(data.ageUnit, plotX + 4, plotY - 8);
+      drawFloatingLabel(ctx, data.ageUnit, plotX + 4, plotY - 8, w, h,
+        options.fontSize.tick, (size) => getFont(size, font, customFont, 'bold'));
+      ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
       ctx.textBaseline = 'middle';
     }
   } else {
@@ -333,12 +337,14 @@ export function renderPyramidGraph(
     const lastTickHalfW = ctx.measureText(fmtTick(maxVal)).width / 2;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(data.axisLabel, plotX + plotW + lastTickHalfW + 8, plotY + plotH + 10);
+    drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + lastTickHalfW + 8, plotY + plotH + 10,
+      w, h, options.fontSize.tick, (size) => getFont(size, font, customFont, 'bold'));
   } else {
     ctx.font = getFont(options.fontSize.axisLabel * 0.85, font, customFont, 'bold');
     const unitY = plotY + plotH + 10 + options.fontSize.tick + 22;
     ctx.textAlign = 'left';
-    ctx.fillText(data.axisLabel, plotX + plotW + 4, unitY);
+    drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + 4, unitY, w, h,
+      options.fontSize.axisLabel * 0.85, (size) => getFont(size, font, customFont, 'bold'));
   }
   ctx.restore();
 

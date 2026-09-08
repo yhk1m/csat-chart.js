@@ -209,19 +209,57 @@
   img.chart-preview { width:100%; height:auto; display:block;
                       border:1px solid var(--c-faint); background:#fff; }
 
-  /* 편집칸은 세로로 늘어나 그래프 높이를 정확히 채운다 — 남는 흰 자리가 없다 */
-  .editor { display:flex; flex-direction:column; min-width:0; }
+  /* 편집칸 — 제목과 출처는 늘 보이고 나머지는 접어 둔다.
+     여기 오는 사람이 가장 먼저 바꾸고 싶은 것이 그 둘이다. JSON 칸을 맨 위에
+     펼쳐 두면(예전 모양) 코딩을 모르는 교사에게는 그게 벽으로 보인다. */
+  .editor { display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .field { min-width:0; }
   label.field-label { display:block; font-size:12px; font-weight:600; color:var(--c-muted);
                       margin:0 0 6px; }
-  textarea { width:100%; flex:1 1 auto; min-height:170px; font-family:var(--mono);
-             font-size:12.5px; line-height:1.6; border:1px solid var(--c-control);
-             border-radius:0; padding:11px 12px; resize:vertical;
-             background:var(--c-white); color:var(--c-ink); }
-  textarea:focus { border-color:var(--accent); }
+  input[type=text], select, textarea {
+    width:100%; max-width:100%; font-family:inherit; font-size:13px; line-height:1.5;
+    border:1px solid var(--c-control); border-radius:0; padding:8px 10px;
+    background:var(--c-white); color:var(--c-ink);
+  }
+  textarea { font-family:var(--mono); font-size:12.5px; line-height:1.6;
+             padding:11px 12px; resize:vertical; }
+  textarea.json-area { min-height:200px; }
+  textarea.notes-area { min-height:60px; }
+  input[type=text]:focus, select:focus, textarea:focus { border-color:var(--accent); }
 
-  .err { color:var(--danger); font-size:12px; line-height:1.4; min-height:1.4em; margin:8px 0 0; }
+  /* 카드 안에서 접는 칸 — 머리말의 details.start 와 모양을 맞춘다 */
+  details.sub { border:1px solid var(--c-hair); background:var(--c-white); }
+  details.sub > summary { padding:10px 12px; cursor:pointer; list-style:none;
+                          display:flex; align-items:center; gap:9px;
+                          font-size:13px; font-weight:600; color:var(--c-sub); }
+  details.sub > summary::-webkit-details-marker { display:none; }
+  details.sub > summary:hover { color:var(--c-black); }
+  details.sub[open] > summary { border-bottom:1px solid var(--c-hair); }
+  details.sub[open] > summary .chevron { transform:rotate(90deg); }
+  .sub-inner { padding:12px; display:flex; flex-direction:column; gap:12px; }
+
+  .checks { display:flex; flex-wrap:wrap; gap:10px 20px; }
+  .check { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--c-ink); }
+  .check input { flex:none; width:15px; height:15px; margin:0; accent-color:var(--accent); }
+  .check label { cursor:pointer; }
+
+  /* min(150px,100%) — 390px 화면에서 minmax 의 바닥값이 칸보다 넓어져
+     격자가 부모 밖으로 삐져나가는 것을 막는 관용구다. */
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(150px,100%),1fr));
+           gap:12px; }
+  .names-head { margin:0; padding-top:12px; border-top:1px solid var(--c-hair);
+                font-size:12px; font-weight:700; color:var(--c-muted); }
+  .names-note { margin:-6px 0 0; font-size:12px; line-height:1.5; color:var(--c-muted); }
+
+  /* 오류 줄은 늘 보이는 자리에 둔다 — JSON 칸이 접혀 있어도 읽혀야 한다.
+     margin-top:auto 가 오류 줄과 버튼 줄을 편집칸 «바닥» 으로 밀어, 왼쪽
+     4:3 그래프의 아랫변과 눈높이가 맞는다. */
+  .err { color:var(--danger); font-size:12px; line-height:1.4; min-height:1.4em;
+         margin:auto 0 0; }
 
   .row { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+  /* .editor 는 gap 으로 이미 사이를 벌린다 — .row 의 margin 까지 더하면 두 배가 된다 */
+  .editor > .row { margin-top:0; }
   button { font-family:inherit; font-size:13px; font-weight:600; letter-spacing:-0.01em;
            padding:8px 14px; border:1px solid var(--c-control); border-radius:0;
            background:var(--c-white); color:var(--c-ink); cursor:pointer;
@@ -363,8 +401,9 @@
 <div class="band">
   <div class="wrap gallery-head">
     <h2 class="section-title">그래프 <span class="num">16</span>종</h2>
-    <p class="section-sub">오른쪽 칸의 JSON을 고치면 그림이 곧바로 다시 그려집니다.
-      마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.</p>
+    <p class="section-sub">오른쪽 칸에서 제목·출처를 바꾸고, 「각주·범례·이름 바꾸기」를 펼치면
+      그래프 안의 (가)(나)(다)까지 글자칸으로 고칩니다. 숫자와 구조는 JSON 칸에 그대로 남아
+      있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.</p>
     <nav class="index" aria-label="그래프 16종 색인">
       <ul id="index-list"></ul>
     </nav>
@@ -632,6 +671,213 @@ function sampleWithPatch(type) {
   return patch ? patch(d) : d;
 }
 
+/* ── 옵션 ──────────────────────────────────────────────────────────────────
+ *
+ * options 는 16종이 함께 쓰는 유일한 덩어리다. 여기서 노출하는 것과 «일부러»
+ * 빼는 것을 갈라 둔다.
+ *
+ * 빼는 것:
+ *   · sourceInline·sourceLeft — 공통 옵션이지만 실제로 넘겨받는 렌더러가
+ *     각각 scatter·stacked 하나뿐이다(CHANGELOG 「알아 둘 동작」). 나머지
+ *     열네 장에서는 켜도 아무 일이 안 일어난다. 켰는데 안 변하는 스위치는
+ *     없느니만 못하다.
+ *   · fontFamily:'custom' — 짝이 되는 customFont 를 함께 주지 않으면 글꼴
+ *     이름이 빈 문자열이 되어 그림이 깨진다. 명조·고딕 둘만 낸다.
+ *   · fontSize·legendLabel1·legendLabel2 — JSON 칸이 아니라 코드로 넘기는
+ *     값이라 이 화면의 «내 학습지에 쓸 그래프» 라는 목적에서 멀다.
+ */
+const OPTION_DEFAULTS = {
+  'title': '',
+  'source': '',
+  // 라이브러리 기본값은 [''] 이지만 렌더러가 빈 줄을 걸러 내므로(labels.ts 의
+  // footnotes.filter) 빈 배열과 결과가 같다. 화면 쪽은 빈 배열로 다룬다.
+  'footnotes': [],
+  'fontFamily': 'serif',
+  'showDataLabels': false,
+  'showLegend': true,
+  'legendPosition': 'bottom',
+};
+
+/** 코드 스니펫에 적을 때의 순서. JSON 의 키 순서가 화면마다 달라지지 않게 한다. */
+const OPTION_ORDER = ['title', 'source', 'footnotes', 'fontFamily',
+  'showDataLabels', 'showLegend', 'legendPosition'];
+
+/**
+ * 그 옵션을 «실제로 읽는» 종류만 적는다. 읽지 않는 카드에서는 조작칸을 아예
+ * 그리지 않는다 — sourceInline 을 뺀 것과 같은 이유다. 목록은 렌더러 16종을
+ * 상대로 직접 확인했다(`grep -rL showLegend src/core/graphs`).
+ *   · showDataLabels 를 안 읽는 여덟 — cube·data-table·deviation-a·
+ *     hythergraph·line·matrix-table·radar·treemap
+ *   · showLegend·legendPosition 을 안 읽는 여섯 — cube·data-table·
+ *     matrix-table·scatter·ternary·treemap
+ * title·source·footnotes·fontFamily 는 16종 전부가 읽는다.
+ */
+const SUPPORTS_DATA_LABELS = ['absbar', 'category-dot', 'climate', 'deviation-b',
+  'pyramid', 'scatter', 'stacked', 'ternary'];
+const SUPPORTS_LEGEND = ['absbar', 'category-dot', 'climate', 'deviation-a',
+  'deviation-b', 'hythergraph', 'line', 'pyramid', 'radar', 'stacked'];
+
+function supports(list, type) { return list.indexOf(type) >= 0; }
+
+function initialOptions(type) {
+  const o = {};
+  OPTION_ORDER.forEach(function (k) {
+    const d = OPTION_DEFAULTS[k];
+    o[k] = Array.isArray(d) ? d.slice() : d;
+  });
+  const over = OPTIONS_OVERRIDES[type];
+  if (over) {
+    Object.keys(over).forEach(function (k) {
+      if (!(k in o)) return;
+      o[k] = Array.isArray(over[k]) ? over[k].slice() : over[k];
+    });
+  }
+  return o;
+}
+
+/**
+ * 기본값과 «다른» 것만 남긴다. 스니펫에 옵션을 통째로 적으면 아무것도 안 고친
+ * 카드까지 일곱 줄짜리 options 를 달고 다니게 되고, 반대로 아예 안 적으면
+ * 방금 입력한 제목이 복사한 코드에서 조용히 사라진다.
+ */
+function changedOptions(opts) {
+  const out = {};
+  OPTION_ORDER.forEach(function (k) {
+    const v = opts[k];
+    if (k === 'footnotes') {
+      if (v.length > 0) out[k] = v.slice();
+      return;
+    }
+    if (v !== OPTION_DEFAULTS[k]) out[k] = v;
+  });
+  return out;
+}
+
+/* ── 데이터 안의 «이름» ────────────────────────────────────────────────────
+ *
+ * 「(가)(나)(다)」를 서울·부산·대구로 바꾸는 일이 이 페이지에서 가장 흔한
+ * 요구인데 지금까지는 JSON 을 고쳐야만 했다. 아래 목록에 적은 자리의 문자열은
+ * 글자칸으로 꺼내 준다.
+ *
+ * 목록을 «허용» 방식으로 적는 이유: 데이터 안 문자열에는 사람이 읽을 이름
+ * (`ageUnit:'(세)'`)과 열거값(`unit:'percent'`·`mode:'normal'`·
+ * `barDirection:'vertical'`)과 색(`barFill:'#e6e6e6'`)이 섞여 있다. 열거값
+ * 칸에 「서울」이라고 적으면 그림이 깨진다. 그런데 이름과 열거값을 «낱말»로는
+ * 가를 수 없다 — pyramid 의 `unit` 은 열거값('percent')인데 같은 pyramid 의
+ * `ageUnit` 과 deviation-b 의 `precipUnit` 은 이름이다. 그래서 낱말 규칙을
+ * 쓰지 않고, 16종의 문자열 잎 89개를 전수 조사해(src/core/types/*.ts) 이름인
+ * 61개만 «경로 모양» 으로 적어 둔다. 여기 없는 문자열은 전부 손대지 않는다.
+ *
+ * scatter 의 `quadrantLabels` 는 이름이지만 뺀다 — 지금 어느 렌더러도 읽지
+ * 않는 죽은 필드다(validate.ts 에도 그렇게 적혀 있다). 고쳐도 그림이 안 변하는
+ * 칸을 내놓지 않는다는 점에서 sourceInline 을 뺀 것과 같은 판단이다.
+ *
+ * 경로 모양은 배열 첨자를 `[]` 로 뭉갠 것이다 — `categories[].label` 은
+ * `categories[0].label`·`categories[1].label`… 을 모두 가리킨다.
+ */
+const LABEL_PATHS = {
+  'absbar': ['categories[].label', 'seriesLabels[]', 'unit', 'groups[].label'],
+  'category-dot': ['categories[].label', 'seriesLabels[]', 'unit'],
+  'climate': ['tempLabel', 'precipLabel'],
+  'cube': ['points[].label',
+    'xAxis.name', 'xAxis.lowLabel', 'xAxis.highLabel',
+    'yAxis.name', 'yAxis.lowLabel', 'yAxis.highLabel',
+    'zAxis.name', 'zAxis.lowLabel', 'zAxis.highLabel'],
+  'data-table': ['cornerLabel', 'columns[]', 'rows[].label', 'rows[].unit'],
+  'deviation-a': ['tempLabel', 'precipLabel', 'tempAxisName', 'precipAxisName'],
+  'deviation-b': ['regions[].label', 'precipDiffLabel', 'tempDiffLabel',
+    'precipUnit', 'tempUnit'],
+  'hythergraph': ['series[].label', 'xUnit', 'yUnit'],
+  'line': ['series[].label', 'xLabels[]', 'xUnit', 'yUnit'],
+  'matrix-table': ['names[]', 'unit'],
+  'pyramid': ['maleLabel', 'femaleLabel', 'axisLabel', 'ageUnit'],
+  'radar': ['axisLabels[]', 'series[].label'],
+  'scatter': ['points[].label', 'xLabel', 'yLabel', 'xUnit', 'yUnit',
+    'fillLegend.title', 'fillLegend.items[].label', 'bubbleLegendItems[].label'],
+  'stacked': ['categories[].label', 'seriesLabels[]', 'unit'],
+  'ternary': ['points[].label', 'axisLabels[]'],
+  'treemap': ['cells[].label'],
+};
+
+/**
+ * 칸에 붙일 이름표. 칸 안의 값이 대개 스스로를 설명하므로(「(가)」가 든 칸을
+ * 본 사람은 그게 뭔지 안다) 짧게 간다. 진짜 경로는 title 속성에 넣어, 궁금한
+ * 사람만 마우스를 올려 보게 한다 — 눈에 보이는 이름표에 `categories[0].label`
+ * 이라고 적으면 이 페이지가 겨냥한 독자에게는 그냥 소음이다.
+ */
+const FIELD_GLOSS = {
+  'unit': '단위', 'xUnit': '가로축 단위', 'yUnit': '세로축 단위',
+  'xLabel': '가로축 이름', 'yLabel': '세로축 이름', 'xLabels[]': '가로축 눈금',
+  'axisLabel': '가로축 단위', 'axisLabels[]': '축 이름',
+  'categories[].label': '항목 이름', 'seriesLabels[]': '계열 이름',
+  'series[].label': '계열 이름', 'points[].label': '점 이름',
+  'cells[].label': '칸 이름', 'names[]': '이름', 'columns[]': '열 머리글',
+  'rows[].label': '행 이름', 'rows[].unit': '행 단위', 'cornerLabel': '왼쪽 위 칸',
+  'tempLabel': '기온 단위', 'precipLabel': '강수량 단위',
+  'tempUnit': '기온 단위', 'precipUnit': '강수량 단위',
+  'tempAxisName': '기온 축 이름', 'precipAxisName': '강수량 축 이름',
+  'tempDiffLabel': '기온 축 이름', 'precipDiffLabel': '강수량 축 이름',
+  'regions[].label': '지역 이름', 'groups[].label': '묶음 이름',
+  'maleLabel': '왼쪽(남) 이름', 'femaleLabel': '오른쪽(여) 이름',
+  'ageUnit': '나이 축 단위',
+  'fillLegend.title': '색 범례 제목', 'fillLegend.items[].label': '색 범례 항목',
+  'bubbleLegendItems[].label': '버블 범례 항목',
+  'xAxis.name': 'X축 이름', 'xAxis.lowLabel': 'X축 낮은 쪽', 'xAxis.highLabel': 'X축 높은 쪽',
+  'yAxis.name': 'Y축 이름', 'yAxis.lowLabel': 'Y축 낮은 쪽', 'yAxis.highLabel': 'Y축 높은 쪽',
+  'zAxis.name': 'Z축 이름', 'zAxis.lowLabel': 'Z축 낮은 쪽', 'zAxis.highLabel': 'Z축 높은 쪽',
+};
+
+/** 같은 경로 모양이라도 종류에 따라 부르는 이름이 다른 자리 */
+const GLOSS_BY_TYPE = {
+  'ternary': { 'axisLabels[]': '꼭짓점 이름' },
+  'matrix-table': { 'names[]': '지역 이름', 'unit': '단위 표기' },
+};
+
+function glossFor(type, shape) {
+  const byType = GLOSS_BY_TYPE[type];
+  if (byType && byType[shape]) return byType[shape];
+  return FIELD_GLOSS[shape] || shape;
+}
+
+/** `['categories', 0, 'label']` → `categories[0].label` */
+function pathText(path) {
+  return path.reduce(function (acc, k) {
+    return typeof k === 'number' ? acc + '[' + k + ']' : (acc ? acc + '.' + k : String(k));
+  }, '');
+}
+
+/** 허용 목록에 든 문자열 잎만 걷어 온다. */
+function collectLabels(type, data) {
+  const allow = LABEL_PATHS[type] || [];
+  const out = [];
+  (function walk(node, path, shape) {
+    if (typeof node === 'string') {
+      if (allow.indexOf(shape) >= 0) out.push({ path: path, shape: shape, value: node });
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(function (v, i) { walk(v, path.concat(i), shape + '[]'); });
+      return;
+    }
+    if (node && typeof node === 'object') {
+      Object.keys(node).forEach(function (k) {
+        walk(node[k], path.concat(k), shape ? shape + '.' + k : k);
+      });
+    }
+  })(data, [], '');
+  return out;
+}
+
+/** 경로가 가리키는 자리에 값을 넣는다. 가는 길이 끊겨 있으면 아무것도 안 한다. */
+function setAt(root, path, value) {
+  let node = root;
+  for (let i = 0; i < path.length - 1; i++) {
+    if (node == null || typeof node !== 'object') return;
+    node = node[path[i]];
+  }
+  if (node != null && typeof node === 'object') node[path[path.length - 1]] = value;
+}
+
 const ICON_DOWNLOAD =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
   ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -753,11 +999,44 @@ function card(type, ordinal) {
   el.className = 'card';
   el.id = 'card-' + type;
   const copyBtnLabel = ICON_COPY + '코드 복사';
-  const fieldId = 'data-' + type;
-  const options = OPTIONS_OVERRIDES[type];
+  // 한 페이지에 카드 열여섯 장이 있다. label[for] 가 엉뚱한 칸을 가리키지
+  // 않도록 id 에 종류 이름을 붙여 카드마다 다르게 만든다.
+  const uid = function (name) { return name + '-' + type; };
+  const fieldId = uid('data');
   // 눈으로 세는 번호다 — 화면 읽기 프로그램에는 「01 기후 그래프」로 들릴
   // 이유가 없어 aria-hidden 으로 가린다.
   const ord = String(ordinal + 1).padStart(2, '0');
+
+  const hasLegend = supports(SUPPORTS_LEGEND, type);
+  const hasDataLabels = supports(SUPPORTS_DATA_LABELS, type);
+
+  const checkParts = [];
+  if (hasLegend) {
+    checkParts.push('<span class="check">' +
+      '<input type="checkbox" id="' + uid('legend') + '" data-opt="showLegend">' +
+      '<label for="' + uid('legend') + '">범례 표시</label></span>');
+  }
+  if (hasDataLabels) {
+    checkParts.push('<span class="check">' +
+      '<input type="checkbox" id="' + uid('values') + '" data-opt="showDataLabels">' +
+      '<label for="' + uid('values') + '">값 표시</label></span>');
+  }
+  const checksHtml = checkParts.length
+    ? '<div class="checks">' + checkParts.join('') + '</div>' : '';
+
+  const selectParts = [];
+  if (hasLegend) {
+    selectParts.push('<div class="field">' +
+      '<label class="field-label" for="' + uid('legendpos') + '">범례 위치</label>' +
+      '<select id="' + uid('legendpos') + '" data-opt="legendPosition">' +
+        '<option value="bottom">아래</option><option value="right">오른쪽</option>' +
+      '</select></div>');
+  }
+  selectParts.push('<div class="field">' +
+    '<label class="field-label" for="' + uid('font') + '">글꼴</label>' +
+    '<select id="' + uid('font') + '" data-opt="fontFamily">' +
+      '<option value="serif">명조</option><option value="sans">고딕</option>' +
+    '</select></div>');
 
   // 코드 접기는 오른쪽 열이 아니라 카드 폭 전체를 쓰는 «둘째 줄»이다.
   // 오른쪽 열에 두면 그 열이 4:3 캔버스보다 길어져 그래프 아래로 빈 흰
@@ -776,8 +1055,37 @@ function card(type, ordinal) {
         '<img class="chart-preview" alt="">' +
       '</div>' +
       '<div class="editor">' +
-        '<label class="field-label" for="' + fieldId + '">데이터 (JSON) — 고치면 바로 다시 그립니다</label>' +
-        '<textarea id="' + fieldId + '" spellcheck="false"></textarea>' +
+        '<div class="field">' +
+          '<label class="field-label" for="' + uid('title') + '">제목</label>' +
+          '<input type="text" id="' + uid('title') + '" data-opt="title" spellcheck="false">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label class="field-label" for="' + uid('source') + '">출처</label>' +
+          '<input type="text" id="' + uid('source') + '" data-opt="source" spellcheck="false">' +
+        '</div>' +
+        '<details class="sub">' +
+          '<summary>' + CHEVRON + '각주·범례·이름 바꾸기</summary>' +
+          '<div class="sub-inner">' +
+            '<div class="field">' +
+              '<label class="field-label" for="' + uid('notes') + '">각주 — 한 줄에 하나씩 씁니다 (앞의 * 는 저절로 붙습니다)</label>' +
+              '<textarea class="notes-area" id="' + uid('notes') + '" data-opt="footnotes" spellcheck="false"></textarea>' +
+            '</div>' +
+            checksHtml +
+            '<div class="grid2">' + selectParts.join('') + '</div>' +
+            '<p class="names-head">그래프 안의 이름</p>' +
+            '<p class="names-note">칸을 고치면 그림의 그 자리가 바로 바뀝니다.</p>' +
+            '<div class="grid2 names"></div>' +
+          '</div>' +
+        '</details>' +
+        '<details class="sub">' +
+          '<summary>' + CHEVRON + '데이터 (JSON) 직접 고치기</summary>' +
+          '<div class="sub-inner">' +
+            '<div class="field">' +
+              '<label class="field-label" for="' + fieldId + '">숫자와 구조는 여기서 고칩니다 — 고치면 바로 다시 그립니다</label>' +
+              '<textarea class="json-area" id="' + fieldId + '" spellcheck="false"></textarea>' +
+            '</div>' +
+          '</div>' +
+        '</details>' +
         '<p class="err" role="status"></p>' +
         '<div class="row">' +
           '<button class="primary" data-act="png" title="1600×1200px, 인쇄용 해상도">' + ICON_DOWNLOAD + 'PNG 저장</button>' +
@@ -794,7 +1102,9 @@ function card(type, ordinal) {
     '</div>';
 
   const img = el.querySelector('img.chart-preview');
-  const area = el.querySelector('textarea');
+  const area = el.querySelector('textarea.json-area');
+  const notesArea = el.querySelector('textarea.notes-area');
+  const namesBox = el.querySelector('.names');
   const err = el.querySelector('.err');
   const snippetCode = el.querySelector('.snippet code');
   const resetBtn = el.querySelector('[data-act=reset]');
@@ -806,44 +1116,175 @@ function card(type, ordinal) {
   model.width = 800;
   model.height = 600;
 
-  const initialData = fresh();
-  const chart = new CsatChart(model, { type: type, data: initialData, options: options });
-  const pristine = JSON.stringify(initialData, null, 2);
-  area.value = pristine;
-  img.alt = LABELS[type] + ' 예시 그래프';
+  // 이 카드가 «지금 들고 있는 것». 화면의 조작칸·JSON 칸·복사할 코드가
+  // 모두 이 하나를 보고 그려진다.
+  const state = { data: fresh(), options: initialOptions(type) };
+  const pristineData = JSON.stringify(state.data);
+  const pristineOptions = JSON.stringify(state.options);
+  const pristineJson = JSON.stringify(state.data, null, 2);
+
+  const chart = new CsatChart(model, {
+    type: type, data: state.data, options: state.options,
+  });
+
+  // 이름칸을 다시 만들지, 값만 갈아 끼울지 가르는 «지문». JSON 을 고쳐 항목
+  // 수가 달라졌을 때만 다시 만든다 — 글자를 칠 때마다 다시 만들면 칸이
+  // 사라졌다 생겨나 커서가 튄다.
+  let namesSig = null;
 
   function refreshPreview() {
     img.src = chart.toDataURL({ scale: 2 });
+    img.alt = (state.options.title || LABELS[type]) + ' 예시 그래프';
   }
-  function refreshSnippet(data) {
-    snippetCode.textContent = snippetFor(type, data, options);
-  }
-  refreshPreview();
-  refreshSnippet(initialData);
 
-  area.addEventListener('input', function () {
-    resetBtn.disabled = (area.value === pristine);
+  function refreshSnippet() {
+    snippetCode.textContent = snippetFor(type, state.data, changedOptions(state.options));
+  }
+
+  function syncDirty() {
+    // JSON 칸의 «글자» 도 함께 본다. 파싱에 실패한 글을 쳐 놓으면 state 는
+    // 아직 처음 그대로라, state 만 보고 판단하면 되돌리기가 꺼져 버린다 —
+    // 망가진 JSON 을 고쳐 줄 단 하나의 단추가 바로 그때 잠긴다.
+    resetBtn.disabled = area.value === pristineJson &&
+      JSON.stringify(state.data) === pristineData &&
+      JSON.stringify(state.options) === pristineOptions;
+  }
+
+  /** 데이터 안의 이름칸을 state.data 에 맞춘다. */
+  function syncNames() {
+    const leaves = collectLabels(type, state.data);
+    const sig = leaves.map(function (l) { return pathText(l.path); }).join('|');
+    if (sig === namesSig) {
+      const inputs = namesBox.querySelectorAll('input');
+      leaves.forEach(function (l, i) {
+        if (inputs[i] && inputs[i].value !== l.value) inputs[i].value = l.value;
+      });
+      return;
+    }
+    namesSig = sig;
+    namesBox.textContent = '';
+    // 같은 자리가 여럿이면(항목 이름 셋) 이름표에 번호를 붙여 서로 가른다.
+    const total = {};
+    leaves.forEach(function (l) { total[l.shape] = (total[l.shape] || 0) + 1; });
+    const nth = {};
+    leaves.forEach(function (l, i) {
+      nth[l.shape] = (nth[l.shape] || 0) + 1;
+      const inputId = uid('name') + '-' + i;
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const lab = document.createElement('label');
+      lab.className = 'field-label';
+      lab.setAttribute('for', inputId);
+      lab.textContent = glossFor(type, l.shape) +
+        (total[l.shape] > 1 ? ' ' + nth[l.shape] : '');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = inputId;
+      input.value = l.value;
+      input.spellcheck = false;
+      input.title = 'data.' + pathText(l.path);
+      input.addEventListener('input', function () {
+        setAt(state.data, l.path, input.value);
+        apply('name');
+      });
+      wrap.appendChild(lab);
+      wrap.appendChild(input);
+      namesBox.appendChild(wrap);
+    });
+  }
+
+  /** 조작칸(제목·출처·각주·체크·선택)을 state.options 에 맞춘다. */
+  function syncOptionControls() {
+    el.querySelectorAll('[data-opt]').forEach(function (c) {
+      const key = c.getAttribute('data-opt');
+      if (key === 'footnotes') { c.value = state.options.footnotes.join('\n'); return; }
+      if (c.type === 'checkbox') { c.checked = !!state.options[key]; return; }
+      c.value = state.options[key];
+    });
+  }
+
+  /**
+   * 화면 전체를 state 에 맞춰 다시 맞춘다.
+   *
+   * `from` 은 방금 손댄 칸이다 — 자기가 친 글자를 자기에게 되돌려 쓰면
+   * 커서가 끝으로 튀므로 그 칸만 건너뛴다.
+   */
+  function apply(from) {
     try {
-      const parsed = JSON.parse(area.value);
-      chart.update({ data: parsed });
-      refreshPreview();
-      // 코드도 화면과 같은 자료를 보여준다 — 편집한 뒤 복사해도 방금 본
-      // 그림 그대로 재현되게.
-      refreshSnippet(parsed);
-      err.textContent = '';
+      chart.update({ data: state.data, options: state.options });
     } catch (e) {
       err.textContent = e.message;
+      syncDirty();
+      return;
     }
+    err.textContent = '';
+    refreshPreview();
+    refreshSnippet();
+    if (from !== 'json') area.value = JSON.stringify(state.data, null, 2);
+    if (from !== 'name') syncNames();
+    syncDirty();
+  }
+
+  area.value = JSON.stringify(state.data, null, 2);
+  syncOptionControls();
+  syncNames();
+  refreshPreview();
+  refreshSnippet();
+
+  // 옵션 조작칸 — 글자칸은 input, 체크·선택은 change 로 받는다.
+  el.querySelectorAll('[data-opt]').forEach(function (c) {
+    const key = c.getAttribute('data-opt');
+    const event = (c.tagName === 'SELECT' || c.type === 'checkbox') ? 'change' : 'input';
+    c.addEventListener(event, function () {
+      if (key === 'footnotes') {
+        // 빈 줄은 버린다. 렌더러가 각 줄 앞에 "* " 를 붙이므로 여기 적는
+        // 글에는 그 별표가 들어가면 안 된다(labels.ts 의 '* ' + filtered[i]).
+        state.options.footnotes = notesArea.value.split('\n')
+          .filter(function (line) { return line.trim() !== ''; });
+      } else if (c.type === 'checkbox') {
+        state.options[key] = c.checked;
+      } else {
+        state.options[key] = c.value;
+      }
+      apply(key === 'footnotes' ? 'notes' : 'opt');
+    });
+  });
+
+  area.addEventListener('input', function () {
+    let parsed;
+    try {
+      parsed = JSON.parse(area.value);
+    } catch (e) {
+      err.textContent = e.message;
+      syncDirty();
+      return;
+    }
+    const previous = state.data;
+    state.data = parsed;
+    try {
+      chart.update({ data: parsed, options: state.options });
+    } catch (e) {
+      // update() 는 검사에 걸리면 이전 데이터를 그대로 지킨다. 화면 쪽
+      // state 도 함께 되돌려 둘이 어긋나지 않게 한다.
+      state.data = previous;
+      err.textContent = e.message;
+      syncDirty();
+      return;
+    }
+    err.textContent = '';
+    refreshPreview();
+    refreshSnippet();
+    syncNames();
+    syncDirty();
   });
 
   resetBtn.addEventListener('click', function () {
-    area.value = pristine;
-    resetBtn.disabled = true;
-    const data = fresh();
-    chart.update({ data: data });
-    refreshPreview();
-    refreshSnippet(data);
-    err.textContent = '';
+    // 데이터와 옵션을 함께 되돌린다 — 제목만 남고 자료만 돌아오면
+    // «되돌리기» 라는 이름이 거짓말이 된다.
+    state.data = fresh();
+    state.options = initialOptions(type);
+    syncOptionControls();
+    apply(null);
   });
 
   el.querySelector('[data-act=png]').addEventListener('click', function () {

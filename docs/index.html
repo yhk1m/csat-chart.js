@@ -238,6 +238,10 @@
   details.sub[open] > summary .chevron { transform:rotate(90deg); }
   .sub-inner { padding:12px; display:flex; flex-direction:column; gap:12px; }
 
+  /* 지금 자료에서 아무 일도 못 하는 조작칸은 감춘다(hidden). .check·.checks·
+     .field 에 display 를 따로 준 탓에 브라우저 기본 시트의 [hidden] 이
+     그대로는 이기지 못한다 — 여기서 한 번 못박아 둔다. */
+  [hidden] { display:none !important; }
   .checks { display:flex; flex-wrap:wrap; gap:10px 20px; }
   .check { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--c-ink); }
   .check input { flex:none; width:15px; height:15px; margin:0; accent-color:var(--accent); }
@@ -719,6 +723,49 @@ const SUPPORTS_LEGEND = ['absbar', 'category-dot', 'climate', 'deviation-a',
 
 function supports(list, type) { return list.indexOf(type) >= 0; }
 
+/**
+ * 렌더러가 그 옵션을 «읽기는 하는데» 지금 이 카드의 자료에서는 아무 그림
+ * 변화도 못 내는 경우. 그때도 조작칸을 감춘다 — 켜도 안 변하는 스위치를
+ * 내놓지 않는다는 점에서 sourceInline 을 뺀 것과 같은 판단이다.
+ *
+ * 아래 조건은 전부 렌더러 소스에서 그대로 옮겨 왔고, 값마다 그림을 한 장씩
+ * 그려 통째로 비교해 확인했다(값이 몇이든 그림이 하나면 죽은 칸이다).
+ * 자료에 따라 갈리는 것이라 자료가 바뀔 때마다 다시 따진다 — JSON 칸에서
+ * 누적 막대로 바꾸면 「값 표시」가 그 자리에서 되살아난다.
+ */
+function legendIsInside(type, data) {
+  // insideLegend 를 읽는 렌더러는 셋뿐이다(AbsBarGraph·DeviationAGraph·LineGraph).
+  // 그 셋에서 범례가 플롯 «안쪽» 상자로 가면 바깥 위치(legendPosition)는 무시된다.
+  return (type === 'absbar' || type === 'deviation-a' || type === 'line') && !!data.insideLegend;
+}
+
+function legendIsDrawn(type, data) {
+  // CategoryDotGraph.ts — `showLegend && sCount > 1`. 계열이 하나면 범례가 없다.
+  if (type === 'category-dot') return (data.seriesLabels || []).length > 1;
+  // LineGraph.ts — `labelPlacement === 'legend' && showLegend`. 이름을 선 끝에
+  // 붙이는 동안에는 범례라는 것 자체가 없다.
+  if (type === 'line') return data.labelPlacement === 'legend';
+  return true;
+}
+
+function isInert(key, type, data, options) {
+  if (key === 'showDataLabels') {
+    // AbsBarGraph.ts 161·190·325·354 — 값 글자의 색을 `isLightFill(s) ? '#000' : '#fff'`
+    // 로 정하는데 isLightFill(index) 는 `index >= 3` 이라 앞 세 계열이 전부 흰
+    // 글자다. 누적이 아닐 때(묶음 막대)는 그 글자를 막대 «바깥» 에 그리므로
+    // 흰 종이 위 흰 글씨가 된다 — 켜고 끈 PNG 가 바이트까지 같다. 누적이면
+    // 글자가 채움 «안» 에 놓여 흰색이 오히려 맞다. 계열이 넷 이상이면 넷째
+    // 계열부터는 묶음 막대에서도 검은 글자라 보인다.
+    return type === 'absbar' && !data.stacked && (data.seriesLabels || []).length <= 3;
+  }
+  if (key === 'showLegend') return !legendIsDrawn(type, data);
+  if (key === 'legendPosition') {
+    // 범례를 끄면 놓을 자리도 없다 — 열 종 전부에서 확인했다.
+    return !options.showLegend || !legendIsDrawn(type, data) || legendIsInside(type, data);
+  }
+  return false;
+}
+
 function initialOptions(type) {
   const o = {};
   OPTION_ORDER.forEach(function (k) {
@@ -1010,14 +1057,16 @@ function card(type, ordinal) {
   const hasLegend = supports(SUPPORTS_LEGEND, type);
   const hasDataLabels = supports(SUPPORTS_DATA_LABELS, type);
 
+  // data-wrap 은 «이 칸을 감출 때 함께 감출 껍데기» 다. 조작칸 자체에만
+  // hidden 을 걸면 이름표가 홀로 남는다.
   const checkParts = [];
   if (hasLegend) {
-    checkParts.push('<span class="check">' +
+    checkParts.push('<span class="check" data-wrap="showLegend">' +
       '<input type="checkbox" id="' + uid('legend') + '" data-opt="showLegend">' +
       '<label for="' + uid('legend') + '">범례 표시</label></span>');
   }
   if (hasDataLabels) {
-    checkParts.push('<span class="check">' +
+    checkParts.push('<span class="check" data-wrap="showDataLabels">' +
       '<input type="checkbox" id="' + uid('values') + '" data-opt="showDataLabels">' +
       '<label for="' + uid('values') + '">값 표시</label></span>');
   }
@@ -1026,7 +1075,7 @@ function card(type, ordinal) {
 
   const selectParts = [];
   if (hasLegend) {
-    selectParts.push('<div class="field">' +
+    selectParts.push('<div class="field" data-wrap="legendPosition">' +
       '<label class="field-label" for="' + uid('legendpos') + '">범례 위치</label>' +
       '<select id="' + uid('legendpos') + '" data-opt="legendPosition">' +
         '<option value="bottom">아래</option><option value="right">오른쪽</option>' +
@@ -1193,6 +1242,23 @@ function card(type, ordinal) {
     });
   }
 
+  /**
+   * 지금 자료에서 아무 일도 못 하는 조작칸을 감춘다.
+   *
+   * 자료가 바뀔 때마다 다시 따진다 — JSON 칸에서 `"stacked": true` 로 바꾸면
+   * 「값 표시」가 그 자리에서 다시 나타나고, 「범례 표시」를 끄면 「범례 위치」가
+   * 사라진다. 감춘 칸은 탭 정지점에서도 빠진다.
+   */
+  function syncControlVisibility() {
+    el.querySelectorAll('[data-wrap]').forEach(function (wrap) {
+      wrap.hidden = isInert(wrap.getAttribute('data-wrap'), type, state.data, state.options);
+    });
+    const checks = el.querySelector('.checks');
+    if (checks) {
+      checks.hidden = ![...checks.children].some(function (c) { return !c.hidden; });
+    }
+  }
+
   /** 조작칸(제목·출처·각주·체크·선택)을 state.options 에 맞춘다. */
   function syncOptionControls() {
     el.querySelectorAll('[data-opt]').forEach(function (c) {
@@ -1222,11 +1288,13 @@ function card(type, ordinal) {
     refreshSnippet();
     if (from !== 'json') area.value = JSON.stringify(state.data, null, 2);
     if (from !== 'name') syncNames();
+    syncControlVisibility();
     syncDirty();
   }
 
   area.value = JSON.stringify(state.data, null, 2);
   syncOptionControls();
+  syncControlVisibility();
   syncNames();
   refreshPreview();
   refreshSnippet();
@@ -1275,6 +1343,7 @@ function card(type, ordinal) {
     refreshPreview();
     refreshSnippet();
     syncNames();
+    syncControlVisibility();
     syncDirty();
   });
 

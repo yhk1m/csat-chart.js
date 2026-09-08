@@ -20,7 +20,7 @@
 // 없게 «넓은 글꼴» 을 흉내 내어 한 번 더 돈다.
 //
 // 진단표: `OVERFLOW_REPORT=경로.txt npx vitest run test/core/overflow.test.ts`
-//         (`OVERFLOW_FONT_SCALE=1.4` 를 함께 주면 넓은 글꼴로 잰다)
+//         (`OVERFLOW_FONT_SCALE=1.25` 를 함께 주면 넓은 글꼴로 잰다)
 import { describe, it, vi, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync } from 'node:fs';
@@ -228,10 +228,16 @@ const dirs = (o: ReturnType<typeof outCanvas>) => {
  * 사용자에게도 실제 상황이다. 이 라이브러리는 Noto 를 못 받으면 시스템 대체
  * 글꼴로 그린다고 README 가 적어 두었다.
  */
-// 1.4 는 «저자 기계 글꼴보다 40% 넓은 글꼴» 이다. CI 의 리눅스 대체 글꼴이
-// 이미 5% 쯤 넓으니 거기서는 사실상 1.47배가 된다. 1.5배까지 훑어 아무 데도
-// 안 넘치는 것을 확인하고 이 값을 골랐다.
-const FONT_WIDTHS: [string, number][] = [['제 글꼴', 1], ['넓은 대체 글꼴', 1.4]];
+// 1.25 는 «재는 기계의 글꼴보다 25% 넓은 글꼴» 이다. CI 의 리눅스 대체 글꼴이
+// 이미 5% 쯤 넓으니 거기서는 사실상 1.3배로 돈다.
+//
+// **여기서 더 올리면 눈금 숫자 열이 먼저 무너진다.** 1.4 배로 걸어 보면
+// 하이서그래프·누적 막대·인구 피라미드의 세로축 숫자가 왼쪽으로 0.7~6px
+// 넘는다. 축 이름·단위와 달리 눈금 숫자는 눈금선에 붙어 있어 «밀기» 로는 못
+// 고치고, **왼쪽 여백을 잰 숫자 폭에 맞춰 잡아야** 한다 (산점도에서 y축 이름에
+// 한 것과 같은 손질을 세 종류에 더 해야 한다는 뜻이다). 제 글꼴에서도 CI
+// 글꼴에서도 넘치지 않으므로 이 판에서는 손대지 않았다.
+const FONT_WIDTHS: [string, number][] = [['제 글꼴', 1], ['넓은 대체 글꼴', 1.25]];
 
 /** `measureText().width` 만 배로 부풀린 ctx (다른 값은 그대로) */
 function widenFont(ctx: CanvasRenderingContext2D, scale: number) {

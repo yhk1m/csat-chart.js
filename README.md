@@ -5,6 +5,7 @@
 시험지 관습을 그대로 따른다. **런타임 의존성이 없다.**
 
 - 데모: https://yhk1m.github.io/csat-chart.js/
+- AI 참고 문서: [docs/ai-reference.md](docs/ai-reference.md) — 이 라이브러리를 모르는 AI 어시스턴트에게 붙여넣는 용도
 - 라이선스: MIT
 
 ## 시작하기

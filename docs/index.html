@@ -16,98 +16,187 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="csat-chart.js — 수능 형식 그래프 라이브러리">
 <meta name="twitter:description" content="수능 시험지 형식 그래프를 스크립트 한 줄로 그리는 무료 도구입니다. 코딩 없이 수업·평가 자료를 만드는 지리 교사를 위해 만들었습니다.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 13.5V7M6 13.5V3M10 13.5V9.5M14 13.5V5.5' stroke='%231f4b8e' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 13.5V7M6 13.5V3M10 13.5V9.5M14 13.5V5.5' stroke='%23002f98' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+
+<!-- 글꼴은 두 갈래다. 섞으면 안 된다.
+     · 화면(제목·본문·버튼) = Pretendard. 아래 jsDelivr 스타일시트.
+     · 그림(캔버스 안) = Noto Serif KR / Noto Sans KR. 렌더러가 쓰는 글꼴이라
+       이 페이지의 CSS 가 아니라 구글 폰트 쪽에서 받아야 한다.
+     산세리프 화면 위에 명조 그림이 놓이는 그 대비가 이 라이브러리의 요점이다. -->
+
 <!-- id="csat-chart-fonts" 는 src/fonts.ts 의 ensureFonts() 가 자기 <link> 를 걸러낼 때
      보는 바로 그 id 다(LINK_ID). 이 id 를 앞서 달아 두면 ensureFonts() 가 "이미 있다"고
-     보고 자기 것을 또 넣지 않는다 — href 는 몸(400;500;700 — hero-head h2 에 실제로 쓰는
-     500 굵기 포함)을 그대로 두어도 된다. 걸러내는 기준은 id 하나뿐, href 일치 여부가
-     아니다(fonts.ts 의 load() 참고). -->
-<link id="csat-chart-fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap">
-<style>
-  :root {
-    --line:#d8d4cc;        /* 장식용 구분선 전용. 대비가 낮다 — 통제선(입력칸 등)에 쓰지 않는다 */
-    --control-line:#948d7f;/* 입력칸·버튼 테두리. 흰 바탕에서 3.29:1 — WCAG 1.4.11 통과 */
-    --ink:#1c1a17;
-    --muted:#6b655c;
-    --bg:#faf9f6;
-    --accent:#1f4b8e;
-    --card:#fff;
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-         font-family:'Noto Sans KR', system-ui, sans-serif; line-height:1.65; font-size:14px; }
-  h1, h2, h3 { font-family:'Noto Serif KR', serif; }
+     보고 자기 것을 또 넣지 않는다 — 걸러내는 기준은 id 하나뿐, href 일치 여부가 아니다
+     (fonts.ts 의 load() 참고). 그래도 href 는 fonts.ts 의 DEFAULT_HREF 와 같은 굵기
+     (400;700)로 맞춰 둔다 — 화면 글꼴이 Pretendard 로 옮겨 간 뒤로 Noto Sans KR 500 은
+     이 페이지 어디에서도 쓰지 않는다. 렌더러가 캔버스에서 쓰는 것은 400 과 bold 뿐이다. -->
+<link id="csat-chart-fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&display=swap">
 
-  /* 스킵 링크 — 포커스를 받기 전까지는 화면 밖에 둔다 */
-  .skip-link {
-    position:absolute; left:8px; top:-48px; z-index:100;
-    background:var(--accent); color:#fff; padding:10px 16px; border-radius:4px;
-    font-size:13px; text-decoration:none; transition:top .15s;
+<!-- 화면용 Pretendard — 가변 글꼴 + 동적 서브셋(59.9 KB CSS). 브라우저가 실제로 쓰는
+     글리프 구간만 내려받는다. 학교망에서 이 CDN 이 막혀도 아래 font-family 의 대체
+     사슬이 OS 한글 UI 글꼴(맑은 고딕·Apple SD Gothic Neo)로 떨어지게 해 둔다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  /* ── 디자인 토큰 ─────────────────────────────────────────────────────────
+     화면은 「거의 무채색 + 짙은 남색 하나」로 간다. 요즘 한국 학원 사이트가
+     쓰는 어법이다 — 흰 바탕, 검은 큰 제목, 회색 여러 단, 강조는 남색 한 가지.
+     그림(캔버스)만 명조체로 남는다. */
+  :root {
+    --c-black:#000000;
+    --c-ink:#434343;      /* 본문. 흰 바탕 9.9:1 */
+    --c-sub:#606060;      /* 보조 설명. 6.3:1 */
+    --c-muted:#767676;    /* 작은 글자의 하한. 4.54:1 — WCAG AA 통과 */
+    --c-faint:#9f9f9f;    /* 2.65:1 — 그림 테두리 같은 «선» 전용. 글자에 쓰지 않는다 */
+    --c-hair:#efefef;     /* 구분선·카드 테두리 */
+    --c-fill:#f5f5f5;     /* 옅은 면 — 갤러리 띠, 읽기 전용 코드 */
+    --c-white:#ffffff;
+    /* 입력칸·버튼 테두리는 «통제선»이다 — WCAG 1.4.11 이 3:1 을 요구한다.
+       --c-faint(2.65:1)로는 모자라 --c-muted(4.54:1)를 쓴다. */
+    --c-control:#767676;
+    --accent:#002f98;
+    --accent-deep:#052645;
+    --danger:#a4262c;     /* 오류 글자 전용. 5.9:1 */
+    --ok:#2e7d32;         /* «복사됨» 순간 표시 전용 */
+
+    /* 화면 글꼴. 사슬 끝이 OS 한글 UI 글꼴이라 CDN 이 막혀도 라틴 기본값으로
+       떨어지지 않는다. 캔버스 안 글꼴은 여기 없다 — 렌더러가 따로 정한다. */
+    --sans:'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+           'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', system-ui, sans-serif;
+    --mono:ui-monospace, 'Cascadia Mono', Consolas, 'D2Coding', monospace;
+
+    --wrap:1120px;
+    --bar:56px;
   }
-  .skip-link:focus { top:8px; }
+
+  *, *::before, *::after { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+
+  body { margin:0; background:var(--c-white); color:var(--c-ink);
+         font-family:var(--sans); font-size:14px; font-weight:400; line-height:1.7;
+         letter-spacing:-0.005em; -webkit-font-smoothing:antialiased; }
+  h1, h2, h3 { margin:0; color:var(--c-black); font-weight:700;
+               letter-spacing:-0.03em; line-height:1.25; }
+  p { margin:0; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  code, pre { font-family:var(--mono); }
+
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  /* 스킵 링크 — 첫 탭 정지점. 포커스 전에는 화면 밖에 둔다 */
+  .skip-link {
+    position:fixed; left:16px; top:-56px; z-index:200;
+    background:var(--accent); color:#fff; padding:12px 18px;
+    font-size:13px; font-weight:600; text-decoration:none; transition:top .15s;
+  }
+  .skip-link:focus { top:12px; }
+  .skip-link:hover { text-decoration:none; }
 
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
-  header { border-bottom:1px solid var(--line); padding:44px 24px 36px; }
-  .wrap { max-width:1040px; margin:0 auto; }
-  h1 { font-size:32px; margin:0 0 8px; letter-spacing:-0.02em; }
-  .lede { color:var(--muted); margin:0 0 16px; max-width:60ch; font-size:15px; }
-  .font-status { margin:0 0 24px; font-size:12px; color:var(--muted); }
-  .font-status.warn { color:#8a5a20; }
+  /* ── 상단 고정 막대 ──────────────────────────────────────────────────── */
+  .topbar { position:sticky; top:0; z-index:50; height:var(--bar);
+            background:var(--c-white); border-bottom:1px solid var(--c-hair); }
+  .topbar-inner { max-width:var(--wrap); margin:0 auto; padding:0 24px; height:100%;
+                  display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand { font-size:16px; font-weight:700; letter-spacing:-0.03em; color:var(--c-black); }
+  .brand:hover { text-decoration:none; }
+  .topbar nav { display:flex; align-items:center; gap:22px; }
+  .topbar nav a { font-size:13px; color:var(--c-sub); }
+  .topbar nav a:hover { color:var(--c-black); text-decoration:none; }
+  .topbar nav a.gh { color:var(--accent); font-weight:600; }
 
-  /* 히어로 — 접히지 않는 완성된 그래프 한 장. 이 페이지에서 위로 접히는 화면(스크롤 전)에
-     놓이는 가장 큰 것이 <script> 태그가 아니라 그래프 자체이게 한다. */
-  .hero { background:var(--card); border:1px solid var(--line); border-radius:6px;
-          padding:20px; margin-bottom:22px; }
+  /* ── 머리말 + 히어로 ────────────────────────────────────────────────────
+     제목 덩어리와 예시 그래프를 좌우로 놓는다. 세로로 쌓으면 그래프의
+     각주·출처가 1440×900 의 접히는 선 아래로 내려간다. */
+  header { padding:56px 0 48px; }
+  /* align-items:stretch + .hero-meta 의 margin-top:auto — 왼쪽 글 덩어리의
+     아래쪽 잔글씨(글꼴 상태·문서 링크)가 오른쪽 그래프의 바닥선에 맞춰 내려간다.
+     두 열 높이가 달라 생기던 빈 자리가 «의도한 사이 공간»이 된다. */
+  .hero-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,520px);
+               gap:48px; align-items:stretch; }
+  .hero-text { display:flex; flex-direction:column; }
+  .hero-meta { margin-top:auto; }
+  .eyebrow { font-size:12px; font-weight:700; letter-spacing:.14em; color:var(--accent);
+             margin:0 0 20px; }
+  h1 { font-size:44px; margin:0 0 20px; }
+  .lede { font-size:18px; font-weight:300; line-height:1.75; color:var(--c-sub);
+          margin:0 0 28px; max-width:36ch; }
+  .font-status { font-size:12px; color:var(--c-muted); margin:0 0 20px; }
+  /* 경고는 색이 아니라 굵기로 낸다 — 이 화면은 거의 무채색이다 */
+  .font-status.warn { color:var(--c-black); font-weight:600; }
+  .doc-links { font-size:13px; color:var(--c-muted); margin:0; }
+  .doc-links .sep { margin:0 8px; color:var(--c-faint); }
+
   .hero-head { display:flex; justify-content:space-between; align-items:baseline;
-               gap:12px; margin-bottom:12px; flex-wrap:wrap; }
-  .hero-head h2 { font-size:15px; margin:0; color:var(--muted); font-weight:500;
-                  font-family:'Noto Sans KR', sans-serif; }
-  .hero-head a { font-size:13px; color:var(--accent); }
-  /* max-width 없이 width:100% 만 쓰면 넓은 화면(예: 1440px 카드 폭)에서 800×600
-     설계 크기보다 커져(예: 998px, 125%) 세로도 함께 늘어난다 — 그 늘어난
-     분량이 정확히 범례·각주·출처가 있는 아랫부분이라 접히지 않는 화면
-     바깥으로 밀려난다. 640px 로 막아 둔다. */
-  .hero img { width:100%; max-width:640px; height:auto; display:block; margin:0 auto;
-              border:1px solid var(--control-line); background:#fff; border-radius:2px; }
-  .hero-note { margin:10px 2px 0; font-size:12px; color:var(--muted); }
-
-  /* 16종 색인 — 이름을 알면 바로 그 카드로 뛴다 */
-  nav.index { margin:0 0 14px; }
-  nav.index ul { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px 8px; }
-  nav.index a { font-size:12.5px; color:var(--ink); text-decoration:none; padding:4px 9px;
-                border:1px solid var(--control-line); border-radius:12px; display:inline-block; }
-  nav.index a:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
-
-  .doc-links { margin:0 0 22px; font-size:13px; color:var(--muted); }
-  .doc-links a { color:var(--accent); }
-  /* --line(1.40:1)은 장식용 구분선 전용이라 여기선 안 쓴다 — 그 대비로는 「·」가
-     구분자가 아니라 그냥 빈틈으로 읽힌다. --muted(주변 글자와 같은 색)로 바꾼다. */
-  .doc-links .sep { margin:0 8px; color:var(--muted); }
+               gap:12px; margin:0 0 12px; flex-wrap:wrap; }
+  .hero-head h2 { font-size:13px; font-weight:600; letter-spacing:.02em;
+                  color:var(--c-muted); }
+  .hero-head a { font-size:13px; font-weight:600; }
+  /* max-width 없이 width:100% 만 쓰면 넓은 화면에서 800×600 설계 크기보다 커져
+     세로도 함께 늘어난다 — 그 늘어난 분량이 정확히 범례·각주·출처가 있는
+     아랫부분이라 접히는 선 밖으로 밀려난다. 640px 로 막아 둔다. */
+  .hero img { width:100%; max-width:640px; height:auto; display:block;
+              border:1px solid var(--c-faint); background:#fff; }
+  .hero-note { margin:12px 0 0; font-size:12px; line-height:1.6; color:var(--c-muted); }
 
   /* 시작 코드 — 접어 둔다. 그래프가 먼저다 */
-  details.start { background:var(--card); border:1px solid var(--line); border-radius:4px; }
-  details.start > summary { padding:12px 16px; cursor:pointer; font-size:13px; color:var(--muted);
-                             list-style:none; display:flex; align-items:center; gap:8px; }
+  details.start { margin-top:36px; border:1px solid var(--c-hair); background:var(--c-white); }
+  details.start > summary { padding:15px 18px; cursor:pointer; font-size:13px; font-weight:600;
+                            color:var(--c-ink); list-style:none;
+                            display:flex; align-items:center; gap:10px; }
   details.start > summary::-webkit-details-marker { display:none; }
-  details.start .chevron { transition:transform .15s; flex:none; }
-  details.start[open] .chevron { transform:rotate(90deg); }
-  details.start .inner { padding:0 16px 16px; }
-  pre { margin:0; overflow-x:auto; font-size:12.5px; line-height:1.6;
-        font-family:ui-monospace, 'Cascadia Mono', Consolas, monospace; }
-  .cdn-note { margin:10px 0 0; font-size:12px; color:var(--muted); }
+  .chevron { transition:transform .15s; flex:none; color:var(--c-muted); }
+  details.start[open] > summary .chevron { transform:rotate(90deg); }
+  details.start .inner { padding:0 18px 18px; }
+  pre { margin:0; overflow-x:auto; font-size:12.5px; line-height:1.65; color:var(--c-ink); }
+  details.start pre { background:var(--c-fill); border:1px solid var(--c-hair); padding:14px; }
+  .cdn-note { margin:12px 0 0; font-size:12px; color:var(--c-muted); }
   .cdn-note code { font-size:11.5px; }
 
-  main { padding:32px 24px 80px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:4px;
-          margin-bottom:28px; overflow:hidden; scroll-margin-top:16px; }
-  .card > .card-head { padding:14px 18px; border-bottom:1px solid var(--line); }
-  .card > .card-head h2 { font-size:20px; margin:0; display:flex; align-items:center; gap:10px; }
-  .card .usage-hint { margin:6px 0 0; font-size:13px; color:var(--muted); font-family:'Noto Sans KR', sans-serif; }
-  .key { font-family:ui-monospace, Consolas, monospace; font-size:12px; color:var(--accent);
-         border:1px solid var(--control-line); border-radius:3px; padding:1px 6px; }
+  /* ── 갤러리 띠 ──────────────────────────────────────────────────────────
+     흰 머리말과 회색 갤러리로 화면을 두 단으로 가른다. 카드는 그 위에서
+     흰 판으로 떠오른다 — 테두리를 진하게 그리지 않아도 경계가 읽힌다. */
+  .band { margin-top:48px; padding:56px 0 64px;
+          background:var(--c-fill); border-top:1px solid var(--c-hair); }
+  .gallery-head { margin-bottom:28px; }
+  .section-title { font-size:32px; margin:0 0 12px; }
+  .section-title .num { font-weight:200; }
+  .section-sub { font-size:14px; color:var(--c-sub); margin:0 0 24px; max-width:62ch; }
 
-  .body { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:18px; padding:18px; }
+  nav.index ul { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+  nav.index a { display:inline-block; font-size:13px; color:var(--c-ink);
+                background:var(--c-white); border:1px solid var(--c-hair); padding:7px 13px; }
+  nav.index a:hover { background:var(--accent); border-color:var(--accent); color:#fff;
+                      text-decoration:none; }
+
+  /* ── 카드 ─────────────────────────────────────────────────────────────
+     scroll-margin-top 은 고정 막대(56px) 높이 + 여백이다. 이게 없으면 색인
+     링크로 뛰었을 때 카드 머리가 막대 뒤로 숨는다. #gallery 자신도 스킵
+     링크의 목적지라 같은 여백이 필요하다. */
+  #gallery { scroll-margin-top:76px; }
+  .card { background:var(--c-white); border:1px solid var(--c-hair);
+          margin-bottom:14px; overflow:hidden; scroll-margin-top:76px; }
+  .card:last-child { margin-bottom:0; }
+  .card-head { padding:16px 20px 14px; border-bottom:1px solid var(--c-hair); }
+  /* 제목이 본문과 같은 16px 이던 시절엔 카드 열여섯 장이 회색 띠 하나로
+     뭉쳤다. 24px·700 으로 올려 한 눈에 세어지게 한다. */
+  .card-head h2 { font-size:24px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .card-head .ord { font-family:var(--mono); font-size:12px; font-weight:700;
+                    letter-spacing:.1em; color:var(--c-muted); }
+  .key { font-family:var(--mono); font-size:12px; font-weight:400; letter-spacing:0;
+         color:var(--c-sub); background:var(--c-fill); padding:3px 8px; }
+  .usage-hint { margin:7px 0 0; font-size:14px; line-height:1.5; color:var(--c-sub); }
+
+  /* 왼쪽은 그래프, 오른쪽은 편집칸, 아래 한 줄을 통째로 코드가 쓴다.
+     코드를 오른쪽 열에 두면 그 열이 4:3 캔버스보다 길어져 그래프 아래로
+     빈 흰 자리가 140px 남았다. */
+  /* 오른쪽 열에 320px 바닥을 준다 — 없으면 861~1000px 구간에서 그래프 열이
+     480px 를 고집하는 바람에 편집칸이 270px 까지 눌린다. 바닥을 주면 대신
+     그래프 열이 줄어든다. (860px 아래는 어차피 한 열로 접힌다.) */
+  .body { display:grid; grid-template-columns:minmax(0,480px) minmax(320px,1fr);
+          gap:14px 20px; padding:16px 20px 18px; align-items:stretch; }
   @media (max-width:860px) {
     /* bare 1fr 은 min-content 최소폭을 갖는다 — 800px 캔버스·긴 코드 줄이 그 최소폭을
        420px 안팎으로 밀어 올려, 좁은 화면에서 카드가 넘치고 overflow:hidden 이 그걸
@@ -116,54 +205,86 @@
     .body { grid-template-columns:minmax(0,1fr); }
   }
 
-  img.chart-preview { width:100%; height:auto; display:block; border:1px solid var(--control-line);
-                       background:#fff; }
+  .chart-col { min-width:0; }
+  img.chart-preview { width:100%; height:auto; display:block;
+                      border:1px solid var(--c-faint); background:#fff; }
 
-  label.field-label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  textarea { width:100%; height:190px; font-family:ui-monospace, Consolas, monospace;
-             font-size:12px; border:1px solid var(--control-line); border-radius:3px; padding:10px;
-             resize:vertical; background:#fdfdfb; color:var(--ink); }
+  /* 편집칸은 세로로 늘어나 그래프 높이를 정확히 채운다 — 남는 흰 자리가 없다 */
+  .editor { display:flex; flex-direction:column; min-width:0; }
+  label.field-label { display:block; font-size:12px; font-weight:600; color:var(--c-muted);
+                      margin:0 0 6px; }
+  textarea { width:100%; flex:1 1 auto; min-height:170px; font-family:var(--mono);
+             font-size:12.5px; line-height:1.6; border:1px solid var(--c-control);
+             border-radius:0; padding:11px 12px; resize:vertical;
+             background:var(--c-white); color:var(--c-ink); }
+  textarea:focus { border-color:var(--accent); }
 
-  .row { display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
-  button { font:inherit; font-size:13px; padding:7px 13px; border:1px solid var(--control-line);
-           background:#fff; border-radius:3px; cursor:pointer; display:inline-flex;
-           align-items:center; gap:6px; color:var(--ink); }
-  button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
-  button.copied { border-color:#2e7d32; color:#2e7d32; }
+  .err { color:var(--danger); font-size:12px; line-height:1.4; min-height:1.4em; margin:8px 0 0; }
+
+  .row { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+  button { font-family:inherit; font-size:13px; font-weight:600; letter-spacing:-0.01em;
+           padding:8px 14px; border:1px solid var(--c-control); border-radius:0;
+           background:var(--c-white); color:var(--c-ink); cursor:pointer;
+           display:inline-flex; align-items:center; gap:7px; }
+  button:hover:not(:disabled) { border-color:var(--c-black); color:var(--c-black); }
+  button.copied { border-color:var(--ok); color:var(--ok); }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button.primary:hover { background:#183c70; border-color:#183c70; color:#fff; }
+  button.primary:hover { background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; }
   /* 기본 :focus-visible 링은 --accent — 채운 primary 버튼 위에서는 채움색과
-     같은 색이 2px 오프셋만으로 갈린다. 더 튼튼하게 --ink 로 바꾼다. */
-  button.primary:focus-visible { outline-color:var(--ink); }
-  button:disabled { opacity:.45; cursor:not-allowed; }
-  button:disabled:hover { border-color:var(--control-line); color:var(--ink); }
+     같은 색이 2px 오프셋만으로 갈린다. 더 튼튼하게 검정으로 바꾼다. */
+  button.primary:focus-visible { outline-color:var(--c-black); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button:disabled:hover { border-color:var(--c-control); color:var(--c-ink); }
 
-  .err { color:#a4262c; font-size:12px; min-height:1.2em; margin:8px 0 0; }
-
-  details.snippet-details { margin-top:16px; border-top:1px solid var(--line); padding-top:12px; }
-  details.snippet-details > summary { display:flex; align-items:center; justify-content:space-between;
-                                       cursor:pointer; list-style:none; gap:8px; }
+  details.snippet-details { grid-column:1 / -1; border-top:1px solid var(--c-hair);
+                            padding-top:14px; }
+  details.snippet-details > summary { display:flex; align-items:center;
+                                      justify-content:space-between; gap:12px;
+                                      cursor:pointer; list-style:none; }
   details.snippet-details > summary::-webkit-details-marker { display:none; }
-  .summary-label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
-  .summary-label .chevron { transition:transform .15s; flex:none; }
+  .summary-label { display:flex; align-items:center; gap:8px; font-size:13px;
+                   font-weight:600; color:var(--c-sub); }
   details.snippet-details[open] .summary-label .chevron { transform:rotate(90deg); }
-  pre.snippet { margin-top:8px; background:#fdfdfb; border:1px solid var(--control-line); border-radius:3px;
-                padding:10px; font-size:12px; line-height:1.6; max-height:260px; overflow:auto; }
+  details.snippet-details > summary:hover .summary-label { color:var(--c-black); }
+  pre.snippet { margin-top:14px; background:var(--c-fill); border:1px solid var(--c-hair);
+                padding:14px; font-size:12.5px; max-height:300px; overflow:auto; }
 
-  footer { border-top:1px solid var(--line); padding:24px; color:var(--muted); font-size:13px; }
-  footer a { color:var(--accent); }
-  footer .sep { margin:0 8px; color:var(--muted); }
+  /* ── 꼬리말 ─────────────────────────────────────────────────────────── */
+  footer { background:var(--c-black); padding:40px 0 48px; }
+  footer .wrap { color:var(--c-faint); font-size:13px; font-weight:300; }
+  footer a { color:#fff; font-weight:400; }
+  footer .sep { margin:0 10px; color:var(--c-sub); }
 
   /* 자바스크립트가 꺼져 있을 때(noscript) 보여줄 안내 상자 */
-  .noscript-box { max-width:1040px; margin:20px auto 0; padding:14px 24px;
-                  border:1px solid var(--control-line); border-radius:4px;
-                  background:var(--card); font-size:13px; color:var(--ink); }
+  .noscript-box { max-width:calc(var(--wrap) - 48px); margin:20px auto 0; padding:16px 20px;
+                  border:1px solid var(--c-control); background:var(--c-white);
+                  font-size:13px; color:var(--c-ink); }
 
   /* 번들(docs/lib/csat-chart.umd.min.js)이 404 거나 차단돼 전역 CsatChart 가
      없을 때 갤러리 자리에 대신 보여줄 안내 */
-  .lib-error { background:var(--card); border:1px solid var(--control-line); border-radius:4px;
-               padding:16px 18px; font-size:13.5px; color:var(--ink); max-width:640px; }
-  .lib-error code { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; }
+  .lib-error { background:var(--c-white); border:1px solid var(--c-hair);
+               border-left:3px solid var(--accent); padding:18px 20px;
+               font-size:14px; color:var(--c-ink); max-width:660px; }
+  .lib-error code { font-size:12.5px; }
+
+  /* ── 좁은 화면 ─────────────────────────────────────────────────────── */
+  @media (max-width:960px) {
+    header { padding:48px 0 40px; }
+    .hero-grid { grid-template-columns:minmax(0,1fr); gap:36px; }
+    .lede { max-width:none; }
+    .band { margin-top:48px; padding:48px 0 56px; }
+  }
+  @media (max-width:640px) {
+    .wrap, .topbar-inner { padding:0 18px; }
+    h1 { font-size:32px; }
+    .lede { font-size:16px; }
+    .section-title { font-size:24px; }
+    .card-head h2 { font-size:20px; gap:8px; }
+    .card-head, .body { padding-left:16px; padding-right:16px; }
+    .topbar nav { gap:16px; }
+    .topbar nav a.hide-sm { display:none; }
+    .noscript-box { margin:16px 18px 0; }
+  }
 </style>
 </head>
 <body>
@@ -174,12 +295,34 @@
     켜면 예시와 데이터를 고쳐 볼 수 있는 갤러리가 보입니다.</p>
 </noscript>
 
-<header>
-  <div class="wrap">
-    <h1>csat-chart.js</h1>
-    <p class="lede">수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그립니다.
-      런타임 의존성이 없고, 스크립트 한 줄로 시작합니다.</p>
-    <p class="font-status" id="font-status">글꼴을 불러오는 중…</p>
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top">csat-chart.js</a>
+    <nav aria-label="바로가기">
+      <a class="hide-sm" href="#gallery">그래프 16종</a>
+      <a class="hide-sm" href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
+      <a class="gh" href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
+    </nav>
+  </div>
+</div>
+
+<header id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="eyebrow">MIT 오픈소스 · 런타임 의존성 없음</p>
+      <h1>csat-chart.js</h1>
+      <p class="lede">수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그립니다.
+        스크립트 한 줄로 시작합니다.</p>
+      <div class="hero-meta">
+        <p class="font-status" id="font-status">글꼴을 불러오는 중…</p>
+        <p class="doc-links">
+          README의
+          <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">「내 자료 넣기」</a><span class="sep">·</span>
+          <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">「그림이 이상할 때」</a>
+          도 참고하세요.
+        </p>
+      </div>
+    </div>
 
     <section class="hero" aria-label="예시 그래프">
       <div class="hero-head">
@@ -193,18 +336,9 @@
       <img id="hero-img" alt="">
       <p class="hero-note">모든 그래프는 인쇄용 해상도(1600×1200)로 그려지고, PNG로도 같은 해상도로 저장됩니다.</p>
     </section>
+  </div>
 
-    <nav class="index" aria-label="그래프 16종 색인">
-      <ul id="index-list"></ul>
-    </nav>
-
-    <p class="doc-links">
-      README의
-      <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">「내 자료 넣기」</a><span class="sep">·</span>
-      <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">「그림이 이상할 때」</a>
-      도 참고하세요.
-    </p>
-
+  <div class="wrap">
     <details class="start">
       <summary>
         <svg class="chevron" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -223,17 +357,34 @@
   </div>
 </header>
 
-<main class="wrap" id="gallery" tabindex="-1"></main>
+<!-- 갤러리 머리(제목·색인)는 <main id="gallery"> «밖»에 둔다. 번들을 못 불러왔을 때
+     아래 스크립트가 #gallery 의 innerHTML 을 통째로 갈아 끼우기 때문이다 — 안에
+     두면 안내 문구가 제목과 색인까지 지워 버린다. -->
+<div class="band">
+  <div class="wrap gallery-head">
+    <h2 class="section-title">그래프 <span class="num">16</span>종</h2>
+    <p class="section-sub">오른쪽 칸의 JSON을 고치면 그림이 곧바로 다시 그려집니다.
+      마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.</p>
+    <nav class="index" aria-label="그래프 16종 색인">
+      <ul id="index-list"></ul>
+    </nav>
+  </div>
 
-<footer class="wrap">
-  MIT © 2026 김용현 ·
-  <a href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
-  <span class="sep">·</span>
-  <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
-  <span class="sep">·</span>
-  <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">그림이 이상할 때</a>
-  <span class="sep">·</span>
-  <a href="https://github.com/yhk1m/csat-chart.js/blob/master/docs/ai-reference.md">AI 참고 문서</a>
+  <main class="wrap" id="gallery" tabindex="-1"></main>
+</div>
+
+<footer>
+  <div class="wrap">
+    MIT © 2026 김용현
+    <span class="sep">·</span>
+    <a href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/yhk1m/csat-chart.js#그림이-이상할-때">그림이 이상할 때</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/yhk1m/csat-chart.js/blob/master/docs/ai-reference.md">AI 참고 문서</a>
+  </div>
 </footer>
 
 <script src="./lib/csat-chart.umd.min.js"></script>
@@ -597,24 +748,34 @@ function fallbackCopy(text) {
  * 그대로 들고 있고(CsatChart 의 검증·update()·download() 가 전부 정상 동작),
  * <img> 는 그 모델의 2배 스냅샷일 뿐이다.
  */
-function card(type) {
+function card(type, ordinal) {
   const el = document.createElement('section');
   el.className = 'card';
   el.id = 'card-' + type;
   const copyBtnLabel = ICON_COPY + '코드 복사';
   const fieldId = 'data-' + type;
   const options = OPTIONS_OVERRIDES[type];
+  // 눈으로 세는 번호다 — 화면 읽기 프로그램에는 「01 기후 그래프」로 들릴
+  // 이유가 없어 aria-hidden 으로 가린다.
+  const ord = String(ordinal + 1).padStart(2, '0');
 
+  // 코드 접기는 오른쪽 열이 아니라 카드 폭 전체를 쓰는 «둘째 줄»이다.
+  // 오른쪽 열에 두면 그 열이 4:3 캔버스보다 길어져 그래프 아래로 빈 흰
+  // 자리가 남았고, 380px 폭에서는 JSON 한 줄이 늘 가로로 잘렸다.
   el.innerHTML =
     '<div class="card-head">' +
-      '<h2>' + LABELS[type] + ' <span class="key">' + type + '</span></h2>' +
+      '<h2>' +
+        '<span class="ord" aria-hidden="true">' + ord + '</span>' +
+        '<span class="name">' + LABELS[type] + '</span>' +
+        '<span class="key">' + type + '</span>' +
+      '</h2>' +
       '<p class="usage-hint">' + USAGE_HINTS[type] + '</p>' +
     '</div>' +
     '<div class="body">' +
-      '<div>' +
+      '<div class="chart-col">' +
         '<img class="chart-preview" alt="">' +
       '</div>' +
-      '<div>' +
+      '<div class="editor">' +
         '<label class="field-label" for="' + fieldId + '">데이터 (JSON) — 고치면 바로 다시 그립니다</label>' +
         '<textarea id="' + fieldId + '" spellcheck="false"></textarea>' +
         '<p class="err" role="status"></p>' +
@@ -622,14 +783,14 @@ function card(type) {
           '<button class="primary" data-act="png" title="1600×1200px, 인쇄용 해상도">' + ICON_DOWNLOAD + 'PNG 저장</button>' +
           '<button data-act="reset" disabled>' + ICON_RESET + '되돌리기</button>' +
         '</div>' +
-        '<details class="snippet-details">' +
-          '<summary>' +
-            '<span class="summary-label">' + CHEVRON + '이 그래프를 만드는 코드</span>' +
-            '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
-          '</summary>' +
-          '<pre class="snippet"><code></code></pre>' +
-        '</details>' +
       '</div>' +
+      '<details class="snippet-details">' +
+        '<summary>' +
+          '<span class="summary-label">' + CHEVRON + '이 그래프를 만드는 코드</span>' +
+          '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
+        '</summary>' +
+        '<pre class="snippet"><code></code></pre>' +
+      '</details>' +
     '</div>';
 
   const img = el.querySelector('img.chart-preview');
@@ -745,7 +906,7 @@ function buildGallery() {
   buildHero();
   buildIndex();
   const gallery = document.getElementById('gallery');
-  CsatChart.CHART_TYPES.forEach(function (t) { gallery.appendChild(card(t)); });
+  CsatChart.CHART_TYPES.forEach(function (t, i) { gallery.appendChild(card(t, i)); });
 }
 
 const statusEl = document.getElementById('font-status');

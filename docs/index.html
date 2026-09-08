@@ -419,7 +419,8 @@
     <p class="section-sub">오른쪽 칸에서 제목·출처를 바꾸고, 「각주·범례·이름 바꾸기」를 펼치면
       그래프 안의 (가)(나)(다)까지 글자칸으로 고칩니다. 숫자와 구조는 JSON 칸에 그대로 남아
       있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.
-      코드가 부담스러우시면 「AI에게 시킬 프롬프트」를 복사해, 평소 쓰시는 AI에 붙여넣으세요.</p>
+      만들고 계신 프로그램에 이 라이브러리를 붙이시려면 「AI에게 시킬 프롬프트」를 복사해,
+      평소 쓰시는 AI에 붙여넣으세요. HTML 한 장만 필요한 경우도 같은 프롬프트로 됩니다.</p>
     <nav class="index" aria-label="그래프 16종 색인">
       <ul id="index-list"></ul>
     </nav>
@@ -1015,13 +1016,41 @@ function snippetFor(type, data, options) {
  * 그래서 프롬프트에는 이 카드의 자료를 담지 않는다. 담으면 길어지기만 하고,
  * 두 단추가 같은 일을 하는 것처럼 보인다.
  *
+ * 이 프롬프트가 겨냥하는 것은 «HTML 한 장» 이 아니라 «내가 만들고 있는 프로그램에
+ * 이 라이브러리를 붙이는 일» 이다. 첫 판은 끝을 「HTML 파일 하나로 주세요」로 닫아
+ * 두어, 받아 볼 수 있는 것이 낱장짜리 페이지뿐이었다. 그림 한 장이 필요한 사람에게는
+ * 그것으로 됐지만, 앱에 이 라이브러리를 넣으려는 사람에게는 아무 쓸모가 없다.
+ * 통합 쪽이 더 어렵고 더 넓다 — 환경 칸에 「HTML 한 장」을 골라 두면 낱장짜리도
+ * 그대로 나오므로, 통합을 기준으로 쓰는 편이 양쪽을 다 덮는다.
+ *
  * 프롬프트가 이렇게 긴 이유는 하나다 — 이 라이브러리는 2026년에 나왔고 어떤
  * 모델의 학습 데이터에도 없다. 「csat-chart.js 로 기후 그래프 그려줘」 라고만
- * 하면 그럴듯한 가짜 API 를 지어내고, 그 코드는 돌아가지 않는다. 참고 문서
- * 주소·실제로 되는 CDN 주소·공장 함수 이름·그 종류의 데이터 모양까지 쥐어
- * 줘야 처음 보는 모델이 맞는 코드를 쓴다.
+ * 하면 그럴듯한 가짜 API 를 지어내고, 그 코드는 돌아가지 않는다. 특히 프레임워크
+ * 안에서 캔버스 라이브러리를 다룰 때 처음 보는 모델이 반드시 틀리는 것들 —
+ * 렌더마다 new 하기, 필드에 대입하고 다시 그려지길 기다리기, destroy() 안 부르기,
+ * id 문자열로 캔버스 잡기, 차트마다 ensureFonts() 부르기, canvas.width 직접
+ * 대입하기 — 을 막을 곳이 여기밖에 없다. 아래 [수명주기] 여섯 줄이 그것이고,
+ * 여섯 줄 전부 src/chart.ts 에 대고 실제로 확인한 내용이다.
  */
 const PROMPT_DOC_URL = 'https://yhk1m.github.io/csat-chart.js/ai-reference.md';
+
+/**
+ * 저수준 렌더러 이름. 「이 종류 하나만 쓴다면」 안내에 적는다.
+ *
+ * 규칙으로 만들 수 없어 하나씩 적는다 — 넷이 `render○○Graph` 꼴을 벗어난다
+ * (renderDataTable·renderHythergraph·renderMatrixTable·renderRadarChart).
+ * 규칙으로 지어내면 그 넷에서 없는 이름을 가르치게 된다.
+ */
+const RENDERER = {
+  'absbar': 'renderAbsBarGraph', 'category-dot': 'renderCategoryDotGraph',
+  'climate': 'renderClimateGraph', 'cube': 'renderCubeGraph',
+  'data-table': 'renderDataTable', 'deviation-a': 'renderDeviationAGraph',
+  'deviation-b': 'renderDeviationBGraph', 'hythergraph': 'renderHythergraph',
+  'line': 'renderLineGraph', 'matrix-table': 'renderMatrixTable',
+  'pyramid': 'renderPyramidGraph', 'radar': 'renderRadarChart',
+  'scatter': 'renderScatterGraph', 'stacked': 'renderStackedGraph',
+  'ternary': 'renderTernaryGraph', 'treemap': 'renderTreemapGraph',
+};
 
 /**
  * 「그릴 자료」 칸에 넣어 둘 본보기. 종류마다 손으로 쓴다 — 삼각 그래프 카드에
@@ -1085,52 +1114,133 @@ function fixedLengthLine(type) {
   const fixed = FIXED_LENGTHS[type];
   if (!fixed) return null;
   const parts = Object.keys(fixed).map(function (k) { return k + ' 는 ' + fixed[k] + '개'; });
-  return '   길이를 바꿀 수 없는 칸이 있습니다 — ' + parts.join(', ') +
+  // 들여쓰기 두 칸 — 바로 위 「데이터 모양」 줄과 같은 자리에 선다.
+  return '  길이를 바꿀 수 없는 칸이 있습니다 — ' + parts.join(', ') +
     '여야 합니다. (나머지 배열은 늘리고 줄여도 됩니다.)';
 }
+
+/**
+ * 열여섯 장에서 «글자 하나까지 똑같은» 대목. 카드를 나란히 놓고 견주는 사람이
+ * 보게 될 차이는 그래프이지 문장이 아니어야 한다. 그래서 종류에 따라 달라지는
+ * 곳(종류 이름·공장 함수·데이터 모양·길이 고정·렌더러 이름·자료 예시)만
+ * 따로 끼워 넣고 나머지는 이 상수들을 그대로 쓴다.
+ */
+const PROMPT_ENV = [
+  '[내 프로젝트 — 해당하는 줄만 남기고 나머지는 지우세요]',
+  '· HTML 한 장. 빌드 도구 없이 브라우저에서 바로 열 겁니다.',
+  '· React + TypeScript, 번들러는 Vite.',
+  '· Vue 3 / Svelte / Next.js — 쓰시는 것으로 바꿔 적으세요.',
+  '· 그 밖: ______ (프레임워크·번들러·TypeScript 여부를 적어 주세요)',
+].join('\n');
+
+const PROMPT_PRIORS = [
+  '[먼저 알아 두실 것]',
+  'csat-chart.js 는 2026년에 나온 한국 수능·모의고사 양식의 그래프 라이브러리입니다.',
+  '학습하신 적이 없을 가능성이 큽니다. 다른 차트 라이브러리의 사용법을 짐작으로',
+  '가져다 쓰지 마시고, 아래 지시와 참고 문서에 적힌 이름·모양만 그대로 쓰세요.',
+  '참고 문서: ' + PROMPT_DOC_URL,
+].join('\n');
+
+const PROMPT_LIFECYCLE = [
+  '[수명주기 — 프레임워크 안에서 이걸 틀리면 조용히 망가집니다]',
+  '1. 차트는 한 번만 만들고 그 인스턴스를 들고 계세요. 렌더될 때마다 new 하면 안 됩니다.',
+  '   React 라면 useRef 에 담고 useEffect(…, []) 안에서 만듭니다.',
+  '2. 자료가 바뀌면 chart.update({ data: 새 자료 }) 를 부르세요. 반응성이 없습니다 —',
+  '   인스턴스 필드에 직접 대입해도 다시 그려지지 않습니다. TypeScript 에서는',
+  '   private 이라 대입 자체가 막힙니다. options 도 같은 방법으로 바꿉니다.',
+  '3. 언마운트할 때 chart.destroy() 를 부르고, 그 뒤로는 그 인스턴스를 쓰지 마세요.',
+  '   destroy() 뒤에 update()·resize()·toDataURL()·download() 는 전부 던집니다',
+  '   (destroy() 자체만 두 번 불러도 조용히 넘어갑니다).',
+  '4. 캔버스는 ref 로 잡아 «요소» 를 그대로 넘기세요. id 문자열도 받지만, 같은',
+  '   컴포넌트를 두 번 쓰면 id 가 부딪힙니다.',
+  '5. CsatChart.ensureFonts() 는 앱이 시작할 때 «한 번만» 부르고, 그것을 기다린 뒤에',
+  '   첫 차트를 만드세요. 여러 번 불러도 실제 일은 한 번뿐이고 나중 호출의 옵션은',
+  '   조용히 버려집니다. 빠뜨리면 시험지 명조체 대신 시스템 글꼴로 «멀쩡하게»',
+  '   그려져서, 틀린 줄도 모르고 넘어가게 됩니다.',
+  '6. 크기를 바꿀 때는 chart.resize(가로, 세로) 를 쓰세요. canvas.width 에 직접',
+  '   대입하면 그리기 표면이 초기화되어 화면이 빈 채로 남습니다.',
+].join('\n');
+
+const PROMPT_OPTIONS = [
+  '[옵션]',
+  '· options.title 과 options.source 를 꼭 채우세요. 이 그림이 시험지 그림으로',
+  '  읽히게 하는 것이 바로 그 둘입니다. 각주는 options.footnotes 에 문자열 배열로 —',
+  '  앞의 별표(*)는 라이브러리가 알아서 붙입니다.',
+  '· 캔버스는 <canvas width="800" height="600"></canvas> 를 기준으로 두세요. 이',
+  '  라이브러리는 여백과 글자 크기가 절대 픽셀이라 500×400 아래로 줄이면 제목과',
+  '  눈금이 겹칩니다.',
+].join('\n');
+
+const PROMPT_EXPORT = [
+  '[그림 내보내기]',
+  "chart.toDataURL({ scale: 2 }) 는 1600×1200 PNG 데이터 URL 을, chart.download('이름.png',",
+  '{ scale: 2 }) 는 곧바로 내려받기를 해 줍니다. scale 은 캔버스만 키우는 것이 아니라',
+  '글자·선까지 함께 키웁니다 — 인쇄용으로 뽑을 때는 이쪽을 쓰세요.',
+].join('\n');
+
+const PROMPT_ERRORS = [
+  '[오류 처리]',
+  '모양이 틀린 데이터를 주면 CsatChartError 를 던집니다. err.name === \'CsatChartError\' 로',
+  '가려내세요 — 번들에 라이브러리가 두 벌 실리면 instanceof 는 어긋납니다. 메시지는',
+  '한국어이고 어느 필드가 틀렸는지까지 말해 줍니다. 예:',
+  '  csat-chart: type "climate" 의 data.months: 배열이어야 합니다 (지금 숫자)',
+].join('\n');
+
+const PROMPT_TS = [
+  '[TypeScript 를 쓰신다면]',
+  'config 에 type 을 적으면 data 가 그 종류로 좁혀집니다. 다른 종류의 자료를 넣으면',
+  '생성자에서도 update() 에서도 컴파일이 막습니다 — 런타임까지 가지 않습니다.',
+].join('\n');
 
 function promptFor(type) {
   const factory = FACTORY[type];
   return [
-    'csat-chart.js 로 「' + LABELS[type] + '」를 하나 그려 주세요.',
+    'csat-chart.js 로 「' + LABELS[type] + '」를 그리는 코드를 만들어 주세요.',
     '',
-    '[먼저 알아 두실 것]',
-    'csat-chart.js 는 2026년에 나온 한국 수능·모의고사 양식의 그래프 라이브러리입니다.',
-    '학습하신 적이 없을 가능성이 큽니다. 다른 차트 라이브러리의 사용법을 짐작으로',
-    '가져다 쓰지 마시고, 아래 지시와 참고 문서에 적힌 이름·모양만 그대로 쓰세요.',
-    '참고 문서: ' + PROMPT_DOC_URL,
+    PROMPT_ENV,
     '',
-    '[불러오기 — 이 주소를 그대로 쓰세요]',
-    OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
-    '전역 이름은 CsatChart 입니다. npm 주소는 아직 없는 주소라 404 가 납니다.',
+    PROMPT_PRIORS,
     '',
-    '[지켜야 할 것]',
-    '1. 글꼴부터 확보하고, 그 안에서 차트를 만드세요.',
-    '   CsatChart.ensureFonts().then(function () { ... });   (await 도 됩니다)',
-    '   이걸 빠뜨리면 시험지 명조체가 아니라 시스템 글꼴로 조용히 그려집니다.',
-    '   그림은 멀쩡히 나오니 틀린 줄도 모르고 넘어가게 됩니다.',
+    '[설치와 불러오기]',
+    '· 번들러를 쓰신다면 —',
+    '    npm install csat-chart.js',
+    "    import { CsatChart, " + factory + " } from 'csat-chart.js';",
+    '  ESM·CJS·타입 정의가 함께 들어 있고 런타임 의존성은 없습니다.',
+    '· 빌드 도구가 없다면 —',
+    '    ' + OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
+    '  전역 이름은 CsatChart 이고, 위 이름들은 그 아래에 그대로 붙어 있습니다.',
+    '· 다만 이 패키지는 아직 npm 에 올라가지 않았습니다. 오늘 확실히 되는 것은 CDN',
+    '  쪽이고, cdn.jsdelivr.net/npm/csat-chart.js 는 404 가 나니 쓰지 마세요.',
     '',
-    '2. 데이터는 CsatChart.' + factory + '() 로 시작해서 필요한 칸만 덮어쓰세요.',
-    '   구조를 새로 지어내면 검증에 걸려 그림이 아예 안 나옵니다.',
-    '   그 함수가 돌려주는 모양은 이렇습니다 —',
-    '   ' + shapeOf(CsatChart[factory]()),
+    '[이 그래프]',
+    "· 종류 이름은 '" + type + "' 입니다.",
+    "    new CsatChart(캔버스요소, { type: '" + type + "', data: 데이터, options: 옵션 })",
+    '· 데이터는 ' + factory + '() 로 시작해서 필요한 칸만 덮어쓰세요. 구조를 새로',
+    '  지어내면 검증에 걸려 그림이 아예 안 나옵니다. 그 함수가 돌려주는 모양 —',
+    '  ' + shapeOf(CsatChart[factory]()),
     fixedLengthLine(type),
     '',
-    "3. 종류 이름은 '" + type + "' 입니다.",
-    "   new CsatChart('c', { type: '" + type + "', data: 데이터, options: 옵션 })",
+    PROMPT_LIFECYCLE,
     '',
-    '4. options.title 과 options.source 를 꼭 채우세요. 이 그림이 시험지 그림으로',
-    '   읽히게 하는 것이 바로 그 둘입니다. 각주가 필요하면 options.footnotes 에',
-    '   문자열 배열로 넣습니다 — 앞의 별표(*)는 라이브러리가 알아서 붙입니다.',
+    PROMPT_OPTIONS,
     '',
-    '5. 캔버스는 <canvas id="c" width="800" height="600"></canvas> 로 두세요.',
-    '   이 라이브러리는 여백과 글자 크기가 절대 픽셀이라, 500×400 아래로 줄이면',
-    '   제목과 눈금이 겹칩니다.',
+    PROMPT_EXPORT,
+    '',
+    PROMPT_ERRORS,
+    '',
+    PROMPT_TS,
+    '',
+    '[번들 크기 — 이 종류 하나만 쓰신다면]',
+    'CsatChart 를 가져오면 렌더러 16종이 전부 딸려옵니다(약 95 KB). 한 종류만 쓸 거라면',
+    '저수준 함수 ' + RENDERER[type] + '(ctx, 가로, 세로, 데이터, 옵션) 하나만 가져오는',
+    '편이 훨씬 작습니다(종류에 따라 4~17 KB). 대신 파사드가 해 주던 것이 없어집니다 —',
+    '옵션은 createDefaultGraphOptions() 로 온전한 것을 만들어 넘기고, 구형 브라우저를',
+    '생각한다면 그리기 전에 installRoundRectPolyfill() 을 한 번 부르세요.',
     '',
     '[그릴 자료 — 이 줄을 지우고 직접 적어 주세요]',
     '예) ' + PROMPT_EXAMPLES[type],
     '',
-    '브라우저에서 그대로 열어 볼 수 있는 HTML 파일 하나로 주세요.',
+    '맨 위 [내 프로젝트] 에 적은 환경에 그대로 넣을 수 있는 코드로 주세요.',
   // 해당 없는 종류에서 fixedLengthLine 이 null 을 돌려준다 — 빈 줄로 남기지 않는다.
   ].filter(function (line) { return line !== null; }).join('\n');
 }
@@ -1296,8 +1406,10 @@ function card(type, ordinal) {
         '</summary>' +
         '<pre class="prompt"></pre>' +
         '<p class="panel-note">위 「코드 복사」가 <b>지금 이 그림을 그대로</b> 가져가는 것이라면, ' +
-          '이 프롬프트는 같은 종류의 그래프를 <b>선생님 자료로 새로</b> 만들게 AI에게 시키는 글입니다. ' +
-          '그래서 이 카드의 자료는 담기지 않습니다 — 맨 아래 「그릴 자료」 줄만 고쳐서 쓰세요.</p>' +
+          '이 프롬프트는 같은 종류의 그래프를 <b>내 자료로, 내가 만드는 프로그램 안에</b> 새로 ' +
+          '넣게 AI에게 시키는 글입니다. 그래서 이 카드의 자료는 담기지 않습니다 — 고칠 곳은 두 군데, ' +
+          '맨 위 「내 프로젝트」와 맨 아래 「그릴 자료」입니다. HTML 한 장이면 되는 경우도 ' +
+          '「내 프로젝트」에서 그 줄만 남기면 됩니다.</p>' +
       '</details>' +
     '</div>';
 

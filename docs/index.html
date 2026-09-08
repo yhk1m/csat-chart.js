@@ -278,18 +278,29 @@
   button:disabled { opacity:.4; cursor:not-allowed; }
   button:disabled:hover { border-color:var(--c-control); color:var(--c-ink); }
 
-  details.snippet-details { grid-column:1 / -1; border-top:1px solid var(--c-hair);
-                            padding-top:14px; }
-  details.snippet-details > summary { display:flex; align-items:center;
-                                      justify-content:space-between; gap:12px;
-                                      cursor:pointer; list-style:none; }
-  details.snippet-details > summary::-webkit-details-marker { display:none; }
+  /* 카드 폭을 통째로 쓰는 아래 두 칸 — 「이 그래프를 만드는 코드」와
+     「AI에게 시킬 프롬프트」. 둘은 하는 일이 다르니 나란히 같은 모양으로 둔다.
+     코드는 이 그림을 그대로 가져가는 것이고, 프롬프트는 같은 종류의 그래프를
+     내 자료로 새로 만들게 시키는 것이다. */
+  details.panel { grid-column:1 / -1; border-top:1px solid var(--c-hair);
+                  padding-top:14px; }
+  details.panel > summary { display:flex; align-items:center;
+                            justify-content:space-between; gap:12px;
+                            cursor:pointer; list-style:none; }
+  details.panel > summary::-webkit-details-marker { display:none; }
   .summary-label { display:flex; align-items:center; gap:8px; font-size:13px;
                    font-weight:600; color:var(--c-sub); }
-  details.snippet-details[open] .summary-label .chevron { transform:rotate(90deg); }
-  details.snippet-details > summary:hover .summary-label { color:var(--c-black); }
+  details.panel[open] .summary-label .chevron { transform:rotate(90deg); }
+  details.panel > summary:hover .summary-label { color:var(--c-black); }
   pre.snippet { margin-top:14px; background:var(--c-fill); border:1px solid var(--c-hair);
                 padding:14px; font-size:12.5px; max-height:300px; overflow:auto; }
+  /* 프롬프트는 코드가 아니라 «읽고 한 줄 고쳐서» 가져가는 글이다. 화면 글꼴로
+     쓰고 줄을 접는다 — 가로로 흐르지 않으니 390px 에서 잘릴 일도 없다. */
+  pre.prompt { margin-top:14px; background:var(--c-fill); border:1px solid var(--c-hair);
+               padding:14px; font-family:var(--sans); font-size:13px; line-height:1.75;
+               white-space:pre-wrap; overflow-wrap:anywhere;
+               max-height:340px; overflow:auto; }
+  .panel-note { margin:10px 0 0; font-size:12px; line-height:1.6; color:var(--c-muted); }
 
   /* ── 꼬리말 ─────────────────────────────────────────────────────────── */
   footer { background:var(--c-black); padding:40px 0 48px; }
@@ -407,7 +418,8 @@
     <h2 class="section-title">그래프 <span class="num">16</span>종</h2>
     <p class="section-sub">오른쪽 칸에서 제목·출처를 바꾸고, 「각주·범례·이름 바꾸기」를 펼치면
       그래프 안의 (가)(나)(다)까지 글자칸으로 고칩니다. 숫자와 구조는 JSON 칸에 그대로 남아
-      있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.</p>
+      있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.
+      코드가 부담스러우시면 「AI에게 시킬 프롬프트」를 복사해, 평소 쓰시는 AI에 붙여넣으세요.</p>
     <nav class="index" aria-label="그래프 16종 색인">
       <ul id="index-list"></ul>
     </nav>
@@ -995,6 +1007,134 @@ function snippetFor(type, data, options) {
   return lines.join('\n');
 }
 
+/* ── AI에게 시킬 프롬프트 ──────────────────────────────────────────────────
+ *
+ * 카드마다 「코드 복사」와 「프롬프트 복사」 두 단추가 있는데 하는 일이 다르다.
+ *   · 코드 복사   — 지금 화면에 있는 «이 그림 그대로» 를 가져간다.
+ *   · 프롬프트 복사 — 같은 종류의 그래프를 «내 자료» 로 새로 만들게 AI에게 시킨다.
+ * 그래서 프롬프트에는 이 카드의 자료를 담지 않는다. 담으면 길어지기만 하고,
+ * 두 단추가 같은 일을 하는 것처럼 보인다.
+ *
+ * 프롬프트가 이렇게 긴 이유는 하나다 — 이 라이브러리는 2026년에 나왔고 어떤
+ * 모델의 학습 데이터에도 없다. 「csat-chart.js 로 기후 그래프 그려줘」 라고만
+ * 하면 그럴듯한 가짜 API 를 지어내고, 그 코드는 돌아가지 않는다. 참고 문서
+ * 주소·실제로 되는 CDN 주소·공장 함수 이름·그 종류의 데이터 모양까지 쥐어
+ * 줘야 처음 보는 모델이 맞는 코드를 쓴다.
+ */
+const PROMPT_DOC_URL = 'https://yhk1m.github.io/csat-chart.js/ai-reference.md';
+
+/**
+ * 「그릴 자료」 칸에 넣어 둘 본보기. 종류마다 손으로 쓴다 — 삼각 그래프 카드에
+ * 기후 예시를 적어 두면 아무 도움이 안 된다. 전부 지리 교과서·시험지에서 실제로
+ * 나오는 주제로 골랐다.
+ */
+const PROMPT_EXAMPLES = {
+  'absbar': '강원·충북·전남의 논 면적과 밭 면적. 출처는 통계청 농업면적조사.',
+  'category-dot': '서울·대전·광주·강릉의 연평균 열대야 일수. 출처는 기상청.',
+  'climate': '제주의 월별 기온과 강수량. 출처는 기상청 1991~2020년 평년값.',
+  'cube': '(가)~(다) 세 지역을 노년층 인구 비율·제조업 종사자 비율·1인당 지역내총생산 세 축으로 나누어 보기.',
+  'data-table': '(가)~(라) 네 지역의 연평균 기온·연강수량·기온의 연교차. 출처는 기상청.',
+  'deviation-a': '2024년 대구의 월별 기온과 강수량이 평년값과 얼마나 달랐는지. 출처는 기상청.',
+  'deviation-b': 'A~C 세 지역의 기온과 강수량이 전국 평균과 얼마나 다른지. 출처는 기상청.',
+  'hythergraph': '부산과 시드니의 기후 비교 — 남반구와 북반구의 계절이 반대인 것이 보이게. 출처는 기상청과 세계기상기구(WMO) 평년값.',
+  'line': '2000년부터 2024년까지 우리나라 1인 가구 비율의 변화. 출처는 통계청 인구주택총조사.',
+  'matrix-table': '(가)~(라) 네 도시 사이의 하루 통근·통학 인구. 출처는 통계청.',
+  'pyramid': '전남 고흥군의 인구 피라미드 — 촌락의 노령화가 드러나게. 출처는 통계청 주민등록인구.',
+  'radar': '서울·울산·전주 세 도시의 도시 기능을 행정·공업·상업·교육·관광 다섯 축으로 비교.',
+  'scatter': '시·도별 노년층 인구 비율과 1인당 지역내총생산. 원의 크기는 총인구. 출처는 통계청.',
+  'stacked': '우리나라 1차 에너지 소비 구조를 1990년·2010년·2024년으로 나누어 비교. 출처는 에너지경제연구원.',
+  'ternary': '(가)~(라) 네 지역의 1·2·3차 산업 취업자 구성비. 출처는 통계청.',
+  'treemap': '우리나라 수출액 상위 품목의 비중. 출처는 한국무역협회.',
+};
+
+/**
+ * 값 하나를 «모양» 한 줄로 줄인다. 긴 배열은 첫 원소만 보이고 개수를 적는다 —
+ * 열두 달을 다 적으면 프롬프트가 자료로 뒤덮인다.
+ *
+ * 이 줄은 손으로 적지 않는다. `createDefault○○Data()` 가 «지금» 돌려주는 것을
+ * 그대로 줄인 것이라, 라이브러리가 바뀌면 이 줄도 저절로 따라 바뀐다.
+ */
+function shapeOf(v) {
+  if (Array.isArray(v)) {
+    if (v.length === 0) return '[]';
+    if (v.length <= 2) return '[' + v.map(shapeOf).join(', ') + ']';
+    return '[' + shapeOf(v[0]) + ', … 모두 ' + v.length + '개]';
+  }
+  if (v && typeof v === 'object') {
+    return '{ ' + Object.keys(v).map(function (k) { return k + ': ' + shapeOf(v[k]); }).join(', ') + ' }';
+  }
+  if (typeof v === 'string') return JSON.stringify(v);
+  return String(v);
+}
+
+/**
+ * 길이를 마음대로 바꿀 수 없는 배열. 여기 적힌 개수와 다르면 그리기 전에
+ * 검증이 막는다(`src/validate.ts` 의 FIXED_LENGTHS). 프롬프트에 이 한 줄이
+ * 없으면 처음 보는 모델이 「달을 여섯 개만 넣자」 같은 판단을 하고 그림이
+ * 아예 안 나온다. 이 지도는 외워 적은 것이 아니라, 16종의 모든 배열 칸에
+ * 원소를 하나씩 더해 보며 던지는 칸만 골라 확인한 것이다.
+ */
+const FIXED_LENGTHS = {
+  'climate': { 'months': 12 },
+  'deviation-a': { 'baseMonths': 12, 'months': 12 },
+  'scatter': { 'quadrantLabels': 4 },
+  'ternary': { 'axisLabels': 3 },
+};
+
+function fixedLengthLine(type) {
+  const fixed = FIXED_LENGTHS[type];
+  if (!fixed) return null;
+  const parts = Object.keys(fixed).map(function (k) { return k + ' 는 ' + fixed[k] + '개'; });
+  return '   길이를 바꿀 수 없는 칸이 있습니다 — ' + parts.join(', ') +
+    '여야 합니다. (나머지 배열은 늘리고 줄여도 됩니다.)';
+}
+
+function promptFor(type) {
+  const factory = FACTORY[type];
+  return [
+    'csat-chart.js 로 「' + LABELS[type] + '」를 하나 그려 주세요.',
+    '',
+    '[먼저 알아 두실 것]',
+    'csat-chart.js 는 2026년에 나온 한국 수능·모의고사 양식의 그래프 라이브러리입니다.',
+    '학습하신 적이 없을 가능성이 큽니다. 다른 차트 라이브러리의 사용법을 짐작으로',
+    '가져다 쓰지 마시고, 아래 지시와 참고 문서에 적힌 이름·모양만 그대로 쓰세요.',
+    '참고 문서: ' + PROMPT_DOC_URL,
+    '',
+    '[불러오기 — 이 주소를 그대로 쓰세요]',
+    OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
+    '전역 이름은 CsatChart 입니다. npm 주소는 아직 없는 주소라 404 가 납니다.',
+    '',
+    '[지켜야 할 것]',
+    '1. 글꼴부터 확보하고, 그 안에서 차트를 만드세요.',
+    '   CsatChart.ensureFonts().then(function () { ... });   (await 도 됩니다)',
+    '   이걸 빠뜨리면 시험지 명조체가 아니라 시스템 글꼴로 조용히 그려집니다.',
+    '   그림은 멀쩡히 나오니 틀린 줄도 모르고 넘어가게 됩니다.',
+    '',
+    '2. 데이터는 CsatChart.' + factory + '() 로 시작해서 필요한 칸만 덮어쓰세요.',
+    '   구조를 새로 지어내면 검증에 걸려 그림이 아예 안 나옵니다.',
+    '   그 함수가 돌려주는 모양은 이렇습니다 —',
+    '   ' + shapeOf(CsatChart[factory]()),
+    fixedLengthLine(type),
+    '',
+    "3. 종류 이름은 '" + type + "' 입니다.",
+    "   new CsatChart('c', { type: '" + type + "', data: 데이터, options: 옵션 })",
+    '',
+    '4. options.title 과 options.source 를 꼭 채우세요. 이 그림이 시험지 그림으로',
+    '   읽히게 하는 것이 바로 그 둘입니다. 각주가 필요하면 options.footnotes 에',
+    '   문자열 배열로 넣습니다 — 앞의 별표(*)는 라이브러리가 알아서 붙입니다.',
+    '',
+    '5. 캔버스는 <canvas id="c" width="800" height="600"></canvas> 로 두세요.',
+    '   이 라이브러리는 여백과 글자 크기가 절대 픽셀이라, 500×400 아래로 줄이면',
+    '   제목과 눈금이 겹칩니다.',
+    '',
+    '[그릴 자료 — 이 줄을 지우고 직접 적어 주세요]',
+    '예) ' + PROMPT_EXAMPLES[type],
+    '',
+    '브라우저에서 그대로 열어 볼 수 있는 HTML 파일 하나로 주세요.',
+  // 해당 없는 종류에서 fixedLengthLine 이 null 을 돌려준다 — 빈 줄로 남기지 않는다.
+  ].filter(function (line) { return line !== null; }).join('\n');
+}
+
 function copyText(text, btn) {
   const done = function () {
     const original = btn.dataset.label;
@@ -1046,6 +1186,7 @@ function card(type, ordinal) {
   el.className = 'card';
   el.id = 'card-' + type;
   const copyBtnLabel = ICON_COPY + '코드 복사';
+  const promptBtnLabel = ICON_COPY + '프롬프트 복사';
   // 한 페이지에 카드 열여섯 장이 있다. label[for] 가 엉뚱한 칸을 가리키지
   // 않도록 id 에 종류 이름을 붙여 카드마다 다르게 만든다.
   const uid = function (name) { return name + '-' + type; };
@@ -1141,12 +1282,22 @@ function card(type, ordinal) {
           '<button data-act="reset" disabled>' + ICON_RESET + '되돌리기</button>' +
         '</div>' +
       '</div>' +
-      '<details class="snippet-details">' +
+      '<details class="panel">' +
         '<summary>' +
           '<span class="summary-label">' + CHEVRON + '이 그래프를 만드는 코드</span>' +
           '<button data-act="copy" data-label="' + copyBtnLabel.replace(/"/g, '&quot;') + '">' + copyBtnLabel + '</button>' +
         '</summary>' +
         '<pre class="snippet"><code></code></pre>' +
+      '</details>' +
+      '<details class="panel">' +
+        '<summary>' +
+          '<span class="summary-label">' + CHEVRON + 'AI에게 시킬 프롬프트</span>' +
+          '<button data-act="copy-prompt" data-label="' + promptBtnLabel.replace(/"/g, '&quot;') + '">' + promptBtnLabel + '</button>' +
+        '</summary>' +
+        '<pre class="prompt"></pre>' +
+        '<p class="panel-note">위 「코드 복사」가 <b>지금 이 그림을 그대로</b> 가져가는 것이라면, ' +
+          '이 프롬프트는 같은 종류의 그래프를 <b>선생님 자료로 새로</b> 만들게 AI에게 시키는 글입니다. ' +
+          '그래서 이 카드의 자료는 담기지 않습니다 — 맨 아래 「그릴 자료」 줄만 고쳐서 쓰세요.</p>' +
       '</details>' +
     '</div>';
 
@@ -1156,6 +1307,7 @@ function card(type, ordinal) {
   const namesBox = el.querySelector('.names');
   const err = el.querySelector('.err');
   const snippetCode = el.querySelector('.snippet code');
+  const promptPre = el.querySelector('pre.prompt');
   const resetBtn = el.querySelector('[data-act=reset]');
   const fresh = () => sampleWithPatch(type);
 
@@ -1293,6 +1445,8 @@ function card(type, ordinal) {
   }
 
   area.value = JSON.stringify(state.data, null, 2);
+  // 프롬프트는 종류에만 달렸다 — 카드의 자료·옵션과 무관하므로 한 번만 채운다.
+  promptPre.textContent = promptFor(type);
   syncOptionControls();
   syncControlVisibility();
   syncNames();
@@ -1360,12 +1514,19 @@ function card(type, ordinal) {
     chart.download(type + '.png', { scale: 2 });
   });
 
-  el.querySelector('[data-act=copy]').addEventListener('click', function (ev) {
-    // <summary> 안의 버튼이다 — 그냥 두면 클릭이 <details> 를 여닫는 기본
-    // 동작까지 함께 트리거해, 닫힌 채로도 복사만 하려는 게 안 된다.
-    ev.preventDefault();
-    ev.stopPropagation();
-    copyText(snippetCode.textContent, ev.currentTarget);
+  // 두 복사 단추(코드·프롬프트)가 같은 규칙으로 움직인다.
+  const copySource = {
+    'copy': function () { return snippetCode.textContent; },
+    'copy-prompt': function () { return promptPre.textContent; },
+  };
+  el.querySelectorAll('[data-act^=copy]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      // <summary> 안의 버튼이다 — 그냥 두면 클릭이 <details> 를 여닫는 기본
+      // 동작까지 함께 트리거해, 닫힌 채로도 복사만 하려는 게 안 된다.
+      ev.preventDefault();
+      ev.stopPropagation();
+      copyText(copySource[btn.getAttribute('data-act')](), btn);
+    });
   });
 
   return el;

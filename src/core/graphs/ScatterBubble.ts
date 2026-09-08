@@ -2,7 +2,7 @@
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, getFont, autoRange, fillTextMultiline } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
-import { clampLinesMiddle, drawFloatingLabel, fillLines, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
+import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
 
 export function renderScatterGraph(
   ctx: CanvasRenderingContext2D,
@@ -222,7 +222,7 @@ function renderNormal(
 
   // 데이터 포인트
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, font, cf, options.showDataLabels,
-    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH });
+    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h);
 
   // 버블 크기 범례
   if (outsideLegend) {
@@ -445,7 +445,7 @@ function renderDeviation(
 
   // 데이터 포인트
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, font, cf, options.showDataLabels,
-    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH });
+    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h);
 
   // 버블 크기 범례
   if (data.showBubble && data.points.length > 0) {
@@ -468,7 +468,9 @@ function drawPoints(
   font: GraphOptions['fontFamily'],
   cf: string,
   showLabels: boolean,
-  bounds?: LabelBox
+  bounds: LabelBox | undefined,
+  canvasW: number,
+  canvasH: number,
 ) {
   const maxSize = data.points.length > 0 ? Math.max(...data.points.map((p) => p.size), 1) : 1;
 
@@ -543,7 +545,10 @@ function drawPoints(
       const offset = data.showBubble && pt.size > 0
         ? (pt.size / maxSize) * data.bubbleScale + 4
         : 8;
-      ctx.fillText(`(${pt.x}, ${pt.y})`, cx + offset, cy + 2);
+      // 오른쪽 끝 점의 값 라벨은 플롯 밖으로 흘러 캔버스를 넘을 수 있다
+      const valueLabel = `(${pt.x}, ${pt.y})`;
+      const at = nudgeInside(ctx, valueLabel, cx + offset, cy + 2, canvasW, canvasH);
+      ctx.fillText(valueLabel, at.x, at.y);
     }
   }
 }

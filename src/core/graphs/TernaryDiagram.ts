@@ -1,7 +1,8 @@
 // © 2026 김용현
 import { type TernaryGraphData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, getFont, fillTextMultiline } from '../canvas/renderer';
+import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { EDGE, MIN_SCALE, fillLines, largestFitting, shrinkToWidth, textExtent, wrapToWidth } from '../canvas/fit';
 
 // 삼각좌표 → 캔버스 좌표 변환
 // a = 하단좌, b = 하단우, c = 상단
@@ -55,7 +56,15 @@ export function renderTernaryGraph(
   // 삼각형 크기: plot 영역에 맞춤
   const triSizeByW = plotW * 0.9;
   const triSizeByH = plotH * 2 / Math.sqrt(3);
-  const triSize = Math.min(triSizeByW, triSizeByH);
+
+  // 축 이름은 삼각형 **바깥** 좌·우·아래에 52px 떨어져 붙는다. 이름이 길면
+  // 삼각형을 줄여 자리를 낸다 — 방사형·정육면체와 같은 손해다. 다만 그림이
+  // 5분의 1 넘게 줄어들 판이면 줄이기 전에 이름을 접는다.
+  const nameFit = fitAxisNames(
+    ctx, data.axisLabels, options, w, h, plotX + plotW / 2, padding.top,
+    Math.min(triSizeByW, triSizeByH),
+  );
+  const triSize = nameFit.size;
   const triH = triSize * Math.sqrt(3) / 2;
 
   const cx = plotX + plotW / 2;
@@ -173,31 +182,16 @@ export function renderTernaryGraph(
     ctx.fillText(cLabel, cPos.x + cTick.x * tickLen + 4, cPos.y + cTick.y * tickLen);
   }
 
-  // 축 라벨
-  ctx.font = getFont(options.fontSize.axisLabel * 1.3, font, customFont, 'bold');
+  // 축 라벨 — 자리는 재는 쪽(fitAxisNames)과 같은 계산을 쓴다
+  ctx.font = getFont(nameFit.fontSize, font, customFont, 'bold');
   ctx.fillStyle = '#000';
-
-  // A (좌변 중앙 — 바깥쪽)
-  const aMidX = (topPt.x + leftPt.x) / 2;
-  const aMidY = (topPt.y + leftPt.y) / 2;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  const labelLineH = options.fontSize.axisLabel * 1.3 * 1.3;
-  fillTextMultiline(ctx, data.axisLabels[0], aMidX - 52, aMidY, labelLineH);
-
-  // B (하변 중앙 — 아래쪽)
-  const bMidX = (leftPt.x + rightPt.x) / 2;
-  const bMidY = (leftPt.y + rightPt.y) / 2;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(data.axisLabels[1], bMidX, bMidY + 52);
-
-  // C (우변 중앙 — 바깥쪽)
-  const cMidX = (rightPt.x + topPt.x) / 2;
-  const cMidY = (rightPt.y + topPt.y) / 2;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTextMultiline(ctx, data.axisLabels[2], cMidX + 52, cMidY, labelLineH);
+  const labelLineH = nameFit.fontSize * 1.3;
+  const spots = namePlaces(w, plotX + plotW / 2, padding.top, triSize, nameFit.lines, labelLineH);
+  for (let i = 0; i < 3; i++) {
+    ctx.textAlign = spots[i].align;
+    ctx.textBaseline = spots[i].baseline;
+    fillLines(ctx, nameFit.lines[i], spots[i].x, spots[i].y, labelLineH);
+  }
 
   // 데이터 포인트
   for (let i = 0; i < data.points.length; i++) {
@@ -236,4 +230,102 @@ export function renderTernaryGraph(
 
   // 출처 + 각주 — 삼각형 좌우 범위 기준
   drawSourceAndFootnote({ ctx, plotX: leftPt.x, plotW: rightPt.x - leftPt.x, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+}
+
+// ── 축 이름 자리 잡기 ────────────────────────────────────────
+//
+// 세 이름은 삼각형 바깥에 붙으므로, 삼각형을 키우면 이름이 캔버스 밖으로
+// 밀린다 — «들어가는가» 가 크기에 대해 단조로우니 이분 탐색이 맞는다.
+
+/** 이름을 접느니 삼각형을 줄이겠다고 보는 한계 — 이보다 작아지면 접는다 */
+const SHRINK_LIMIT = 0.8;
+
+interface NameSpot {
+  x: number;
+  y: number;
+  align: CanvasTextAlign;
+  baseline: CanvasTextBaseline;
+}
+
+/**
+ * 삼각형 크기가 정해졌을 때 세 축 이름이 놓이는 자리.
+ * `y` 는 **줄 묶음의 세로 가운데**다 (한 줄이면 예전 좌표와 정확히 같다).
+ */
+function namePlaces(
+  _w: number, cx: number, padTop: number, triSize: number,
+  lines: string[][], lineH: number,
+): NameSpot[] {
+  const triH = triSize * Math.sqrt(3) / 2;
+  const cy = padTop + 11 + triH * 2 / 3;
+  const topY = cy - triH * 2 / 3;
+  const sideY = cy + triH / 3;
+  const aMidX = cx - triSize / 4;
+  const aMidY = (topY + sideY) / 2;
+  const cMidX = cx + triSize / 4;
+  // B 는 기준선이 top 이라 아래로 자란다 — 첫 줄이 예전 자리에 오도록 가운데를 내린다
+  const bTop = sideY + 52;
+  return [
+    { x: aMidX - 52, y: aMidY, align: 'right', baseline: 'middle' },
+    { x: cx, y: bTop + ((lines[1].length - 1) * lineH) / 2, align: 'center', baseline: 'top' },
+    { x: cMidX + 52, y: aMidY, align: 'left', baseline: 'middle' },
+  ];
+}
+
+function fitAxisNames(
+  ctx: CanvasRenderingContext2D,
+  labels: [string, string, string],
+  options: GraphOptions,
+  w: number, h: number,
+  cx: number, padTop: number,
+  maxSize: number,
+): { size: number; lines: string[][]; fontSize: number } {
+  ctx.save();
+  const makeFont = (size: number) => getFont(size, options.fontFamily, options.customFont, 'bold');
+  let fontSize = options.fontSize.axisLabel * 1.3;
+  // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
+  const given = labels.map((l) => (l || '').split('\\n'));
+  let lines = given.map((g) => g.slice());
+
+  const fits = (size: number) => {
+    ctx.font = makeFont(fontSize);
+    const lineH = fontSize * 1.3;
+    const spots = namePlaces(w, cx, padTop, size, lines, lineH);
+    return spots.every((sp, i) => {
+      ctx.textAlign = sp.align;
+      ctx.textBaseline = sp.baseline;
+      const es = lines[i].map((l) => textExtent(ctx, l));
+      const half = ((lines[i].length - 1) * lineH) / 2;
+      return sp.x - Math.max(...es.map((e) => e.left)) >= EDGE
+        && sp.x + Math.max(...es.map((e) => e.right)) <= w - EDGE
+        && sp.y - half - Math.max(...es.map((e) => e.up)) >= EDGE
+        && sp.y + half + Math.max(...es.map((e) => e.down)) <= h - EDGE;
+    });
+  };
+
+  let size = largestFitting(40, maxSize, fits);
+
+  if (size < maxSize * SHRINK_LIMIT) {
+    ctx.font = makeFont(fontSize);
+    const lineH = fontSize * 1.3;
+    const spots = namePlaces(w, cx, padTop, maxSize, lines, lineH);
+    lines = given.map((g, i) => {
+      const sp = spots[i];
+      const room = sp.align === 'left' ? w - EDGE - sp.x
+        : sp.align === 'right' ? sp.x - EDGE
+          : 2 * Math.min(sp.x - EDGE, w - EDGE - sp.x);
+      return g.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, room)));
+    });
+    size = largestFitting(40, maxSize, fits);
+  }
+
+  if (size <= 40) {
+    // 삼각형을 바닥까지 줄여도 안 들어간다 — 이름 글꼴을 줄여 본다
+    fontSize = options.fontSize.axisLabel * 1.3 * MIN_SCALE;
+    ctx.font = makeFont(fontSize);
+    lines = lines.map((ls) => ls.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))));
+    size = largestFitting(40, maxSize, fits);
+  }
+
+  ctx.restore();
+  return { size, lines, fontSize };
 }

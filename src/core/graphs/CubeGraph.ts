@@ -2,7 +2,7 @@
 import { type CubeGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, getFont } from '../canvas/renderer';
 import { drawSourceAndFootnote } from '../canvas/labels';
-import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
+import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 
 // 사각 투영 (oblique / cabinet)
 // 앞면: Z→오른쪽, Y→위 (직사각형)
@@ -180,7 +180,9 @@ export function renderCubeGraph(
     ctx.font = `bold ${fs.title}px 'Noto Sans KR', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(options.title, w / 2, yAxisTop[1] - 50);
+    // 제목은 캔버스 가운데에 놓이므로 길면 양쪽으로 넘친다 — 줄여 담고 민다
+    drawFloatingLabel(ctx, options.title, w / 2, yAxisTop[1] - 50, w, h, fs.title,
+      (size) => `bold ${size}px 'Noto Sans KR', sans-serif`);
   }
 
   // Z축 이름/높음 라벨 아래 기준

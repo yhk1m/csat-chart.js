@@ -3,6 +3,7 @@
 import { type DeviationBData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 
 export function renderDeviationBGraph(
@@ -112,9 +113,13 @@ export function renderDeviationBGraph(
   ctx.font = getFont(options.fontSize.tick * 1.2, font, customFont, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+  // 지역 이름은 칸 가운데에 놓이므로 양 끝 칸의 이름이 캔버스를 넘을 수 있다.
+  // 아래 여백에 떠 있는 글자라 안으로 밀어도 어느 막대의 이름인지 안 흐려진다.
+  const regionFont = (size: number) => getFont(size, font, customFont, 'bold');
   for (let i = 0; i < n; i++) {
     const cx = plotX + slotW * i + slotW / 2;
-    ctx.fillText(regions[i].label, cx, plotY + plotH + 12);
+    drawFloatingLabel(ctx, regions[i].label, cx, plotY + plotH + 12, w, h,
+      options.fontSize.tick * 1.2, regionFont);
   }
 
   // 강수량 차이 막대

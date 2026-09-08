@@ -7,6 +7,7 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, getFont, autoRange } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
 
 // 계열별 선 스타일
@@ -193,15 +194,18 @@ export function renderHythergraph(
   // 축 단위 — X축 우측 끝, Y축 상단 끝
   ctx.font = getFont(fs.axisLabel, font, cf, 'bold');
   ctx.fillStyle = '#000';
+  // 단위는 플롯 **바깥 여백**에 떠 있다 — 캔버스를 벗어나면 안으로 민다.
+  // 왼쪽 여백이 좁은 편이라 대체 글꼴이 조금만 넓어도 「(mm)」 이 밖으로 나갔다.
+  const unitFont = (size: number) => getFont(size, font, cf, 'bold');
   if (data.xUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    ctx.fillText(data.xUnit, plotX + plotW + 10, plotY + plotH + 35);
+    drawFloatingLabel(ctx, data.xUnit, plotX + plotW + 10, plotY + plotH + 35, w, h, fs.axisLabel, unitFont);
   }
   if (data.yUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(data.yUnit, plotX, plotY - 16);
+    drawFloatingLabel(ctx, data.yUnit, plotX, plotY - 16, w, h, fs.axisLabel, unitFont);
   }
 
   // 계열별 렌더링

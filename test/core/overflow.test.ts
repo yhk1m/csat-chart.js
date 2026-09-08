@@ -15,7 +15,12 @@
 // 세로로 세운 축 이름은 `rotate` 뒤에 찍히므로 **변환을 먹인 사각형**을 잰다.
 // 재는 시점의 `getTransform()` 으로 네 모서리를 옮겨 감싸는 상자를 만든다.
 //
+// 케이스는 72가지(16종 × 두 자료 × 두 범례 위치) × 두 글꼴 폭이다. 글꼴 폭은
+// `FONT_WIDTHS` 를 보라 — 기계마다 다른 대체 글꼴 때문에 여기서만 통과하는 일이
+// 없게 «넓은 글꼴» 을 흉내 내어 한 번 더 돈다.
+//
 // 진단표: `OVERFLOW_REPORT=경로.txt npx vitest run test/core/overflow.test.ts`
+//         (`OVERFLOW_FONT_SCALE=1.25` 를 함께 주면 넓은 글꼴로 잰다)
 import { describe, it, vi, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync } from 'node:fs';
@@ -213,10 +218,35 @@ const dirs = (o: ReturnType<typeof outCanvas>) => {
   return d.join(', ');
 };
 
-function run(c: ProbeCase) {
+/**
+ * 재는 기계마다 **대체 글꼴이 다르다.** 이 검사는 그 폭에 매달려 있어서, 저자
+ * 기계에서 3px 남고 통과한 자리가 CI 의 리눅스 글꼴에서는 4px 모자라 깨졌다
+ * (하이서그래프의 「(mm)」가 실제로 그랬다). 그래서 «폭이 이만큼 넓은 글꼴»
+ * 을 흉내 내어 한 번 더 돌린다 — `measureText().width` 만 부풀리면 배치를
+ * 정하는 쪽과 재는 쪽이 함께 그 글꼴을 본다.
+ *
+ * 사용자에게도 실제 상황이다. 이 라이브러리는 Noto 를 못 받으면 시스템 대체
+ * 글꼴로 그린다고 README 가 적어 두었다.
+ */
+const FONT_WIDTHS: [string, number][] = [['제 글꼴', 1], ['넓은 대체 글꼴', 1.25]];
+
+/** `measureText().width` 만 배로 부풀린 ctx (다른 값은 그대로) */
+function widenFont(ctx: CanvasRenderingContext2D, scale: number) {
+  if (scale === 1) return;
+  const raw = ctx.measureText.bind(ctx);
+  (ctx as unknown as Record<string, unknown>).measureText = (t: string) => {
+    const m = raw(t);
+    return new Proxy(m, {
+      get: (o, k) => (k === 'width' ? (o as unknown as TextMetrics).width * scale : Reflect.get(o, k)),
+    }) as TextMetrics;
+  };
+}
+
+function run(c: ProbeCase, fontScale = 1) {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
   const hits: Hit[] = [];
+  widenFont(ctx, fontScale);
   instrument(ctx, hits);
   c.render(ctx, W, H, c.data() as never, c.options());
   return hits;
@@ -259,7 +289,7 @@ describe('넘침', () => {
     it('진단표', () => {
       const rows: string[] = [];
       for (const c of all) {
-        const hits = run(c);
+        const hits = run(c, Number(process.env.OVERFLOW_FONT_SCALE ?? 1));
         const legendHits = hits.filter((x) => x.legend);
         const texts = hits.filter(isText);
         const bad = textOverflows(hits);
@@ -291,16 +321,19 @@ describe('넘침', () => {
     });
   }
 
-  it.each(all.map((c) => [c.name, c] as const))('%s — 범례가 캔버스를 넘지 않는다', (_name, c) => {
-    const hits = run(c);
+  const withFonts = all.flatMap((c) =>
+    FONT_WIDTHS.map(([fontName, scale]) => [`${c.name} · ${fontName}`, c, scale] as const));
+
+  it.each(withFonts)('%s — 범례가 캔버스를 넘지 않는다', (_name, c, scale) => {
+    const hits = run(c, scale);
     const { max, acc } = legendCanvasOverflow(hits);
     expect(max, `범례가 캔버스를 벗어났습니다 — ${dirs(acc)}`).toBeLessThanOrEqual(EPS);
   });
 
   // 범례든 축 이름이든 눈금 숫자든, **읽히지 않는 글자**를 그리는 것은 언제나
   // 결함이다. 그래서 종류를 가리지 않고 글자 전부에 같은 잣대를 댄다.
-  it.each(all.map((c) => [c.name, c] as const))('%s — 글자가 캔버스를 넘지 않는다', (_name, c) => {
-    const hits = run(c);
+  it.each(withFonts)('%s — 글자가 캔버스를 넘지 않는다', (_name, c, scale) => {
+    const hits = run(c, scale);
     const bad = textOverflows(hits);
     const why = bad.map(({ hit, o }) => `«${hit.text}» (${hit.where}) ${dirs(o)}`).join('\n  ');
     expect(bad.length, `글자가 캔버스를 벗어났습니다 —\n  ${why}`).toBe(0);

@@ -97,7 +97,8 @@ export function renderDeviationBGraph(
   ctx.stroke();
 
   const slotW = plotW / n;
-  const barWidth = slotW * 0.5;
+  // 지역이 둘·셋뿐이면 칸의 절반도 90px 을 넘는다 — AbsBarGraph 와 같은 80px 상한을 둔다
+  const barWidth = Math.min(slotW * 0.5, 80);
 
   // X축 라벨 (크게)
   ctx.fillStyle = '#000';

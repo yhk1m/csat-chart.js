@@ -106,9 +106,12 @@ function renderStackedBar(
     ctx.textBaseline = 'bottom';
     ctx.fillText(data.unit, plotX - 10, plotY - 16);
 
-    // 막대
+    // 막대 — 칸의 30%, 최대 84px. 상한은 AbsBarGraph 의 80px 과 같은 꼴이되
+    // 조금 넓다: 이 막대는 칸 안에 계열 이름을 적으므로(drawSegmentLabel),
+    // 네 글자 이름(19.8px 굵은 명조로 76.5px)이 좌우 여백 6px 과 함께
+    // 눌리지 않고 들어가는 폭이 82.5px 이다.
     const barArea = plotW / n;
-    const barW = barArea * 0.6;
+    const barW = Math.min(barArea * 0.3, 84);
     for (let c = 0; c < n; c++) {
       const cx = plotX + barArea * c + barArea / 2;
       const total = data.categories[c].values.reduce((a, b) => a + b, 0);
@@ -188,9 +191,9 @@ function renderStackedBar(
     ctx.textBaseline = 'top';
     ctx.fillText(data.unit, plotX + plotW + 30, plotY + plotH + 10);
 
-    // 막대
+    // 막대 — 세로와 같은 규칙(칸의 30%, 최대 84px)
     const barArea = plotH / n;
-    const barH = barArea * 0.6;
+    const barH = Math.min(barArea * 0.3, 84);
     for (let c = 0; c < n; c++) {
       const cy = plotY + barArea * c + barArea / 2;
       const total = data.categories[c].values.reduce((a, b) => a + b, 0);

@@ -6,7 +6,7 @@
 유추해서 쓰지 말고 이 문서에 적힌 이름·모양을 그대로 따른다. 이 문서에 없는
 API는 존재를 가정하지 않는다.
 
-- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.0.0)
+- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.1.0)
 - 라이브 데모: https://yhk1m.github.io/csat-chart.js/
 - 라이선스: MIT, 런타임 의존성 0
 
@@ -33,7 +33,7 @@ npm에 아직 발행되지 않았으므로(2절 참고) **jsdelivr의 `npm` 경�
 ```
 
 이 주소는 `master` 브랜치의 최신 빌드를 그대로 서빙한다 — 버전 고정이 아니다.
-npm 발행 뒤에는 `https://cdn.jsdelivr.net/npm/csat-chart.js@1.0.0` 처럼 버전을
+npm 발행 뒤에는 `https://cdn.jsdelivr.net/npm/csat-chart.js@1.1.0` 처럼 버전을
 박아 쓰는 쪽이 안전하다.
 
 ### npm — 아직 안 됨

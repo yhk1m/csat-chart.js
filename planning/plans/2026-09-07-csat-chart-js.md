@@ -4,6 +4,13 @@
 > 작업 당시 세션에서 단계별 진행 상황을 추적하려고 아래 체크박스(`- [ ]`)를 썼을
 > 뿐이며, 지금은 전부 끝난 일이다 — 다시 체크하지 않는다. 남은 할 일 목록이
 > 아니라 «어떻게 만들었는가» 의 기록으로 읽는다.
+>
+> **지금은 다른 것:** 아래 「반드시 지킬 것」 1번 — `src/core/` 를 고치지 않는다 —
+> 은 **1.0.0 을 만드는 동안의 규칙이었고 1.1.0 에서 끝났다.** 이식이 끝나 판이
+> 나갔으므로 골든 이미지는 이제 «이식이 옳았다» 의 증거가 아니라 «렌더 결과가
+> 언제 어떻게 달라졌는가» 의 기준이다. 렌더러를 고칠 때는 골든 31장을 갱신하고
+> 갱신 전후를 사람이 눈으로 대조한 뒤 CHANGELOG 에 남긴다 — 설계 문서 §5 가
+> 예고해 둔 그 «별도 판단 지점» 이다.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -2914,7 +2921,8 @@ MIT © 2026 김용현
   를 담은 메뉴 목록)·`GRAPH_LABELS`·`MAP_GRAPH_TYPES`·`isMapGraphType`·
   `ExportSettings`·`createDefaultExportSettings` 는 내보내지 않는다. 그리는 코드는
   그대로 있으므로 렌더 결과는 같다.
-- 렌더러 파일 자체는 **한 글자도 고치지 않았다.** 골든 이미지 31장이 그 증거다.
+- 렌더러 파일 자체는 이 판(1.0.0)까지 **한 글자도 고치지 않았다.** 골든 이미지
+  31장이 그 증거였다. (1.1.0 부터는 고친다 — 무엇이 달라졌는지는 CHANGELOG 가 적는다.)
 
 ### 이관 시점의 갈래
 
@@ -3255,6 +3263,10 @@ git commit -m "ci: 검증 워크플로와 1.0.0 버전"
 한다.** 그 순간 «똑같이 그려진다» 의 증거가 사라진다. 그래서 이번에는 README 와
 CHANGELOG 에 정확히 적어 두기만 했다. 나중에 손댄다면 골든 갱신을 포함한 별도
 작업으로, 갱신 전후를 사람이 눈으로 대조하는 단계를 넣어야 한다.
+
+> (1.1.0 덧붙임: 그 «별도 작업» 을 실제로 한 판이 1.1.0 이다 — 막대 폭 때문에
+> `src/core/` 를 처음 고쳤고, 골든 31장 중 3장을 갱신하며 갱신 전후를 눈으로
+> 대조했다. 위 `sourceInline`·`sourceLeft` 는 그때도 손대지 않았다.)
 
 **화면 캔버스의 devicePixelRatio 를 다루지 않는다.** 레티나에서 조금 흐릿하다.
 `toDataURL({ scale })` 로 또렷한 PNG 를 뽑는 길은 있고 README 가 안내한다.

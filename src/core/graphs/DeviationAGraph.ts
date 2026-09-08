@@ -139,7 +139,9 @@ export function renderDeviationAGraph(
   ctx.stroke();
 
   // 강수량 편차 막대 — +/- 동일 색상
-  const barWidth = slotW * 0.55;
+  // monthInterval 이 2면 칸이 둘뿐이라 55%가 148px 까지 벌어진다 — 같은 80px 상한을 둔다.
+  // 열두 달(24.75px)·넉 달(74.25px)에서는 걸리지 않아 그림이 그대로다.
+  const barWidth = Math.min(slotW * 0.55, 80);
   // 플롯 안 범례가 자료를 덮지 않도록 막대·점이 차지한 자리를 모아 둔다
   const inkRects: { x0: number; y0: number; x1: number; y1: number }[] = [];
   for (let s = 0; s < totalSlots; s++) {

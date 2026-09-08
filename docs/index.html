@@ -253,6 +253,8 @@
            gap:12px; }
   .names-head { margin:0; padding-top:12px; border-top:1px solid var(--c-hair);
                 font-size:12px; font-weight:700; color:var(--c-muted); }
+  /* 옵션칸과 자료칸의 경계선. 「막대 방향」부터는 options 가 아니라 data 를 고친다. */
+  .data-field { padding-top:12px; border-top:1px solid var(--c-hair); }
   .names-note { margin:-6px 0 0; font-size:12px; line-height:1.5; color:var(--c-muted); }
 
   /* 오류 줄은 늘 보이는 자리에 둔다 — JSON 칸이 접혀 있어도 읽혀야 한다.
@@ -734,6 +736,19 @@ const SUPPORTS_DATA_LABELS = ['absbar', 'category-dot', 'climate', 'deviation-b'
 const SUPPORTS_LEGEND = ['absbar', 'category-dot', 'climate', 'deviation-a',
   'deviation-b', 'hythergraph', 'line', 'pyramid', 'radar', 'stacked'];
 
+/**
+ * 「막대 방향」은 options 가 아니라 **자료** 의 값이다(`data.barDirection`).
+ * 그래서 위의 옵션 목록과 따로 두고, 화면에서도 옵션칸이 아니라 자료칸 쪽에
+ * 놓는다(카드의 «그래프 안의 이름» 바로 위).
+ *
+ * 그 필드를 가진 종류는 둘뿐이다 — `AbsBarGraphData.barDirection`·
+ * `StackedGraphData.barDirection`(`src/core/types/absbar.ts`·`stacked.ts`).
+ * 읽는 곳도 그 둘의 렌더러뿐이다(`grep -rn barDirection src/core/graphs` →
+ * `AbsBarGraph.ts` 24번째 줄·`StackedBarPie.ts` 37번째 줄). 나머지 열넷은
+ * 자료에 그 칸 자체가 없으므로 조작칸을 아예 그리지 않는다.
+ */
+const SUPPORTS_BAR_DIRECTION = ['absbar', 'stacked'];
+
 function supports(list, type) { return list.indexOf(type) >= 0; }
 
 /**
@@ -770,6 +785,11 @@ function isInert(key, type, data, options) {
     // 글자가 채움 «안» 에 놓여 흰색이 오히려 맞다. 계열이 넷 이상이면 넷째
     // 계열부터는 묶음 막대에서도 검은 글자라 보인다.
     return type === 'absbar' && !data.stacked && (data.seriesLabels || []).length <= 3;
+  }
+  if (key === 'barDirection') {
+    // StackedBarPie.ts 17번째 줄 — displayMode 가 'bar' 가 아니면 원 그래프로
+    // 갈라지고, 그쪽(renderPieChart)은 barDirection 을 아예 읽지 않는다.
+    return type === 'stacked' && data.displayMode !== 'bar';
   }
   if (key === 'showLegend') return !legendIsDrawn(type, data);
   if (key === 'legendPosition') {
@@ -1307,6 +1327,7 @@ function card(type, ordinal) {
 
   const hasLegend = supports(SUPPORTS_LEGEND, type);
   const hasDataLabels = supports(SUPPORTS_DATA_LABELS, type);
+  const hasBarDirection = supports(SUPPORTS_BAR_DIRECTION, type);
 
   // data-wrap 은 «이 칸을 감출 때 함께 감출 껍데기» 다. 조작칸 자체에만
   // hidden 을 걸면 이름표가 홀로 남는다.
@@ -1338,6 +1359,16 @@ function card(type, ordinal) {
       '<option value="serif">명조</option><option value="sans">고딕</option>' +
     '</select></div>');
 
+  // 여기서부터는 options 가 아니라 자료(data)를 고치는 칸이다 — data-opt 가
+  // 아니라 data-data 로 표시해 아래 두 갈래의 배선이 섞이지 않게 한다.
+  const dirHtml = hasBarDirection
+    ? '<div class="field data-field" data-wrap="barDirection">' +
+        '<label class="field-label" for="' + uid('dir') + '">막대 방향</label>' +
+        '<select id="' + uid('dir') + '" data-data="barDirection" title="data.barDirection">' +
+          '<option value="vertical">세로</option><option value="horizontal">가로</option>' +
+        '</select></div>'
+    : '';
+
   // 코드 접기는 오른쪽 열이 아니라 카드 폭 전체를 쓰는 «둘째 줄»이다.
   // 오른쪽 열에 두면 그 열이 4:3 캔버스보다 길어져 그래프 아래로 빈 흰
   // 자리가 남았고, 380px 폭에서는 JSON 한 줄이 늘 가로로 잘렸다.
@@ -1364,7 +1395,9 @@ function card(type, ordinal) {
           '<input type="text" id="' + uid('source') + '" data-opt="source" spellcheck="false">' +
         '</div>' +
         '<details class="sub">' +
-          '<summary>' + CHEVRON + '각주·범례·이름 바꾸기</summary>' +
+          // 「방향」은 그 칸이 있는 두 종류(absbar·stacked)에서만 이름을 올린다.
+          '<summary>' + CHEVRON + '각주·범례·' +
+            (hasBarDirection ? '방향·' : '') + '이름 바꾸기</summary>' +
           '<div class="sub-inner">' +
             '<div class="field">' +
               '<label class="field-label" for="' + uid('notes') + '">각주 — 한 줄에 하나씩 씁니다 (앞의 * 는 저절로 붙습니다)</label>' +
@@ -1372,6 +1405,7 @@ function card(type, ordinal) {
             '</div>' +
             checksHtml +
             '<div class="grid2">' + selectParts.join('') + '</div>' +
+            dirHtml +
             '<p class="names-head">그래프 안의 이름</p>' +
             '<p class="names-note">칸을 고치면 그림의 그 자리가 바로 바뀝니다.</p>' +
             '<div class="grid2 names"></div>' +
@@ -1523,6 +1557,19 @@ function card(type, ordinal) {
     }
   }
 
+  /**
+   * 자료를 고치는 조작칸(지금은 「막대 방향」 하나)을 state.data 에 맞춘다.
+   *
+   * 옵션칸과 달리 JSON 칸에서도 같은 값을 고칠 수 있다 — `"barDirection":
+   * "horizontal"` 이라고 치면 선택칸도 「가로」로 따라와야 둘이 어긋나지 않는다.
+   */
+  function syncDataControls() {
+    el.querySelectorAll('[data-data]').forEach(function (c) {
+      const v = state.data[c.getAttribute('data-data')];
+      if (v !== undefined && c.value !== v) c.value = v;
+    });
+  }
+
   /** 조작칸(제목·출처·각주·체크·선택)을 state.options 에 맞춘다. */
   function syncOptionControls() {
     el.querySelectorAll('[data-opt]').forEach(function (c) {
@@ -1552,6 +1599,7 @@ function card(type, ordinal) {
     refreshSnippet();
     if (from !== 'json') area.value = JSON.stringify(state.data, null, 2);
     if (from !== 'name') syncNames();
+    syncDataControls();
     syncControlVisibility();
     syncDirty();
   }
@@ -1560,6 +1608,7 @@ function card(type, ordinal) {
   // 프롬프트는 종류에만 달렸다 — 카드의 자료·옵션과 무관하므로 한 번만 채운다.
   promptPre.textContent = promptFor(type);
   syncOptionControls();
+  syncDataControls();
   syncControlVisibility();
   syncNames();
   refreshPreview();
@@ -1581,6 +1630,15 @@ function card(type, ordinal) {
         state.options[key] = c.value;
       }
       apply(key === 'footnotes' ? 'notes' : 'opt');
+    });
+  });
+
+  // 자료 조작칸 — 고치는 대상이 options 가 아니라 data 다. 그래서 JSON 칸도
+  // 함께 다시 써야 한다(apply 가 'json' 이 아닌 호출에서 그 일을 한다).
+  el.querySelectorAll('[data-data]').forEach(function (c) {
+    c.addEventListener('change', function () {
+      state.data[c.getAttribute('data-data')] = c.value;
+      apply('data');
     });
   });
 
@@ -1609,6 +1667,7 @@ function card(type, ordinal) {
     refreshPreview();
     refreshSnippet();
     syncNames();
+    syncDataControls();
     syncControlVisibility();
     syncDirty();
   });

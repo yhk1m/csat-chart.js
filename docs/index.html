@@ -989,9 +989,11 @@ const CHEVRON =
 // 둘 다 태그 문자열을 둘로 쪼개 피한다. (이 주석 자신도 그대로 옮겨 적지
 // 않는 이유다.)
 //
-// 데모가 실려 있는 바로 그 주소를 쓴다 — jsdelivr의 npm 경로는 이 패키지가
-// 아직 npm에 없어 404가 난다. 이 데모를 읽고 있다면 이 주소는 이미 살아 있다.
-const CDN_SRC = 'https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js';
+// 남에게 건네는 주소는 npm CDN 이다 — @1 은 1.x 안에서 가장 새 판을 가리키므로
+// 고친 것이 따라오고, 판이 2 로 올라가도 남의 프로그램이 갑자기 바뀌지 않는다.
+// (이 데모 자신은 448줄에서 같은 저장소의 ./lib/ 사본을 쓴다. 아직 npm 에
+//  올리지 않은 master 의 상태를 그대로 보여야 하기 때문이다.)
+const CDN_SRC = 'https://cdn.jsdelivr.net/npm/csat-chart.js@1/dist/csat-chart.umd.min.js';
 const OPEN_SCRIPT_CDN = '<' + 'script src="' + CDN_SRC + '">';
 const CLOSE_SCRIPT = '<' + '/script>';
 
@@ -1229,8 +1231,7 @@ function promptFor(type) {
     '· 빌드 도구가 없다면 —',
     '    ' + OPEN_SCRIPT_CDN + CLOSE_SCRIPT,
     '  전역 이름은 CsatChart 이고, 위 이름들은 그 아래에 그대로 붙어 있습니다.',
-    '· 다만 이 패키지는 아직 npm 에 올라가지 않았습니다. 오늘 확실히 되는 것은 CDN',
-    '  쪽이고, cdn.jsdelivr.net/npm/csat-chart.js 는 404 가 나니 쓰지 마세요.',
+    '· 판을 못 박으려면 @1 을 @1.2.0 처럼 적으세요. npm 쪽도 같습니다.',
     '',
     '[이 그래프]',
     "· 종류 이름은 '" + type + "' 입니다.",

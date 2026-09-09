@@ -12,14 +12,13 @@ API는 존재를 가정하지 않는다.
 
 ## 1. 최소 동작 코드
 
-### CDN — 지금 되는 방법
+### CDN
 
-npm에 아직 발행되지 않았으므로(2절 참고) **jsdelivr의 `npm` 경로는 지금 404다.**
-대신 이 저장소의 GitHub Pages가 호스팅하는 빌드 산출물을 직접 가리킨다 — 실제
-라이브 데모가 쓰는 것과 같은 주소이며, 지금 이 순간 응답 코드 200을 확인했다.
+npm에 발행되어 있으므로 jsdelivr·unpkg가 그대로 서빙한다. 응답 코드 200과
+로컬 빌드와의 해시 일치를 확인했다.
 
 ```html
-<script src="https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@1/dist/csat-chart.umd.min.js"></script>
 <canvas id="c" width="800" height="600"></canvas>
 <script>
   CsatChart.ensureFonts().then(function () {
@@ -32,18 +31,18 @@ npm에 아직 발행되지 않았으므로(2절 참고) **jsdelivr의 `npm` 경�
 </script>
 ```
 
-이 주소는 `master` 브랜치의 최신 빌드를 그대로 서빙한다 — 버전 고정이 아니다.
-npm 발행 뒤에는 `https://cdn.jsdelivr.net/npm/csat-chart.js@1.1.0` 처럼 버전을
-박아 쓰는 쪽이 안전하다.
+`@1`은 1.x 안에서 가장 새 판을 가리킨다 — 고친 것이 따라오고, 판이 2로 올라가도
+남의 프로그램이 갑자기 바뀌지 않는다. 한 판에 못 박으려면 `@1.2.0`처럼 적는다.
 
-### npm — 아직 안 됨
+`https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js`도 여전히 산다.
+그쪽은 `master`의 최신 빌드를 버전 고정 없이 서빙하므로, 아직 발행하지 않은
+상태를 시험할 때만 쓴다.
+
+### npm
 
 ```bash
 npm install csat-chart.js
 ```
-
-**이 명령은 지금 실패한다** (`npm error 404 Not Found` — 레지스트리에 없음,
-직접 확인함). 발행 전까지는 위 CDN 방법을 쓴다. 발행 후에는:
 
 ```ts
 import { CsatChart, createDefaultClimateData } from 'csat-chart.js';
@@ -253,10 +252,9 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 
 아래는 Node.js에서 `@napi-rs/canvas`로 실제로 실행해 PNG를 뽑아 확인한
 코드다(브라우저에서는 `document.querySelector('canvas')`나 `'c'`처럼 캔버스
-요소/아이디를 첫 인자로 쓰면 된다 — 나머지는 동일). `require('csat-chart.js')`는
-발행 후를 가정한 것이다 — 지금 저장소를 클론해 직접 시험해 본다면(1절 참고,
-아직 npm에 없다) 그 자리에 `require('./dist/csat-chart.cjs')`를 쓴다. 실제
-검증도 그렇게 했다.
+요소/아이디를 첫 인자로 쓰면 된다 — 나머지는 동일). 저장소를 클론해 시험한다면
+`require('csat-chart.js')` 자리에 `require('./dist/csat-chart.cjs')`를 쓴다.
+이 예제의 검증도 그렇게 했다.
 
 ```js
 const { createCanvas } = require('@napi-rs/canvas');

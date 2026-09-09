@@ -4,6 +4,7 @@
 축·범례·각주·출처의 배치, 명조 글꼴, 흑백 인쇄를 전제한 해칭 패턴까지
 시험지 관습을 그대로 따릅니다. **런타임 의존성이 없습니다.**
 
+- npm: https://www.npmjs.com/package/csat-chart.js
 - 데모: https://yhk1m.github.io/csat-chart.js/
 - AI 참고 문서: [docs/ai-reference.md](docs/ai-reference.md) — 이 라이브러리를 모르는 AI 어시스턴트에게 붙여넣는 용도
 - 라이선스: MIT
@@ -11,7 +12,7 @@
 ## 시작하기
 
 ```html
-<script src="https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@1/dist/csat-chart.umd.min.js"></script>
 <canvas id="c" width="800" height="600"></canvas>
 <script>
   CsatChart.ensureFonts().then(function () {
@@ -24,8 +25,8 @@
 </script>
 ```
 
-이 패키지가 npm에 올라온 뒤에는 `https://cdn.jsdelivr.net/npm/csat-chart.js` 로
-더 짧게 쓸 수 있습니다.
+`@1` 은 1.x 안에서 가장 새 판을 가리킵니다 — 고친 것이 자동으로 따라오고, 판이
+2 로 올라가도 갑자기 바뀌지 않습니다. 한 판에 못 박으려면 `@1.2.0` 처럼 적으세요.
 
 `ensureFonts()` 를 부르지 않으면 대체 글꼴로 그려져 시험지 양식이 재현되지 않습니다.
 던지지 않습니다 — 글꼴을 못 받아도, 제한 시간(기본 5초)을 넘겨도 조용히 `false` 로

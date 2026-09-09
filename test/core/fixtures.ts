@@ -533,6 +533,87 @@ const econPlaneAdAs = (): EconPlaneData => ({
   ],
 });
 
+/**
+ * 2027학년도 6월 경제 3번 〈X재 시장〉 모양 — **파선으로 그은 직선**과
+ * **아래 첨자**를 감시한다.
+ *
+ * 사적 편익만 반영한 수요 곡선 `D_1` 은 실선, 사회적 편익까지 반영한 `D_2` 는
+ * 파선이다. 색이 없는 시험지에서 그 둘을 가르는 것이 선 종류뿐이라 문항의 뜻이
+ * 여기 걸려 있다. 직선 셋이 **두 축 어디에도 닿지 않는** 것도 실물 그대로다.
+ */
+const econPlaneDashed = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: { label: '수량', min: 0, max: 10, ticks: [], broken: false },
+  yAxis: { label: '가격', min: 0, max: 10, ticks: [], broken: false },
+  grid: false,
+  dash: 'dashed',
+  lines: [
+    { label: 'S', from: { x: 1, y: 1.7 }, to: { x: 8, y: 9.7 }, labelAt: 'to' },
+    { label: 'D_1', from: { x: 0.8, y: 7.8 }, to: { x: 7, y: 1.3 }, labelAt: 'to' },
+    { label: 'D_2', from: { x: 2.2, y: 9.6 }, to: { x: 8.4, y: 3.1 }, labelAt: 'to', dashed: true },
+  ],
+  points: [],
+  arrows: [],
+});
+
+/**
+ * 2027학년도 6월 경제 16번 모양 — **계열·범례 상자·이름표 눈금·두 줄 축 이름**을
+ * 한 장에 모았다. 1.4.0 이 「범례 상자가 없다」고 적어 둔 것을 뒤집은 그림이다.
+ *
+ * 가로축은 값이 아니라 이름(`t년`·`t+1년`·`t+2년`)이고, 세로축은 숫자가 하나도
+ * 없이 이름만 두 줄(「GDP」·「(억 달러)」)로 선다. 두 축에 생략 기호가 있고,
+ * 꼭짓점마다 가로축으로 파선이 내려간다.
+ */
+const econPlaneSeries = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: {
+    label: '연도', min: 0, max: 4.5, ticks: [1, 2, 3],
+    tickLabels: ['t년', 't+1년', 't+2년'], broken: true,
+  },
+  yAxis: { label: 'GDP\\n(억 달러)', min: 0, max: 10, ticks: [], broken: true },
+  grid: false,
+  dash: 'dashed',
+  lines: [],
+  points: [],
+  arrows: [],
+  series: [
+    {
+      label: '명목 GDP',
+      points: [{ x: 1, y: 7.2 }, { x: 2, y: 6.2 }, { x: 3, y: 3.2 }],
+      dashed: true, marker: 'circle', hollow: false,
+    },
+    {
+      label: '실질 GDP',
+      points: [{ x: 1, y: 3.5 }, { x: 2, y: 6.2 }, { x: 3, y: 8.8 }],
+      dashed: false, marker: 'square', hollow: true,
+    },
+  ],
+  legend: 'bottom-right',
+  seriesGuides: true,
+});
+
+/**
+ * 2027학년도 6월 경제 17번 모양 — **눈금 자리에 숫자 대신 이름**을 적는 축과
+ * 소수 눈금을 감시한다.
+ *
+ * 세로축에는 숫자가 없고 `P_1`·`P_2` 두 이름만 선다(첨자까지 재야 왼쪽 여백이
+ * 맞는다). 가로축은 반대로 `0.5`·`1.5` 라는 소수다. 점 둘이 두 축으로 파선을
+ * 내려 서로의 자리를 알려 준다.
+ */
+const econPlaneTickLabels = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: { label: '수요량에 대한 공급량의 비', min: 0, max: 2.2, ticks: [0.5, 1.5], broken: false },
+  yAxis: { label: '가격', min: 0, max: 10, ticks: [4, 7.5], tickLabels: ['P_1', 'P_2'], broken: false },
+  grid: false,
+  dash: 'dashed',
+  lines: [],
+  points: [
+    { x: 0.5, y: 4, label: '', labelPos: 'top-right', guide: 'both', dot: true },
+    { x: 1.5, y: 7.5, label: '', labelPos: 'top-right', guide: 'both', dot: true },
+  ],
+  arrows: [],
+});
+
 export const CASES: [string, Renderer, () => unknown][] = [
   ['absbar', renderAbsBarGraph as Renderer, createDefaultAbsBarData],
   ['absbarLongText', renderAbsBarGraph as Renderer, absBarLongText],
@@ -550,9 +631,12 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['deviationB', renderDeviationBGraph as Renderer, deviationBWithData],
   ['econPlane', renderEconPlane as Renderer, createDefaultEconPlaneData],
   ['econPlaneAdAs', renderEconPlane as Renderer, econPlaneAdAs],
+  ['econPlaneDashed', renderEconPlane as Renderer, econPlaneDashed],
   ['econPlaneLongText', renderEconPlane as Renderer, createDefaultEconPlaneData],
   ['econPlaneQuadrants', renderEconPlane as Renderer, econPlaneQuadrants],
+  ['econPlaneSeries', renderEconPlane as Renderer, econPlaneSeries],
   ['econPlaneShift', renderEconPlane as Renderer, econPlaneShift],
+  ['econPlaneTickLabels', renderEconPlane as Renderer, econPlaneTickLabels],
   ['hythergraph', renderHythergraph as Renderer, hythergraphWithData],
   ['line', renderLineGraph as Renderer, lineWithData],
   ['pyramid', renderPyramidGraph as Renderer, pyramidWithData],

@@ -317,6 +317,58 @@ const B_ECON_PLANE: Maker = () => ({
   ],
 });
 
+/**
+ * 계열을 쓰는 경제 좌표평면 — 1.5.0 에서 새로 생긴 자리를 감시한다.
+ * 범례 상자·이름표 눈금(가로축)·두 줄 세로축 이름·아래 첨자가 한 장에 있다.
+ * (2027학년도 6월 경제 16번 모양)
+ */
+const A_ECON_PLANE_SERIES: Maker = () => ({
+  quadrants: 'first',
+  xAxis: {
+    label: '연도', min: 0, max: 4.5, ticks: [1, 2, 3],
+    tickLabels: ['t년', 't+1년', 't+2년'], broken: true,
+  },
+  yAxis: { label: 'GDP\\n(억 달러)', min: 0, max: 10, ticks: [], broken: true },
+  grid: false,
+  dash: 'dashed',
+  lines: [],
+  points: [],
+  arrows: [],
+  series: [
+    {
+      label: '명목 GDP',
+      points: [{ x: 1, y: 7.2 }, { x: 2, y: 6.2 }, { x: 3, y: 3.2 }],
+      dashed: true, marker: 'circle', hollow: false,
+    },
+    {
+      label: '실질 GDP',
+      points: [{ x: 1, y: 3.5 }, { x: 2, y: 6.2 }, { x: 3, y: 8.8 }],
+      dashed: false, marker: 'square', hollow: true,
+    },
+  ],
+  legend: 'bottom-right',
+  seriesGuides: true,
+});
+
+/**
+ * 같은 그림의 긴 이름 판.
+ *
+ * 범례 상자 안의 계열 이름·가로축 눈금 이름표·두 줄 세로축 이름을 한꺼번에
+ * 늘리고, 세로축 눈금에는 첨자까지 건다. 상자는 이름을 자르는 대신 글꼴을
+ * 줄이고, 그래도 모자라면 캔버스 안으로 밀려 들어와야 한다.
+ */
+const B_ECON_PLANE_SERIES: Maker = () => {
+  const d = A_ECON_PLANE_SERIES() as ReturnType<typeof createDefaultEconPlaneData>;
+  d.xAxis.label = '조사 연도';
+  d.xAxis.tickLabels = ['2023년 상반기', '2024년 상반기', '2025년 상반기'];
+  d.yAxis.label = '1인당 지역내총생산\\n(백만 원)';
+  d.yAxis.ticks = [2, 8];
+  d.yAxis.tickLabels = ['Q_1', 'Q_3'];
+  d.series![0].label = '서울특별시 강남구 명목 총생산';
+  d.series![1].label = '경기도 성남시 분당구 실질 총생산';
+  return d;
+};
+
 const B_ABSBAR_INSIDE: Maker = () => {
   const d = B_ABSBAR() as ReturnType<typeof createDefaultAbsBarData>;
   d.insideLegend = 'top-right';
@@ -407,6 +459,7 @@ const TYPES: Entry[] = [
   ['deviation-a', renderDeviationAGraph as ProbeCase['render'], createDefaultDeviationAData, B_DEVIATION_A_OUT],
   ['deviation-b', renderDeviationBGraph as ProbeCase['render'], () => clone(A_DEVIATION_B), B_DEVIATION_B],
   ['econ-plane', renderEconPlane as ProbeCase['render'], A_ECON_PLANE, B_ECON_PLANE],
+  ['econ-plane(계열)', renderEconPlane as ProbeCase['render'], A_ECON_PLANE_SERIES, B_ECON_PLANE_SERIES],
   ['hythergraph', renderHythergraph as ProbeCase['render'], () => clone(A_HYTHER), B_HYTHER],
   ['line', renderLineGraph as ProbeCase['render'], () => clone(A_LINE), B_LINE],
   ['matrix-table', renderMatrixTable as ProbeCase['render'], createDefaultMatrixTableData, B_MATRIX_TABLE],

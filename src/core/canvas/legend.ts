@@ -16,6 +16,13 @@ export interface LegendItem {
   lineWidth?: number;
   /** 선 아이콘 가운데 점의 모양 — 미지정 시 원 */
   marker?: 'circle' | 'square';
+  /**
+   * 선 아이콘 가운데 점의 속을 비운다 (흰색 채움 + 검정 테두리).
+   *
+   * 흑백 시험지가 계열 둘을 가르는 방법이다 — 실선·빈 네모와 파선·찬 동그라미
+   * (2027학년도 6월 경제 16번). 플롯 «안쪽» 범례에서만 쓴다.
+   */
+  hollow?: boolean;
 }
 
 export interface InsideLegendParams {
@@ -144,14 +151,17 @@ function drawInsideIcon(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = item.fillStyle;
+    ctx.fillStyle = item.hollow ? '#fff' : item.fillStyle;
+    if (item.hollow) ctx.lineWidth = 1.5;
     const r = size * 0.3;
     if (item.marker === 'square') {
       ctx.fillRect(x + w / 2 - r, cy - r, r * 2, r * 2);
+      if (item.hollow) ctx.strokeRect(x + w / 2 - r, cy - r, r * 2, r * 2);
     } else {
       ctx.beginPath();
       ctx.arc(x + w / 2, cy, r, 0, Math.PI * 2);
       ctx.fill();
+      if (item.hollow) ctx.stroke();
     }
     return;
   }

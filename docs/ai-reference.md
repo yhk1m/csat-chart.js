@@ -6,7 +6,7 @@
 유추해서 쓰지 말고 이 문서에 적힌 이름·모양을 그대로 따른다. 이 문서에 없는
 API는 존재를 가정하지 않는다.
 
-- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.4.0)
+- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.5.0)
 - 라이브 데모: https://yhk1m.github.io/csat-chart.js/
 - 라이선스: MIT, 런타임 의존성 0
 
@@ -101,7 +101,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 | `data-table` | 항목×지역 수치 표 (그래프 아님) | `createDefaultDataTableData` | `renderDataTable` |
 | `deviation-a` | 기준값 대비 월별 기온·강수량 편차 (시계열, climate와 같은 틀) | `createDefaultDeviationAData` | `renderDeviationAGraph` |
 | `deviation-b` | 기준값 대비 지역별 기온·강수량 편차 (사분면 비교형) | `createDefaultDeviationBData` | `renderDeviationBGraph` |
-| `econ-plane` | 수능 «경제» 좌표평면 — 직선·점·유도선·화살표. 범례가 없다 | `createDefaultEconPlaneData` | `renderEconPlane` |
+| `econ-plane` | 수능 «경제» 좌표평면 — 직선·점·유도선·화살표·계열. 이름을 선 끝에 단다 | `createDefaultEconPlaneData` | `renderEconPlane` |
 | `hythergraph` | 월별 기온-강수량을 이어 그리는 하이서그래프(폐곡선) | `createDefaultHythergraphData` | `renderHythergraph` |
 | `line` | 꺾은선 그래프 (선 종류·기호로 계열 구분) | `createDefaultLineData` | `renderLineGraph` |
 | `matrix-table` | 지역 간 짝별 값(예: 거리)을 계단식 삼각형 표로 표시 (그래프 아님) | `createDefaultMatrixTableData` | `renderMatrixTable` |
@@ -173,7 +173,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `precipRange`: `{ min: -200, max: 200, auto: true }`
 - `tempRange`: `{ min: -10, max: 10, auto: true }`
 
-**econ-plane** — 유일한 비지리 종류. 바꿔볼 만한 필드: `lines`, `points`, `arrows`, `xAxis`, `yAxis`
+**econ-plane** — 유일한 비지리 종류. 바꿔볼 만한 필드: `lines`, `points`, `arrows`, `series`, `xAxis`, `yAxis`
 - `quadrants`: `'first' | 'all'` (기본 `'first'`) — `'all'`이면 네 사분면, 축 양끝에 화살촉
 - `xAxis`·`yAxis`: `{ label: string, min: number, max: number, ticks: number[], broken: boolean }`
 - `grid`: boolean (기본 `true`) — 눈금 자리마다 점선 격자
@@ -182,9 +182,21 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `points`: 배열(1) of `{ x, y, label: string, labelPos: 나침반 8방향, guide: 'none'|'to-x'|'to-y'|'both'|'cross', dot: boolean }`
 - `arrows`: 배열(0) of `{ from: {x,y}, to: {x,y}, offset: number, shorten: number, label: string, labelPos: 나침반 8방향 }`
 
+기본 데이터에 **없는** 선택 필드가 다섯 더 있다(1.5.0). 적지 않으면 없는 것처럼
+그려지고, 검증기도 요구하지 않는다 — 기본 데이터의 키만 필수로 보기 때문이다.
+- `lines[].dashed`: boolean — 그 직선을 파선으로. 흑백 시험지에서 선 종류가 뜻을 나른다
+- `xAxis.tickLabels`·`yAxis.tickLabels`: `string[]` — 눈금 자리에 숫자 대신 적을 글자.
+  `ticks`와 자리끼리 짝을 이룬다. 자리는 언제나 `ticks`가 정한다
+- `series`: 배열 of `{ label: string, points: {x,y}[], dashed: boolean, marker: 'circle'|'square', hollow: boolean }`
+- `legend`: `'top-right'|'top-left'|'bottom-right'|'bottom-left'` — 계열 범례 상자를 놓을 모서리.
+  적지 않으면 범례를 그리지 않는다
+- `seriesGuides`: boolean — 계열 꼭짓점에서 가로축으로 내리는 파선
+
 이 종류만 아는 것 넷:
-1. **범례가 없다.** `showLegend`·`legendPosition`·`showDataLabels`를 아예 읽지
-   않는다. 선 이름은 `lines[].label`로 주고, 그 선의 `labelAt` 쪽 끝에 붙는다.
+1. **이름을 선 끝에 단다.** `showLegend`·`legendPosition`·`showDataLabels`를
+   아예 읽지 않는다. 선 이름은 `lines[].label`로 주고, 그 선의 `labelAt` 쪽 끝에
+   붙는다. 범례 상자는 계열(`series`)을 쓸 때만 있고, 옵션이 아니라 자료가
+   부른다(`legend`) — `showLegend`로는 켜지지도 꺼지지도 않는다.
 2. **`ticks`는 «값» 배열이다.** 자는 언제나 고르고 눈금만 띄엄띄엄 찍힌다 —
    `[0, 10, 20, 50]`이면 50이 20의 세 배 거리에 선다. 간격을 주는 것이 아니다.
    눈금 표시선(축에 붙는 작은 선분)은 그리지 않는다.
@@ -194,6 +206,16 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
    좌표를 손으로 다시 치지 않는다.
 4. **`points[].dot: false`**면 점 없이 유도선만 남는다. 문항이 쓰는 값마다
    파선을 내리되 교점에 점은 찍지 않는 그림이 실제로 있다.
+5. **이름에 아래 첨자를 쓸 수 있다.** 밑줄 뒤에 이어지는 영문자·숫자가 작은
+   글자로 내려앉는다 — `'D_1'` → D₁, `'P_2'` → P₂. 선 이름·점 이름·화살표
+   이름·축 이름·눈금 이름표·계열 이름이 모두 그렇다. 규칙이 «밑줄 + 영숫자»로
+   좁혀져 있어 한글 앞의 밑줄(`'강원_춘천'`)은 밑줄 그대로 남는다. 제목·출처·
+   각주(`options`)에는 통하지 않는다.
+6. **세로축 이름은 여러 줄로 앉는다.** 리터럴 `
+`(역슬래시 + n)이나 진짜
+   줄바꿈으로 나눈다 — `'GDP
+(억 달러)'`. 산점도 `yLabel`과 같은 규약이고,
+   여러 줄이면 묶음 가운데 맞춤이 된다. 가로축 이름은 한 줄이다.
 
 **hythergraph** — 기본값이 전부 0(규칙 3). 바꿔볼 만한 필드: `series`
 - `series`: 배열(1) of `{ label: string, months: 배열(12) of {temp, precip} }`
@@ -443,13 +465,16 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 - **`sourceLeft`는 `stacked`와 `econ-plane`에서만, `sourceInline`은 `scatter`와
   `econ-plane`에서만 동작한다.** 나머지에 이 옵션을 줘도 조용히 무시된다(예외
   없음) — 버그가 아니라 이식 원본의 범위다.
-- **`econ-plane`은 축 이름을 여러 줄로 쓰지 못한다.** 실물 시험지는 「가격」과
-  「(만 원)」을 두 줄로 앉히는 경우가 있는데, 이 렌더러는 한 줄로만 그린다 —
-  `'가격(만 원)'`처럼 한 줄로 적는다. 위 첨자(`Eₓ`)도 마찬가지다. 캔버스에는
-  첨자라는 것이 없으므로 `'Ex'`나 유니코드 첨자 문자를 직접 쓴다.
+- **`econ-plane`의 «가로축» 이름은 한 줄이다.** 세로축은 1.5.0부터 리터럴
+  `
+`으로 두 줄이 되지만(`'GDP
+(억 달러)'`), 가로축은 화살촉 오른쪽에 한 줄로
+  눕는다. 실물에서 두 줄로 앉는 것이 언제나 세로축이라 그렇다.
 - **`econ-plane`은 캔버스 한 장에 그림 한 장을 그린다.** 두 그림을 나란히 놓는
-  문항(2026학년도 수능 경제 5번)은 캔버스 둘에 각각 그리고 배치는 부르는 쪽이
-  한다. `panels` 같은 필드는 없다 — 있다고 가정하지 말 것.
+  문항(2026학년도 수능 경제 5번, 2027학년도 6월 3번)은 캔버스 둘에 각각 그리고
+  배치는 부르는 쪽이 한다. `panels` 같은 필드는 없다 — 있다고 가정하지 말 것.
+  실물도 판마다 제목이 따로 붙어 있으므로 `options.title`에 〈X재 시장〉·
+  〈Y재 시장〉을 적으면 같은 그림이 된다.
 - **`pyramid`의 `sexFills`는 막대 색만 바꾸고 범례 색은 안 바꾼다.**
   범례 스와치는 `renderPyramidGraph` 안에 `#666`/`#BBB`로 하드코딩돼 있어,
   `data.sexFills`로 막대를 파란색/빨간색으로 바꿔도 범례 네모는 여전히

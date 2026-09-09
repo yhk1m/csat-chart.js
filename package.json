@@ -1,6 +1,6 @@
 {
   "name": "csat-chart.js",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그리는 라이브러리",
   "license": "MIT",
   "author": "김용현",

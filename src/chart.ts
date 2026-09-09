@@ -53,12 +53,15 @@ function isUnsized(canvas: CanvasLike, dim: 'width' | 'height', htmlDefault: num
 }
 
 /**
- * `data`·`fontSize`·`footnotes` 를 안전하게 덮는다.
+ * `data`·`fontSize`·`fontStack`·`footnotes` 를 안전하게 덮는다.
  *
- * `{ ...base, ...patch }` 로 얕게만 덮으면 두 가지가 새어 나간다.
+ * `{ ...base, ...patch }` 로 얕게만 덮으면 세 가지가 새어 나간다.
  *   · `fontSize` 를 하나만 준 순간(CDN 사용자가 흔히 그런다: `{ title: 44 }`)
  *     나머지 세 값이 `undefined` 가 되어, Node 에서는 `ctx.font` 대입이
  *     던지고 브라우저에서는 명세상 조용히 무시된다 — 어느 쪽이든 사고다.
+ *   · `fontStack` 도 같은 꼴의 중첩 객체다. `update({ options: { fontStack:
+ *     { sans: … } } })` 한 번에 앞서 정해 둔 `serif` 가 사라지면, 축만
+ *     기본 글꼴로 돌아간 그림이 조용히 나온다.
  *   · `footnotes` 는 배열이다. 호출자가 쥔 배열을 그대로 붙들면, 나중에 그
  *     배열에 `push` 한 것이 다음 그리기에 몰래 새어 들어온다.
  */
@@ -67,6 +70,7 @@ function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOpt
     ...base,
     ...patch,
     fontSize: { ...base.fontSize, ...patch?.fontSize },
+    fontStack: { ...base.fontStack, ...patch?.fontStack },
     footnotes: [...(patch?.footnotes ?? base.footnotes)],
   };
 }

@@ -1,5 +1,6 @@
 // © 2026 김용현
 // Canvas 공통 렌더링 유틸리티
+import type { FontRole, FontStack } from '../types/common';
 
 export interface Padding {
   top: number;
@@ -13,18 +14,49 @@ export interface CanvasSize {
   height: number;
 }
 
+/** 명조 자리의 기본 글꼴 — 축 이름·눈금·자료값 */
+export const DEFAULT_SERIF_STACK = "'Noto Serif KR', 'NanumMyeongjo', serif";
+/** 고딕 자리의 기본 글꼴 — 제목·출처·각주·범례 */
+export const DEFAULT_SANS_STACK = "'Noto Sans KR', sans-serif";
+/** `fontFamily: 'custom'` 인데 `customFont` 이 비었을 때 대신 쓸 글꼴 */
+const CUSTOM_FALLBACK_STACK = "'Noto Serif KR', serif";
+
+/**
+ * 글꼴을 고르는 데 필요한 옵션 조각. `GraphOptions` 가 구조적으로 만족한다.
+ *
+ * **글꼴 문자열이 아니라 옵션 객체를 통째로 받는 이유가 있다.** 자리마다
+ * 글꼴 문자열을 인자로 하나 더 받게 하면, 넘겨주기를 빠뜨린 호출부가 조용히
+ * 기본 글꼴로 그려진다 — 1.2.0 까지의 결함이 정확히 그것이었다(제목·범례가
+ * 상수 글꼴을 박아 두고 `options` 를 아예 보지 않았다). 필수 항목 하나짜리
+ * 객체로 받으면 빠뜨린 자리가 전부 **컴파일 오류**가 된다.
+ * (`registry.ts` 가 종류별 제네릭으로 오배선을 막는 것과 같은 생각이다.)
+ */
+export interface FontOptions {
+  fontFamily?: FontRole;
+  customFont?: string;
+  fontStack?: FontStack;
+}
+
+/** 자리 이름 하나를 실제 글꼴 문자열로 푼다 */
+export function fontStackOf(fonts: FontOptions, role: FontRole): string {
+  if (role === 'custom') return fonts.customFont || CUSTOM_FALLBACK_STACK;
+  if (role === 'sans') return fonts.fontStack?.sans || DEFAULT_SANS_STACK;
+  return fonts.fontStack?.serif || DEFAULT_SERIF_STACK;
+}
+
+/** 고딕 자리 글꼴 — 제목·출처·각주·범례가 자리를 가리지 않고 이것을 쓴다 */
+export function sansFont(fonts: FontOptions): string {
+  return fontStackOf(fonts, 'sans');
+}
+
 export function getFont(
   size: number,
-  family: 'serif' | 'sans' | 'custom' = 'serif',
-  customFont?: string,
-  weight: string = 'normal'
+  fonts: FontOptions,
+  weight: string = 'normal',
+  /** 자리를 눌러 지정한다. 표에서 기호는 명조, 지명은 고딕으로 갈릴 때 쓴다. */
+  role: FontRole = fonts.fontFamily ?? 'serif',
 ): string {
-  const familyMap: Record<string, string> = {
-    serif: "'Noto Serif KR', 'NanumMyeongjo', serif",
-    sans: "'Noto Sans KR', sans-serif",
-    custom: customFont || "'Noto Serif KR', serif",
-  };
-  return `${weight} ${size}px ${familyMap[family]}`;
+  return `${weight} ${size}px ${fontStackOf(fonts, role)}`;
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {

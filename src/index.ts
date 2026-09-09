@@ -122,6 +122,8 @@ export const LINE_DASH = /* @__PURE__ */ Object.freeze({
 // ── 타입 ───────────────────────────────────────────────
 export type {
   GraphOptions,
+  FontRole,
+  FontStack,
   LegendPosition,
   InsideLegendCorner,
   AbsBarCategory,

@@ -1,5 +1,5 @@
 // © 2026 김용현
-import { type Padding, getFont } from './renderer';
+import { type Padding, type FontOptions, getFont } from './renderer';
 import { labelStride, widestLabel } from './labels';
 import { EDGE, nudgeInside, shrinkToWidth } from './fit';
 
@@ -8,8 +8,8 @@ interface AxisOptions {
   padding: Padding;
   width: number;
   height: number;
-  fontFamily: 'serif' | 'sans' | 'custom';
-  customFont?: string;
+  /** 글꼴 옵션. `options` 를 그대로 넘긴다. */
+  fonts: FontOptions;
   tickFontSize: number;
   labelFontSize: number;
 }
@@ -38,7 +38,7 @@ const plotArea = (p: Padding, w: number, h: number) => ({
 export function drawYAxis({
   ctx, padding, width, height,
   min, max, step, label, side,
-  fontFamily, customFont, tickFontSize, labelFontSize,
+  fonts, tickFontSize, labelFontSize,
   drawGrid = false,
 }: YAxisParams) {
   const plot = plotArea(padding, width, height);
@@ -53,7 +53,7 @@ export function drawYAxis({
 
   // 눈금 — 모두 bold
   ctx.fillStyle = '#000';
-  ctx.font = getFont(tickFontSize, fontFamily, customFont, 'bold');
+  ctx.font = getFont(tickFontSize, fonts, 'bold');
   ctx.textBaseline = 'middle';
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
@@ -112,7 +112,7 @@ export function drawYAxis({
   //  왼쪽으로 72.9px 넘던 자리다.)
   if (label) {
     ctx.save();
-    const makeFont = (size: number) => getFont(size, fontFamily, customFont, 'bold');
+    const makeFont = (size: number) => getFont(size, fonts, 'bold');
     ctx.fillStyle = '#000';
     ctx.textBaseline = 'bottom';
     ctx.textAlign = side === 'left' ? 'right' : 'left';
@@ -128,7 +128,7 @@ export function drawYAxis({
 export function drawXAxis({
   ctx, padding, width, height,
   labels, indices,
-  fontFamily, customFont, tickFontSize,
+  fonts, tickFontSize,
 }: XAxisParams) {
   const plot = plotArea(padding, width, height);
   const y = plot.y + plot.h;
@@ -141,7 +141,7 @@ export function drawXAxis({
   ctx.stroke();
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(tickFontSize, fontFamily, customFont, 'bold');
+  ctx.font = getFont(tickFontSize, fonts, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 

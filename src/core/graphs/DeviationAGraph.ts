@@ -1,7 +1,7 @@
 // © 2026 김용현
 // 모드 A — 월별 편차 (시계열)
 import { type DeviationAData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, getFont, type FontOptions } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
@@ -30,14 +30,14 @@ export function renderDeviationAGraph(
     options.legendLabel2 || data.tempLabel,
   ];
   const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 축 이름을 세로로 쌓으면 눈금 숫자 바깥에 한 글자 폭이 더 필요하다
   let nameW = 0;
   if (data.tempAxisName || data.precipAxisName) {
     ctx.save();
-    ctx.font = getFont(options.fontSize.axisLabel, options.fontFamily, options.customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
     nameW = ctx.measureText('가').width + 12;
     ctx.restore();
   }
@@ -47,7 +47,7 @@ export function renderDeviationAGraph(
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
     ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - padLeft - padRight, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+        w - padLeft - padRight, options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
     : 0;
 
   const padding: Padding = {
@@ -70,8 +70,6 @@ export function renderDeviationAGraph(
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const indices = INTERVAL_INDICES[data.monthInterval] ?? INTERVAL_INDICES[12];
 
   // 편차 계산 (월별 기준값)
@@ -107,8 +105,8 @@ export function renderDeviationAGraph(
   }
 
   // Y축 (좌: 기온, 우: 강수량)
-  const tempTickW = drawDeviationYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempLabel, font, customFont, options.fontSize);
-  const precipTickW = drawDeviationYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipLabel, font, customFont, options.fontSize);
+  const tempTickW = drawDeviationYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempLabel, options, options.fontSize);
+  const precipTickW = drawDeviationYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipLabel, options, options.fontSize);
 
   // X축
   const totalSlots = indices.length;
@@ -130,7 +128,7 @@ export function renderDeviationAGraph(
   }
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (let s = 0; s < totalSlots; s++) {
@@ -212,7 +210,7 @@ export function renderDeviationAGraph(
 
   // (월) 라벨
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
@@ -241,12 +239,12 @@ export function renderDeviationAGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
-      font: getFont(options.fontSize.dataLabel * 0.9, font, customFont, 'bold'),
+      font: getFont(options.fontSize.dataLabel * 0.9, options, 'bold'),
       avoid: inkRects,
     });
   } else if (showLegend) {
     drawLegend({
-      ctx,
+      ctx, fonts: options,
       items: [
         { type: 'rect', fillStyle: '#888', strokeStyle: '#444', label: legendLabels[0] },
         { type: data.monthInterval === 12 ? 'line' : 'circle', fillStyle: '#000', label: legendLabels[1] },
@@ -262,15 +260,15 @@ export function renderDeviationAGraph(
   // 축 이름 — 눈금 숫자 바깥에 한 글자씩 세로로 쌓는다
   if (data.tempAxisName) {
     drawVerticalAxisName(ctx, data.tempAxisName, plotX - 22 - tempTickW - nameW / 2, plotY, plotH, h,
-      options.fontSize.axisLabel, font, customFont);
+      options.fontSize.axisLabel, options);
   }
   if (data.precipAxisName) {
     drawVerticalAxisName(ctx, data.precipAxisName, plotX + plotW + 22 + precipTickW + nameW / 2, plotY, plotH, h,
-      options.fontSize.axisLabel, font, customFont);
+      options.fontSize.axisLabel, options);
   }
 
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 function drawDeviationYAxis(
@@ -281,8 +279,7 @@ function drawDeviationYAxis(
   axis: { min: number; max: number; step: number },
   side: 'left' | 'right',
   label: string,
-  fontFamily: 'serif' | 'sans' | 'custom',
-  customFont: string | undefined,
+  fonts: FontOptions,
   fontSize: { tick: number; axisLabel: number }
 ): number {
   const plotX = padding.left;
@@ -299,7 +296,7 @@ function drawDeviationYAxis(
   ctx.stroke();
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(fontSize.tick, fontFamily, customFont, 'bold');
+  ctx.font = getFont(fontSize.tick, fonts, 'bold');
   ctx.textBaseline = 'middle';
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
@@ -330,7 +327,7 @@ function drawDeviationYAxis(
   // 대신 안으로 민다 (「평년 대비 기온 차이(°C)」가 좌우로 129.5px 넘던 자리).
   if (label) {
     ctx.save();
-    const makeFont = (size: number) => getFont(size, fontFamily, customFont, 'bold');
+    const makeFont = (size: number) => getFont(size, fonts, 'bold');
     ctx.fillStyle = '#000';
     ctx.textBaseline = 'bottom';
     ctx.textAlign = side === 'left' ? 'right' : 'left';
@@ -363,8 +360,7 @@ function drawVerticalAxisName(
   plotH: number,
   canvasH: number,
   fontSize: number,
-  fontFamily: 'serif' | 'sans' | 'custom',
-  customFont: string | undefined
+  fonts: FontOptions,
 ) {
   const chars = [...name].filter((c) => c.trim() !== '');
   if (chars.length === 0) return;
@@ -377,7 +373,7 @@ function drawVerticalAxisName(
   if (stack(size) > canvasH - EDGE * 2) size = (canvasH - EDGE * 2) / stack(1);
 
   ctx.save();
-  ctx.font = getFont(size, fontFamily, customFont, 'bold');
+  ctx.font = getFont(size, fonts, 'bold');
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

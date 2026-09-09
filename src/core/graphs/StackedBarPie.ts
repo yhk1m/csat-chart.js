@@ -31,7 +31,7 @@ function renderStackedBar(
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
@@ -39,7 +39,7 @@ function renderStackedBar(
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - (isVertical ? 80 : 100) - (isVertical ? 60 + legendW : 160 + legendW))
+        w - (isVertical ? 80 : 100) - (isVertical ? 60 + legendW : 160 + legendW), options)
     : 0;
 
   const padding: Padding = {
@@ -60,8 +60,6 @@ function renderStackedBar(
   const plotY = padding.top;
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
 
@@ -81,7 +79,7 @@ function renderStackedBar(
 
     // Y축 눈금 (0~100)
     const stepV = data.axisStep ?? 20;
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.fillStyle = '#000';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -108,7 +106,7 @@ function renderStackedBar(
     }
 
     // 단위
-    ctx.font = getFont(options.fontSize.axisLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     ctx.fillText(data.unit, plotX - 10, plotY - 16);
@@ -136,10 +134,10 @@ function renderStackedBar(
         ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
         if (data.labelInSegment) {
-          drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s), font, customFont);
+          drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s));
         } else if (options.showDataLabels && barH > options.fontSize.dataLabel) {
           ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
-          ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+          ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(val), cx, y + barH / 2);
@@ -149,7 +147,7 @@ function renderStackedBar(
 
       // X축 라벨
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+      ctx.font = getFont(options.fontSize.tick, options, 'bold');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12);
@@ -166,7 +164,7 @@ function renderStackedBar(
 
     // X축 눈금 (0~100)
     const stepH = data.axisStep ?? 20;
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -193,7 +191,7 @@ function renderStackedBar(
     }
 
     // 단위 (축 맨 오른쪽)
-    ctx.font = getFont(options.fontSize.axisLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(data.unit, plotX + plotW + 30, plotY + plotH + 10);
@@ -219,7 +217,7 @@ function renderStackedBar(
 
         if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
           ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
-          ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+          ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(val), x + bw / 2, cy);
@@ -229,7 +227,7 @@ function renderStackedBar(
 
       // Y축 라벨
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+      ctx.font = getFont(options.fontSize.tick, options, 'bold');
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(data.categories[c].label, plotX - 10, cy);
@@ -237,7 +235,7 @@ function renderStackedBar(
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
   // 범례
   if (showLegend) {
@@ -248,7 +246,7 @@ function renderStackedBar(
       label,
     }));
     drawLegend({
-      ctx, items, position: legendPos,
+      ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
@@ -256,7 +254,7 @@ function renderStackedBar(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, sourceLeft: options.sourceLeft, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, sourceLeft: options.sourceLeft, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 function renderPieChart(
@@ -269,13 +267,13 @@ function renderPieChart(
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - 60 - (60 + legendW), 'rect', 16)
+        w - 60 - (60 + legendW), options, 'rect', 16)
     : 0;
 
   const padding: Padding = {
@@ -296,8 +294,6 @@ function renderPieChart(
   const plotY = padding.top;
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
 
@@ -351,7 +347,7 @@ function renderPieChart(
         const lx = cx + Math.cos(midAngle) * maxR * 0.65;
         const ly = cy + Math.sin(midAngle) * maxR * 0.65;
         ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
-        ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+        ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(val), lx, ly);
@@ -369,14 +365,14 @@ function renderPieChart(
 
     // 카테고리 라벨
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(data.categories[c].label, cx, cy + maxR + 12);
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
   // 범례 — 원 그래프 실제 영역(우측 끝 / 하단 끝) 기준으로 위치
   if (showLegend) {
@@ -396,7 +392,7 @@ function renderPieChart(
       const pieBottom = lastCy + maxR + 12 + options.fontSize.tick;
       const effectivePlotH = pieBottom - plotY;
       drawLegend({
-        ctx, items, position: legendPos,
+        ctx, fonts: options, items, position: legendPos,
         plotX, plotY, plotW: effectivePlotW, plotH: effectivePlotH,
         canvasW: w, canvasH: h,
         fontSize: options.fontSize.dataLabel * 0.85 + 5,
@@ -408,7 +404,7 @@ function renderPieChart(
       const pieBottom = lastCy + maxR + 12 + options.fontSize.tick;
       const effectivePlotH = pieBottom - plotY;
       drawLegend({
-        ctx, items, position: legendPos,
+        ctx, fonts: options, items, position: legendPos,
         plotX, plotY, plotW, plotH: effectivePlotH,
         canvasW: w, canvasH: h,
         fontSize: options.fontSize.dataLabel * 0.85 + 5,
@@ -418,7 +414,7 @@ function renderPieChart(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, sourceLeft: options.sourceLeft, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, sourceLeft: options.sourceLeft, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 /** 이 막대의 쌓기 순서 (아래→위). 미지정이면 계열 번호 순. */
@@ -464,8 +460,6 @@ function drawSegmentLabel(
   barW: number,
   barH: number,
   light: boolean,
-  font: 'serif' | 'sans' | 'custom',
-  customFont: string | undefined
 ) {
   const text = data.seriesLabels[s] ?? '';
   const size = options.fontSize.dataLabel * 0.9;
@@ -473,8 +467,8 @@ function drawSegmentLabel(
   if (!text || barH < size * 1.1) return;
 
   // 시험지 관습 — 기호(A·B)는 명조, 지명은 고딕
-  const family = data.seriesIsSymbol && !data.seriesIsSymbol[s] ? 'sans' : font;
-  ctx.font = getFont(size, family, customFont, 'bold');
+  const family = data.seriesIsSymbol && !data.seriesIsSymbol[s] ? 'sans' : options.fontFamily;
+  ctx.font = getFont(size, options, 'bold', family);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const maxW = Math.max(1, barW - 6);

@@ -21,8 +21,11 @@ export { renderStackedGraph } from './graphs/StackedBarPie';
 export { renderTernaryGraph } from './graphs/TernaryDiagram';
 
 // ── 공용 유틸 ───────────────────────────────────────────
-export { getFont, clearCanvas, niceStep, autoRange } from './canvas/renderer';
-export type { Padding, CanvasSize } from './canvas/renderer';
+export {
+  getFont, fontStackOf, sansFont, clearCanvas, niceStep, autoRange,
+  DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK,
+} from './canvas/renderer';
+export type { Padding, CanvasSize, FontOptions } from './canvas/renderer';
 
 // ── 타입 및 기본값 ──────────────────────────────────────
 export * from './types/index';

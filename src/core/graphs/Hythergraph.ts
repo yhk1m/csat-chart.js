@@ -5,7 +5,7 @@ import {
   MONTH_LABELS_NUM,
   MONTH_LABELS_EN,
 } from '../types/index';
-import { type Padding, clearCanvas, getFont, autoRange } from '../canvas/renderer';
+import { type Padding, clearCanvas, getFont, sansFont, autoRange } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
@@ -76,21 +76,19 @@ export function renderHythergraph(
 ) {
   clearCanvas(ctx, w, h);
 
-  const font = options.fontFamily;
-  const cf = options.customFont;
   const fs = options.fontSize;
   const showLegend = options.showLegend && data.series.length > 0;
   const legendPos = options.legendPosition;
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다.
   // 아이콘 너비·간격은 아래 범례 그리기와 같은 값을 써야 한다.
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? 65 + layoutBottomLegend(ctx, legendLabels, data.series.map(() => 36),
-        fs.dataLabel * 0.85 + 5, w - 80 - (80 + legendW), { iconGap: 8 }).boxH + 2
+        fs.dataLabel * 0.85 + 5, w - 80 - (80 + legendW), options, { iconGap: 8 }).boxH + 2
     : 0;
 
   const padding: Padding = {
@@ -159,7 +157,7 @@ export function renderHythergraph(
 
   // X축 눈금 — 마지막 눈금은 단위와 겹치므로 스킵
   ctx.fillStyle = '#000';
-  ctx.font = getFont(fs.tick, font, cf, 'bold');
+  ctx.font = getFont(fs.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (let v = xMin; v <= xMax + xStep * 0.01; v += xStep) {
@@ -192,11 +190,11 @@ export function renderHythergraph(
   }
 
   // 축 단위 — X축 우측 끝, Y축 상단 끝
-  ctx.font = getFont(fs.axisLabel, font, cf, 'bold');
+  ctx.font = getFont(fs.axisLabel, options, 'bold');
   ctx.fillStyle = '#000';
   // 단위는 플롯 **바깥 여백**에 떠 있다 — 캔버스를 벗어나면 안으로 민다.
   // 왼쪽 여백이 좁은 편이라 대체 글꼴이 조금만 넓어도 「(mm)」 이 밖으로 나갔다.
-  const unitFont = (size: number) => getFont(size, font, cf, 'bold');
+  const unitFont = (size: number) => getFont(size, options, 'bold');
   if (data.xUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
@@ -251,7 +249,7 @@ export function renderHythergraph(
         // 월 라벨 (모든 계열에 표시)
         {
           ctx.fillStyle = '#000';
-          ctx.font = getFont(fs.dataLabel, font, cf, 'bold');
+          ctx.font = getFont(fs.dataLabel, options, 'bold');
           ctx.textAlign = 'left';
           ctx.textBaseline = 'bottom';
           ctx.fillText(mLabels[i], cx + 9, cy - 5);
@@ -263,7 +261,8 @@ export function renderHythergraph(
   // 범례 (기호 + 선 스타일)
   if (showLegend) {
     const lfSize = fs.dataLabel * 0.85 + 5;
-    const LEGEND_FONT = "'Noto Sans KR', sans-serif";
+    // 범례는 고딕 자리다 — 다른 종류처럼 옵션에서 푼다(글꼴을 여기 박아 두면 못 바꾼다)
+    const LEGEND_FONT = sansFont(options);
     ctx.save();
     ctx.font = `bold ${lfSize}px ${LEGEND_FONT}`;
 
@@ -280,7 +279,7 @@ export function renderHythergraph(
       const spacing = 30;
       const boxW = plotW;
       const layout = layoutBottomLegend(ctx, data.series.map((s) => s.label),
-        data.series.map(() => iconW), lfSize, boxW, { iconGap, padding: pad, spacing });
+        data.series.map(() => iconW), lfSize, boxW, options, { iconGap, padding: pad, spacing });
       const boxH = layout.boxH;
       const boxX = plotX;
       const boxY = Math.max(0, Math.min(plotY + plotH + 65, h - boxH - 1));
@@ -363,8 +362,8 @@ export function renderHythergraph(
     ctx.restore();
   }
 
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: fs.title, canvasWidth: w });
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: fs.title, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel, canvasWidth: w });
 }
 
 function formatTick(v: number): string {

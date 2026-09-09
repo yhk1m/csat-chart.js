@@ -97,7 +97,7 @@
 
 ## 옵션
 
-`options` 는 다음 13개 필드를 받습니다. 필요한 것만 적으면 나머지는 기본값을 씁니다.
+`options` 는 다음 14개 필드를 받습니다. 필요한 것만 적으면 나머지는 기본값을 씁니다.
 
 | 필드 | 기본값 | 하는 일 |
 |---|---|---|
@@ -107,7 +107,8 @@
 | `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙입니다(시험지 관습). **지금은 `scatter` 에서만 동작합니다** |
 | `footnotes` | `['']` | 각주 목록. 앞에 `* ` 를 자동으로 붙이므로 직접 적지 않습니다. 빈 문자열은 무시됩니다 |
 | `fontFamily` | `'serif'` | `'serif'`(명조)·`'sans'`(고딕)·`'custom'` 중 하나 |
-| `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 쓸 글꼴 이름 |
+| `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 **축 쪽에만** 쓸 글꼴 이름 |
+| `fontStack` | `{}` | 글꼴 자리를 통째로 갈아 끼웁니다 — `{ serif, sans }`. 아래 [내 글꼴로 그리기](#내-글꼴로-그리기) 참고 |
 | `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | 제목·축 이름·눈금·데이터 값 글자 크기(px). 각주·출처는 `dataLabel` 을 따릅니다 |
 | `showDataLabels` | `false` | 막대·점에 값을 함께 표시할지 |
 | `showLegend` | `true` | 범례를 보여줄지 |
@@ -121,14 +122,70 @@
 chart.update({ options: { fontSize: { title: 44 } } });
 ```
 
-나머지 세 값은 그대로 유지됩니다(준 항목만 갈아 끼웁니다). TypeScript 에서 이 모양의
-옵션 타입 이름은 `PartialGraphOptions`, 한 종류의 부분 갱신 전체는 `UpdateFor<T>` 입니다.
+나머지 세 값은 그대로 유지됩니다(준 항목만 갈아 끼웁니다). `fontStack` 도 같습니다 —
+한 자리만 다시 줘도 나머지 자리는 그대로 남습니다. TypeScript 에서 이 모양의 옵션
+타입 이름은 `PartialGraphOptions`, 한 종류의 부분 갱신 전체는 `UpdateFor<T>` 입니다.
+
+## 내 글꼴로 그리기
+
+시험지 그림은 자리마다 서체가 다릅니다. **축 이름·눈금·자료값은 명조**, **제목·출처·
+각주·범례는 고딕**입니다. 실제 시험지가 그렇기 때문에 기본값도 그렇게 두었습니다.
+
+`fontStack` 은 그 짝을 그대로 둔 채 **각 자리에 무슨 글꼴을 쓸지**만 바꿉니다.
+
+```js
+new CsatChart('c', {
+  type: 'climate',
+  data: myData,
+  options: {
+    fontStack: {
+      serif: "'함초롬바탕', serif",      // 축 이름·눈금·자료값
+      sans: "'함초롬돋움', sans-serif",  // 제목·출처·각주·범례
+    },
+  },
+});
+```
+
+**이 방법이 가장 손이 적게 갑니다.** 한컴오피스가 깔린 컴퓨터에는 함초롬바탕·
+함초롬돋움이 이미 있습니다. 내려받을 것도, 어딘가에 올려 둘 것도, 라이선스를 살펴볼
+것도 없습니다 — 보는 사람의 컴퓨터에 있는 글꼴을 그대로 쓰기 때문입니다. 윈도우
+기본 글꼴(`'맑은 고딕'`·`'바탕'`)도 같은 방식으로 쓸 수 있습니다.
+
+대신 **그 컴퓨터에 그 글꼴이 있어야** 합니다. 없으면 브라우저가 아무 말 없이 뒤의
+총칭 글꼴(`serif`·`sans-serif`)로 떨어뜨립니다. 그래서 이름 뒤에 `, serif` 를 꼭
+붙여 두세요 — 그래야 이름이 틀렸을 때도 명조 계열로 떨어집니다.
+
+누가 열어 보든 같게 보여야 한다면 웹폰트를 쓰고, 글꼴을 **먼저 받아 둔 뒤에**
+그리세요. `ensureFonts()` 의 `href`·`families` 가 그 자리입니다.
+
+```js
+await CsatChart.ensureFonts({
+  href: 'https://cdn.example.com/my-font.css',
+  families: ['MyFont Serif', 'MyFont Sans'],
+});
+new CsatChart('c', {
+  type: 'climate',
+  data: myData,
+  options: { fontStack: { serif: "'MyFont Serif', serif", sans: "'MyFont Sans', sans-serif" } },
+});
+```
+
+두 자리 중 하나만 줘도 됩니다. 적지 않은 자리는 기본 글꼴(Noto Serif KR·Noto Sans KR)
+그대로입니다.
+
+`fontFamily` 와는 층이 다릅니다. `fontFamily` 는 **축이 어느 자리를 쓸지**(명조냐
+고딕이냐) 고르고, `fontStack` 은 **그 자리가 무슨 글꼴인지**를 정합니다. 둘을 함께
+써도 됩니다 — `fontFamily: 'sans'` + `fontStack.sans` 면 축까지 그 고딕으로 그립니다.
+`customFont` 은 예전 그대로 동작하지만 축 쪽만 바꾸므로, 그림 전체를 바꾸려면
+`fontStack` 을 쓰세요.
 
 ## 그림이 이상할 때
 
 | 증상 | 원인 | 할 일 |
 |---|---|---|
 | 글꼴이 시험지 같지 않습니다 | `ensureFonts()` 를 안 불렀거나, 차트를 만든 **뒤에** 불렀습니다 | `await CsatChart.ensureFonts()` 를 먼저 부르고 그 안에서 차트를 만드세요 |
+| `fontStack` 을 줬는데 그림이 그대로입니다 | 그 이름의 글꼴이 이 컴퓨터에 없어 브라우저가 조용히 대체 글꼴로 떨어뜨렸습니다 | 글꼴 이름을 다시 보세요(한글 이름은 한글 그대로 적습니다). 누구에게나 같게 보여야 하면 웹폰트를 쓰고 `ensureFonts({ href, families })` 로 먼저 받으세요 |
+| `update()` 뒤에 축 글꼴만 기본으로 돌아갑니다 | — | 그런 일은 없습니다. `fontStack` 은 `fontSize` 처럼 준 자리만 갈아 끼우고 나머지는 유지합니다 |
 | 제목·눈금·각주가 한 덩어리로 겹칩니다 | 캔버스가 너무 작습니다 | 800×600 안팎으로. 500×400 아래로는 내려가지 않습니다 |
 | 축은 그려지는데 자료가 없습니다 | 기본 데이터를 그대로 썼습니다 (값이 전부 0인 종류가 있습니다) | [내 자료 넣기](#내-자료-넣기) |
 | 레티나에서 흐릿합니다 | 화면 캔버스는 1배입니다 | `toDataURL({ scale: 2 })` 로 뽑아 `<img>` 로 거세요 |
@@ -250,6 +307,11 @@ TypeScript 에서는 `type` 을 적는 순간 `data` 타입이 그 종류로 좁
 옵션은 셋입니다. `href`(글꼴 CSS 주소), `families`(확인할 글꼴 이름), `timeoutMs`
 (기본 5000). 교내망·오프라인이라 `href` 를 바꾼다면 **`families` 도 함께 바꾸세요**
 — `href` 를 그대로 둔 채 `families` 만 바꾸면 그 글꼴이 없어도 `true` 가 나옵니다.
+
+이 둘은 `options.fontStack` 과 짝입니다. 내려받아야 하는 웹폰트를 쓸 때 여기서 먼저
+받아 두고, `fontStack` 으로 그 글꼴을 자리에 앉힙니다. 이미 컴퓨터에 깔린 글꼴만
+쓴다면 `ensureFonts()` 는 부를 필요가 없습니다 — [내 글꼴로 그리기](#내-글꼴로-그리기)
+참고.
 
 ### 오류 가려내기
 

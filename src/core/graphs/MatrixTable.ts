@@ -27,11 +27,10 @@ export function renderMatrixTable(
   if (n === 0) return;
 
   const font = options.fontFamily;
-  const customFont = options.customFont;
 
   // 칸 크기는 가장 긴 글자에 맞춘다 — 모든 칸이 같아야 계단이 반듯하다
   const base = options.fontSize.tick;
-  ctx.font = getFont(base, font, customFont, 'bold');
+  ctx.font = getFont(base, options, 'bold');
   const widest = Math.max(
     ...data.names.map((t) => ctx.measureText(t).width),
     ...cellValues(data).map((v) => ctx.measureText(formatValue(v, data.groupThousands)).width),
@@ -72,7 +71,7 @@ export function renderMatrixTable(
 
   // 단위 — 표 오른쪽 끝에 맞춘다
   if (data.unit) {
-    ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
     ctx.fillStyle = '#000';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -97,12 +96,12 @@ export function renderMatrixTable(
       if (isName) {
         // 시험지 관습 — 기호((가)·A)는 명조, 실제 지명은 고딕이다
         const family = data.nameIsSymbol && !data.nameIsSymbol[i] ? 'sans' : font;
-        ctx.font = getFont(cellFontSize, family, customFont, 'bold');
+        ctx.font = getFont(cellFontSize, options, 'bold', family);
         ctx.textAlign = 'center';
         ctx.fillText(data.names[i], x + cellW / 2, y + cellH / 2);
       } else {
         // 값은 오른쪽 정렬 — 자릿수가 달라도 끝이 맞아야 읽힌다
-        ctx.font = getFont(cellFontSize, font, customFont, 'bold');
+        ctx.font = getFont(cellFontSize, options, 'bold');
         ctx.textAlign = 'right';
         ctx.fillText(
           formatValue(data.values[i]?.[j] ?? 0, data.groupThousands),
@@ -113,9 +112,9 @@ export function renderMatrixTable(
     }
   }
 
-  drawTitle({ ctx, plotX: tableX, plotW: tableW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX: tableX, plotW: tableW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
   drawSourceAndFootnote({
-    ctx, plotX: tableX, plotW: tableW, height: h,
+    ctx, fonts: options, plotX: tableX, plotW: tableW, height: h,
     source: options.source, footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel, canvasWidth: w,
   });

@@ -362,12 +362,12 @@ export function renderTreemapGraph(
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = getFont(labelSize, options.fontFamily, options.customFont);
+  ctx.font = getFont(labelSize, options);
 
   rects.forEach((r, i) => {
     if (shouldOmitLabel(r, minLabelW, labelSize)) return;
     const avail = r.w - pad * 2;
-    ctx.font = getFont(labelSize, options.fontFamily, options.customFont);
+    ctx.font = getFont(labelSize, options);
     // 줄 수와 글꼴 크기를 함께 고른다 — 칸 너비·높이를 둘 다 만족하는 가장 큰
     // 배율을 주는 줄 수를 찾는다(순서로 매기면 좁고 낮은 칸을 못 푼다,
     // `pickLabelLayout` 설명 참고).
@@ -379,7 +379,7 @@ export function renderTreemapGraph(
     if (shouldOmitLayout(layout)) return;
     const drawSize = resolveDrawSize(labelSize, layout);
     if (drawSize !== labelSize) {
-      ctx.font = getFont(drawSize, options.fontFamily, options.customFont);
+      ctx.font = getFont(drawSize, options);
     }
 
     const startY = r.y + r.h / 2 - ((layout.lines.length - 1) * drawSize * 1.2) / 2;
@@ -393,7 +393,7 @@ export function renderTreemapGraph(
 
     // 다음 칸의 pickLabelLayout 측정이 기준 크기를 쓰도록 되돌린다
     if (drawSize !== labelSize) {
-      ctx.font = getFont(labelSize, options.fontFamily, options.customFont);
+      ctx.font = getFont(labelSize, options);
     }
   });
 
@@ -402,11 +402,11 @@ export function renderTreemapGraph(
   ctx.strokeRect(frame.x, frame.y, frame.w, frame.h);
 
   drawTitle({
-    ctx, plotX: frame.x, plotW: frame.w, title: options.title,
+    ctx, fonts: options, plotX: frame.x, plotW: frame.w, title: options.title,
     fontSize: options.fontSize.title, canvasWidth: w,
   });
   drawSourceAndFootnote({
-    ctx, plotX: frame.x, plotW: frame.w, height: h,
+    ctx, fonts: options, plotX: frame.x, plotW: frame.w, height: h,
     source: options.source, footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel, canvasWidth: w,
   });

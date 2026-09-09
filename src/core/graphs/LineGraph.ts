@@ -71,24 +71,22 @@ export function renderLineGraph(
 ) {
   clearCanvas(ctx, w, h);
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const n = data.xLabels.length;
   const useLegend = data.labelPlacement === 'legend' && options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (useLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.series.map((s) => s.label), options.fontSize.dataLabel * 0.85 + 5, 'line')
+    ? measureLegendWidth(ctx, data.series.map((s) => s.label), options.fontSize.dataLabel * 0.85 + 5, options, 'line')
     : 0;
 
   // 선 끝에 이름을 붙이면 오른쪽에 자리가 필요하다
-  ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
   const endLabelW = data.labelPlacement === 'lineEnd'
     ? widestLabel(ctx, data.series.map((s) => s.label)) + 16
     : 0;
 
   // x축 단위((년) 등)도 마지막 눈금 오른쪽에 놓이므로 그만큼 자리를 비워 둔다.
   // 안 그러면 좁은 패널에서 잘린다.
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   const xUnitW = data.xUnit
     ? ctx.measureText(data.xUnit).width + ctx.measureText(data.xLabels[n - 1] ?? '').width / 2 + 12
     : 0;
@@ -97,7 +95,7 @@ export function renderLineGraph(
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (useLegend && legendPos === 'bottom' && !data.insideLegend)
     ? measureBottomLegend(ctx, data.series.map((s) => s.label),
-        options.fontSize.dataLabel * 0.85, w - 130 - padRight, 'line')
+        options.fontSize.dataLabel * 0.85, w - 130 - padRight, options, 'line')
     : 0;
 
   const padding: Padding = {
@@ -157,7 +155,7 @@ export function renderLineGraph(
     min: axis.min, max: axis.max, step: axis.step,
     label: data.yUnit,
     side: 'left',
-    fontFamily: font, customFont,
+    fonts: options,
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
@@ -263,7 +261,7 @@ export function renderLineGraph(
   // (8방향 배치는 가로 위치가 흐트러져 어긋나 보인다).
   if (data.labelPlacement === 'lineEnd') {
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
     const placer = new LabelPlacer();
     const lineHeight = options.fontSize.dataLabel * 1.1;
     const columnX = plotX + plotW + 10;
@@ -293,7 +291,7 @@ export function renderLineGraph(
 
   // X축 눈금 이름
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   const xStride = labelStride(stepX, widestLabel(ctx, data.xLabels));
@@ -311,13 +309,13 @@ export function renderLineGraph(
   }
 
   if (options.title) {
-    drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+    drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
   }
 
   if (useLegend && data.insideLegend) {
     // 시험지 누적 면적 그래프는 범례를 플롯 안쪽 왼쪽 위에 작은 상자로 둔다
     ctx.save();
-    ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
     const rowH = options.fontSize.dataLabel * 1.15;
     const swatch = rowH * 0.75;
     const boxW = swatch + 6 + widestLabel(ctx, data.series.map((s) => s.label)) + 10;
@@ -350,7 +348,7 @@ export function renderLineGraph(
       dash: LINE_DASH[s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length]],
     }));
     drawLegend({
-      ctx, items, position: legendPos,
+      ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85,
@@ -358,7 +356,7 @@ export function renderLineGraph(
   }
 
   drawSourceAndFootnote({
-    ctx, plotX, plotW, height: h, canvasWidth: w,
+    ctx, fonts: options, plotX, plotW, height: h, canvasWidth: w,
     source: options.source,
     footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel * 0.85,

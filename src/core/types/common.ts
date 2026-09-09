@@ -43,6 +43,32 @@ export type LegendPosition = 'bottom' | 'right';
 /** 플롯 안쪽 범례를 놓을 모서리 */
 export type InsideLegendCorner = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
 
+/** 글꼴 자리. 시험지는 명조 자리와 고딕 자리가 갈린다. */
+export type FontRole = 'serif' | 'sans' | 'custom';
+
+/**
+ * 두 글꼴 «자리»를 통째로 갈아 끼운다.
+ *
+ * 시험지 그림은 자리마다 서체가 다르다 — 축 이름·눈금·자료값은 명조,
+ * 제목·출처·각주·범례는 고딕이다. 그 짝 자체는 그대로 두고 각 자리에 무슨
+ * 글꼴을 쓸지만 바꾸고 싶을 때 쓴다. 적지 않은 자리는 기본 글꼴 그대로다.
+ *
+ * ```js
+ * // 한컴오피스가 깔린 PC 라면 내려받을 것이 없다 — 보는 사람의 글꼴을 그대로 쓴다
+ * options.fontStack = { serif: "'함초롬바탕', serif", sans: "'함초롬돋움', sans-serif" };
+ * ```
+ *
+ * `fontFamily` 와 층이 다르다. `fontFamily` 는 축이 **어느 자리**를 쓸지
+ * 고르고, 이것은 그 자리가 **무슨 글꼴**인지 정한다. 웹폰트를 쓰려면
+ * `CsatChart.ensureFonts({ href, families })` 로 먼저 받아 둔다.
+ */
+export interface FontStack {
+  /** 명조 자리 — 축 이름·눈금·자료값. 기본 `'Noto Serif KR', 'NanumMyeongjo', serif` */
+  serif?: string;
+  /** 고딕 자리 — 제목·출처·각주·범례. 기본 `'Noto Sans KR', sans-serif` */
+  sans?: string;
+}
+
 // 공통 그래프 옵션
 export interface GraphOptions {
   title: string;
@@ -63,8 +89,15 @@ export interface GraphOptions {
    */
   sourceInline?: boolean;
   footnotes: string[];
-  fontFamily: 'serif' | 'sans' | 'custom';
+  fontFamily: FontRole;
   customFont: string;
+  /**
+   * 글꼴 자리를 갈아 끼운다. 적지 않은 자리는 기본 글꼴 그대로다.
+   *
+   * `customFont` 과 다르다 — `customFont` 은 `fontFamily: 'custom'` 일 때
+   * **축 쪽**만 바꾸고 제목·범례는 못 건드린다. 이쪽은 자리마다 따로 준다.
+   */
+  fontStack?: FontStack;
   fontSize: {
     title: number;
     axisLabel: number;
@@ -93,6 +126,7 @@ export function createDefaultGraphOptions(): GraphOptions {
     footnotes: [''],
     fontFamily: 'serif',
     customFont: '',
+    fontStack: {},
     fontSize: {
       title: 36,
       axisLabel: 28,

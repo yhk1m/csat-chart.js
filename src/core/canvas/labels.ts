@@ -1,5 +1,5 @@
 // © 2026 김용현
-const LABEL_FONT = "'Noto Sans KR', sans-serif";
+import { sansFont, type FontOptions } from './renderer';
 
 interface TitleParams {
   ctx: CanvasRenderingContext2D;
@@ -7,6 +7,15 @@ interface TitleParams {
   plotW: number;
   title: string;
   fontSize: number;
+  /**
+   * 글꼴 옵션. `options` 를 그대로 넘긴다.
+   *
+   * 제목·출처·각주는 언제나 **고딕 자리**로 그린다(시험지 원본이 그렇다).
+   * 그 자리에 무슨 글꼴을 쓸지는 `options.fontStack.sans` 가 정한다.
+   * 없어도 되는 항목으로 두지 않는다 — 빠뜨린 호출부가 조용히 기본 글꼴로
+   * 그려지는 것이 1.2.0 까지의 결함이었다.
+   */
+  fonts: FontOptions;
   /** 캔버스 전체 너비. 주면 제목이 넘칠 때 글자를 줄여 맞춘다. */
   canvasWidth?: number;
 }
@@ -33,12 +42,13 @@ function fitFontSize(
   return Math.floor(scaled);
 }
 
-export function drawTitle({ ctx, plotX, plotW, title, fontSize, canvasWidth }: TitleParams) {
+export function drawTitle({ ctx, plotX, plotW, title, fontSize, fonts, canvasWidth }: TitleParams) {
   if (!title) return;
   ctx.save();
   ctx.fillStyle = '#000';
 
-  const makeFont = (size: number) => `bold ${size}px ${LABEL_FONT}`;
+  const labelFont = sansFont(fonts);
+  const makeFont = (size: number) => `bold ${size}px ${labelFont}`;
   // 제목은 그래프 가운데에 놓이므로 캔버스 양쪽으로 넘칠 수 있다.
   // 가운데를 기준으로 양쪽에서 좁은 쪽 × 2 가 실제로 쓸 수 있는 폭이다.
   const centerX = plotX + plotW / 2;
@@ -66,6 +76,8 @@ interface SourceFootnoteParams {
   sourceInline?: boolean;
   footnotes: string[];
   fontSize: number;
+  /** 글꼴 옵션. `options` 를 그대로 넘긴다 — `TitleParams.fonts` 와 같다. */
+  fonts: FontOptions;
   canvasWidth?: number;
 }
 
@@ -73,9 +85,10 @@ interface SourceFootnoteParams {
 const EDGE_MARGIN = 10;
 
 export function drawSourceAndFootnote({
-  ctx, plotX, plotW, height, source, sourceLeft, sourceInline, footnotes, fontSize, canvasWidth,
+  ctx, plotX, plotW, height, source, sourceLeft, sourceInline, footnotes, fontSize, fonts, canvasWidth,
 }: SourceFootnoteParams) {
   ctx.save();
+  const labelFont = sansFont(fonts);
 
   // 출처·연도는 오른쪽 **끝**, 각주는 왼쪽 **끝**에 붙인다 (2026-08-04 사용자 결정).
   // 예전에는 플롯 영역에 맞춰 안쪽으로 들여써서 그림 가운데에 뜬 것처럼 보였다.
@@ -102,7 +115,7 @@ export function drawSourceAndFootnote({
   const rightEdge = canvasWidth != null ? rightX : plotX + plotW;
   const available = Math.max(0, rightEdge - leftX);
 
-  const sourceFont = (size: number) => `bold ${size}px ${LABEL_FONT}`;
+  const sourceFont = (size: number) => `bold ${size}px ${labelFont}`;
 
   if (source && !sourceBelow && !inlineSource) {
     ctx.fillStyle = '#555';
@@ -123,7 +136,7 @@ export function drawSourceAndFootnote({
   for (let i = 0; i < filtered.length; i++) {
     const text = '* ' + filtered[i];
     ctx.fillStyle = '#555';
-    const makeFont = (size: number) => `${size}px ${LABEL_FONT}`;
+    const makeFont = (size: number) => `${size}px ${labelFont}`;
     const size = fitFontSize(ctx, text, fontSize * 0.9, footnoteAvailable, makeFont);
     ctx.font = makeFont(size);
     ctx.textAlign = 'left';
@@ -145,7 +158,7 @@ export function drawSourceAndFootnote({
 
   // 각주 아래 출처 줄 — 왼쪽에 자료 연도, 오른쪽에 출처 기관
   if (sourceBelow) {
-    const makeFont = (size: number) => `bold ${size}px ${LABEL_FONT}`;
+    const makeFont = (size: number) => `bold ${size}px ${labelFont}`;
     const half = available > 0 ? available / 2 : 0;
     ctx.fillStyle = '#555';
     ctx.textBaseline = 'bottom';

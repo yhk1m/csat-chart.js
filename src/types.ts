@@ -51,7 +51,7 @@ export type CsatChartType = keyof ChartDataMap;
  *
  * `Partial` 은 맨 위 칸만 선택으로 만든다. 그래서 `fontSize` 는 넷을 다 적어야
  * 했다 — 런타임은 하나만 줘도 받는데 타입이 막는, 거꾸로 된 어긋남이다.
- * 한 겹 더 풀어 준다.
+ * 한 겹 더 풀어 준다. (`fontStack` 은 속이 이미 다 선택이라 손댈 것이 없다.)
  */
 export type PartialGraphOptions = Omit<Partial<GraphOptions>, 'fontSize'> & {
   fontSize?: Partial<GraphOptions['fontSize']>;

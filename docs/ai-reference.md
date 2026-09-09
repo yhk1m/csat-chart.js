@@ -6,7 +6,7 @@
 유추해서 쓰지 말고 이 문서에 적힌 이름·모양을 그대로 따른다. 이 문서에 없는
 API는 존재를 가정하지 않는다.
 
-- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.1.0)
+- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.3.0)
 - 라이브 데모: https://yhk1m.github.io/csat-chart.js/
 - 라이선스: MIT, 런타임 의존성 0
 
@@ -298,7 +298,7 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 
 ## 5. `options`
 
-`new CsatChart(target, { type, data, options })`의 `options`는 아래 13개
+`new CsatChart(target, { type, data, options })`의 `options`는 아래 14개
 필드를 받는다(값은 실제 `createDefaultGraphOptions()` 반환값에서 확인). 준
 것만 덮이고 나머지는 기본값을 쓴다.
 
@@ -310,7 +310,8 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 | `sourceInline` | `undefined` | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. **`scatter`에서만 동작한다** — 다른 15종은 읽지 않는다 |
 | `footnotes` | `['']` | 각주 목록. `* `를 자동으로 붙인다. 빈 문자열은 무시 |
 | `fontFamily` | `'serif'` | `'serif'`(명조) / `'sans'`(고딕) / `'custom'` |
-| `customFont` | `''` | `fontFamily`가 `'custom'`일 때 쓸 글꼴 이름 |
+| `customFont` | `''` | `fontFamily`가 `'custom'`일 때 쓸 글꼴 이름. **축 쪽만 바꾼다** — 제목·범례는 못 건드린다 |
+| `fontStack` | `{}` | 글꼴 «자리»를 통째로 갈아 끼운다. `{ serif?, sans? }`. 아래 5.1 참고 |
 | `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | px 단위. 각주·출처는 `dataLabel`을 따름. 한 항목만 줘도 나머지는 유지됨 |
 | `showDataLabels` | `false` | 막대·점 위에 값을 표시할지 (모든 렌더러가 지원하는 것은 아님) |
 | `showLegend` | `true` | 범례 표시 여부 |
@@ -322,6 +323,53 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 
 ```js
 chart.update({ options: { fontSize: { title: 44 } } });
+```
+
+### 5.1 `fontStack` — 글꼴 갈아 끼우기 (1.3.0)
+
+시험지 그림은 자리마다 서체가 갈린다. **명조 자리**는 축 이름·눈금·자료값,
+**고딕 자리**는 제목·출처·각주·범례다. 이 짝은 실제 시험지가 그런 것이므로
+기본값을 바꾸지 않는다. `fontStack`은 짝을 그대로 두고 **각 자리의 글꼴만**
+바꾼다.
+
+```js
+options: {
+  fontStack: {
+    serif: "'함초롬바탕', serif",      // 축 이름·눈금·자료값
+    sans: "'함초롬돋움', sans-serif",  // 제목·출처·각주·범례
+  },
+}
+```
+
+값은 글꼴 «이름»이 아니라 **CSS 글꼴 목록**이다. 총칭 글꼴(`serif`·`sans-serif`)을
+뒤에 붙여, 그 이름이 없는 컴퓨터에서도 명조/고딕 계열로 떨어지게 한다.
+
+- 두 키 모두 선택이다. 적지 않은 자리는 기본값(`'Noto Serif KR', 'NanumMyeongjo',
+  serif` / `'Noto Sans KR', sans-serif`) 그대로다.
+- `update()`에서 **얕게 덮이지 않는다.** `fontSize`와 같다 — 한 자리만 다시 줘도
+  나머지 자리는 남는다. 지우려면 그 키에 `undefined`나 `''`를 준다.
+- `fontFamily`와 층이 다르다. `fontFamily`는 축이 **어느 자리**를 쓸지 고르고,
+  `fontStack`은 그 자리가 **무슨 글꼴**인지 정한다. 둘은 겹치지 않는다.
+- `customFont`의 동작은 1.2.0과 똑같다. 바꾸지 않았다.
+
+**이미 깔린 글꼴을 쓰는 것이 기본 경로다.** 한컴오피스가 있는 컴퓨터에는
+함초롬바탕·함초롬돋움이 이미 있으므로 내려받을 것도, 호스팅할 것도, 라이선스를
+살필 것도 없다. 대신 보는 사람의 컴퓨터에 그 글꼴이 없으면 브라우저가 **말없이**
+대체 글꼴로 떨어뜨린다 — 예외도 경고도 없다.
+
+누구에게나 같게 보여야 해서 웹폰트가 필요하면, `ensureFonts()`의 `href`·
+`families`로 **먼저 받아 둔 뒤에** 그린다. 그 두 옵션이 정확히 이 짝이다.
+
+```js
+await CsatChart.ensureFonts({
+  href: 'https://cdn.example.com/my-font.css',
+  families: ['MyFont Serif', 'MyFont Sans'],
+});
+new CsatChart('c', {
+  type: 'climate',
+  data: CsatChart.createDefaultClimateData(),
+  options: { fontStack: { serif: "'MyFont Serif', serif", sans: "'MyFont Sans', sans-serif" } },
+});
 ```
 
 ## 6. 오류 읽는 법
@@ -381,6 +429,10 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
   쓴다 — `scale`은 **글자·선까지 함께 키우는** 배율이다. `resize(1600,1200)`과
   다르다: `resize`는 캔버스만 키워서 글자가 상대적으로 작아진 다른 그림이
   되고, `toDataURL({ scale })`은 화면과 같은 구도로 해상도만 올린다.
+- **`fontStack`에 없는 글꼴 이름을 줘도 아무도 알려 주지 않는다.** 브라우저가
+  조용히 대체 글꼴로 그린다. 라이브러리는 글꼴 «이름»을 검사하지 않는다 — 검사할
+  방법이 캔버스 폭을 재 보는 것뿐이라 그 판단을 라이브러리에 두지 않았다.
+  데모(`docs/index.html`)는 그 폭 비교를 화면 쪽에서 하고 있다.
 - **`scatter.quadrantLabels`는 죽은 필드다.** 타입에 4-튜플로 박혀 있고
   검증기도 길이 4를 요구하지만, 어떤 렌더러도 이 값을 읽지 않는다.
 

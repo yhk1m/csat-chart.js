@@ -57,8 +57,6 @@ export function renderCategoryDotGraph(
 ) {
   clearCanvas(ctx, w, h);
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
   const markers = data.seriesMarkers ?? DOT_MARKER_ORDER;
@@ -67,12 +65,12 @@ export function renderCategoryDotGraph(
   const showLegend = options.showLegend && sCount > 1;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, 'circle')
+    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options, 'circle')
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85, w - 130 - (60 + legendW), 'circle')
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85, w - 130 - (60 + legendW), options, 'circle')
     : 0;
 
   const padding: Padding = {
@@ -124,7 +122,7 @@ export function renderCategoryDotGraph(
     min: axis.min, max: axis.max, step: axis.step,
     label: data.unit,
     side: 'left',
-    fontFamily: font, customFont,
+    fonts: options,
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
@@ -158,7 +156,7 @@ export function renderCategoryDotGraph(
       drawMarker(ctx, markers[s % markers.length], cx, cy, data.dotRadius);
 
       if (options.showDataLabels) {
-        ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+        ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(String(val), cx, cy - data.dotRadius - 4);
@@ -183,7 +181,7 @@ export function renderCategoryDotGraph(
 
   // X축 범주 라벨 (클리핑 밖에서)
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (let c = 0; c < n; c++) {
@@ -192,7 +190,7 @@ export function renderCategoryDotGraph(
   }
 
   if (options.title) {
-    drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title });
+    drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title });
   }
 
   if (showLegend) {
@@ -205,7 +203,7 @@ export function renderCategoryDotGraph(
       label,
     }));
     drawLegend({
-      ctx, items, position: legendPos,
+      ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85,
@@ -213,7 +211,7 @@ export function renderCategoryDotGraph(
   }
 
   drawSourceAndFootnote({
-    ctx, plotX, plotW, height: h, canvasWidth: w,
+    ctx, fonts: options, plotX, plotW, height: h, canvasWidth: w,
     source: options.source,
     footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel * 0.85,

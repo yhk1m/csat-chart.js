@@ -257,6 +257,18 @@
   .data-field { padding-top:12px; border-top:1px solid var(--c-hair); }
   .names-note { margin:-6px 0 0; font-size:12px; line-height:1.5; color:var(--c-muted); }
 
+  /* 「내 글꼴」 칸 — 이 PC에 깔린 글꼴 이름을 그대로 적는 자리.
+     없는 이름이면 브라우저가 말없이 기본 글꼴로 떨어뜨리므로, 칸마다
+     «있다/없다» 를 적어 준다. 그 한 줄이 없으면 오타와 미설치를 가릴 수 없다. */
+  .font-block { padding-top:12px; border-top:1px solid var(--c-hair); }
+  /* 경계선은 .font-block 이 이미 그었다 — 그 안의 제목은 다시 긋지 않는다 */
+  .names-head.font-head { padding-top:0; border-top:0; }
+  .font-note { display:flex; align-items:flex-start; gap:5px; margin:6px 0 0;
+               font-size:12px; line-height:1.45; color:var(--c-muted); }
+  .font-note svg { flex:none; margin-top:2px; }
+  .font-note.ok { color:var(--c-sub); }
+  .font-note.missing { color:var(--danger); }
+
   /* 오류 줄은 늘 보이는 자리에 둔다 — JSON 칸이 접혀 있어도 읽혀야 한다.
      margin-top:auto 가 오류 줄과 버튼 줄을 편집칸 «바닥» 으로 밀어, 왼쪽
      4:3 그래프의 아랫변과 눈높이가 맞는다. */
@@ -701,7 +713,10 @@ function sampleWithPatch(type) {
  *     열네 장에서는 켜도 아무 일이 안 일어난다. 켰는데 안 변하는 스위치는
  *     없느니만 못하다.
  *   · fontFamily:'custom' — 짝이 되는 customFont 를 함께 주지 않으면 글꼴
- *     이름이 빈 문자열이 되어 그림이 깨진다. 명조·고딕 둘만 낸다.
+ *     이름이 빈 문자열이 되어 그림이 깨진다. 명조·고딕 둘만 낸다. 게다가
+ *     customFont 은 **축 쪽만** 바꾸고 제목·범례는 못 건드려서, 자기 글꼴을
+ *     넣으면 한 그림 안에 두 서체가 섞였다. 1.3.0 의 fontStack 이 그 자리를
+ *     대신한다 — 아래 「내 글꼴」 칸이 그것이고, 자리마다 따로 준다.
  *   · fontSize·legendLabel1·legendLabel2 — JSON 칸이 아니라 코드로 넘기는
  *     값이라 이 화면의 «내 학습지에 쓸 그래프» 라는 목적에서 멀다.
  */
@@ -712,14 +727,69 @@ const OPTION_DEFAULTS = {
   // footnotes.filter) 빈 배열과 결과가 같다. 화면 쪽은 빈 배열로 다룬다.
   'footnotes': [],
   'fontFamily': 'serif',
+  // 자리(명조·고딕)마다 글꼴을 갈아 끼운다.
+  //
+  // **두 칸을 undefined 로라도 «있게» 두는 것이 중요하다.** update() 는
+  // fontStack 을 fontSize 처럼 깊게 덮으므로(README 「내 글꼴로 그리기」),
+  // 빈 객체 `{}` 를 넘기면 앞서 정해 둔 글꼴이 지워지지 않고 그대로 남는다.
+  // 그러면 「되돌리기」가 글꼴만 못 되돌리는, 이름값을 못 하는 단추가 된다.
+  'fontStack': { serif: undefined, sans: undefined },
   'showDataLabels': false,
   'showLegend': true,
   'legendPosition': 'bottom',
 };
 
 /** 코드 스니펫에 적을 때의 순서. JSON 의 키 순서가 화면마다 달라지지 않게 한다. */
-const OPTION_ORDER = ['title', 'source', 'footnotes', 'fontFamily',
+const OPTION_ORDER = ['title', 'source', 'footnotes', 'fontFamily', 'fontStack',
   'showDataLabels', 'showLegend', 'legendPosition'];
+
+/**
+ * 「내 글꼴」 칸의 두 자리. 라벨과 기본 대체 글꼴을 여기 한 곳에 적어 둔다.
+ *
+ * 적는 것은 **글꼴 이름 하나**지만 라이브러리가 받는 것은 CSS 글꼴 목록이다.
+ * 이름 뒤에 그 자리에 맞는 총칭 글꼴을 붙여, 이름이 틀렸을 때 라틴 기본값이
+ * 아니라 명조/고딕 쪽으로 떨어지게 한다.
+ */
+const FONT_SLOTS = [
+  { role: 'serif', label: '내 명조 글꼴 — 축 이름·눈금·자료값', hint: '예: 함초롬바탕', generic: 'serif' },
+  { role: 'sans', label: '내 고딕 글꼴 — 제목·출처·각주·범례', hint: '예: 함초롬돋움', generic: 'sans-serif' },
+];
+
+/** 적어 넣은 이름 하나를 CSS 글꼴 목록으로 만든다. 비면 «안 준 것» 이다. */
+function stackFromName(role, name) {
+  const n = String(name || '').trim().replace(/['"]/g, '');
+  if (!n) return '';
+  const slot = FONT_SLOTS.filter(function (f) { return f.role === role; })[0];
+  return "'" + n + "', " + slot.generic;
+}
+
+/** 위의 되돌이 — 되돌리기·JSON 갱신 뒤에 칸을 다시 채울 때 쓴다. */
+function nameFromStack(stack) {
+  const m = /^'([^']*)'/.exec(String(stack || ''));
+  return m ? m[1] : '';
+}
+
+/**
+ * 이 PC에 그 이름의 글꼴이 실제로 깔려 있는가.
+ *
+ * 없는 이름을 주면 브라우저는 **말없이** 대체 글꼴로 그린다. 오타인지
+ * 미설치인지 화면만 봐서는 알 수 없으므로 직접 재서 알려 준다.
+ * `document.fonts.check()` 는 브라우저마다 시스템 글꼴을 세는 방식이 갈려서,
+ * 재는 쪽이 확실한 «폭 비교» 를 쓴다 — 총칭 글꼴만 준 폭과 「이름, 총칭」을
+ * 준 폭이 다르면 그 이름이 실제로 쓰인 것이다.
+ */
+const fontProbe = document.createElement('canvas').getContext('2d');
+const FONT_PROBE_TEXT = 'mmmmmmmmmmlli가나다라마 0123456789';
+function fontInstalled(name) {
+  const n = String(name || '').trim().replace(/['"]/g, '');
+  if (!n) return null;
+  return ['monospace', 'serif', 'sans-serif'].some(function (base) {
+    fontProbe.font = '72px ' + base;
+    const plain = fontProbe.measureText(FONT_PROBE_TEXT).width;
+    fontProbe.font = "72px '" + n + "', " + base;
+    return fontProbe.measureText(FONT_PROBE_TEXT).width !== plain;
+  });
+}
 
 /**
  * 그 옵션을 «실제로 읽는» 종류만 적는다. 읽지 않는 카드에서는 조작칸을 아예
@@ -803,7 +873,10 @@ function initialOptions(type) {
   const o = {};
   OPTION_ORDER.forEach(function (k) {
     const d = OPTION_DEFAULTS[k];
-    o[k] = Array.isArray(d) ? d.slice() : d;
+    // 배열·객체 기본값을 그대로 물리면 카드 열여섯 장이 **한 덩어리**를
+    // 나눠 쓰게 된다 — 한 장에서 글꼴을 바꾸면 나머지 열다섯 장이 함께 바뀐다.
+    if (Array.isArray(d)) { o[k] = d.slice(); return; }
+    o[k] = (d && typeof d === 'object') ? Object.assign({}, d) : d;
   });
   const over = OPTIONS_OVERRIDES[type];
   if (over) {
@@ -826,6 +899,16 @@ function changedOptions(opts) {
     const v = opts[k];
     if (k === 'footnotes') {
       if (v.length > 0) out[k] = v.slice();
+      return;
+    }
+    if (k === 'fontStack') {
+      // 적어 넣은 자리만 코드에 적는다. 빈 자리를 적으면 붙여넣은 사람이
+      // «기본 글꼴을 지운 것» 으로 오해한다.
+      const picked = {};
+      FONT_SLOTS.forEach(function (slot) {
+        if (v && v[slot.role]) picked[slot.role] = v[slot.role];
+      });
+      if (Object.keys(picked).length > 0) out[k] = picked;
       return;
     }
     if (v !== OPTION_DEFAULTS[k]) out[k] = v;
@@ -973,6 +1056,18 @@ const ICON_COPY =
   ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
   '<rect x="5.5" y="5.5" width="8" height="8" rx="1"/>' +
   '<path d="M3.5 10.5h-1a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v1"/></svg>';
+
+/** 「이 PC에 있다」 표시 — 체크 */
+const ICON_FONT_OK =
+  '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M3 8.5l3.5 3.5L13 4.5"/></svg>';
+
+/** 「이 PC에 없다」 표시 — 느낌표 */
+const ICON_FONT_MISSING =
+  '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>';
 
 const CHEVRON =
   '<svg class="chevron" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
@@ -1360,6 +1455,27 @@ function card(type, ordinal) {
       '<option value="serif">명조</option><option value="sans">고딕</option>' +
     '</select></div>');
 
+  // 「내 글꼴」 — 이 PC에 깔린 글꼴을 그대로 쓴다. 내려받는 것도, 웹폰트도 없다.
+  // 한컴오피스가 깔린 교무실 PC 라면 함초롬바탕·함초롬돋움이 이미 있다.
+  const fontFieldsHtml = FONT_SLOTS.map(function (slot) {
+    const id = uid('font-' + slot.role);
+    return '<div class="field">' +
+      '<label class="field-label" for="' + id + '">' + slot.label + '</label>' +
+      '<input type="text" id="' + id + '" data-font="' + slot.role + '"' +
+        ' placeholder="' + slot.hint + '" spellcheck="false"' +
+        ' autocapitalize="off" autocomplete="off">' +
+      '<p class="font-note" data-font-note="' + slot.role + '" role="status" hidden></p>' +
+    '</div>';
+  }).join('');
+  const fontBlockHtml =
+    '<div class="font-block">' +
+      '<p class="names-head font-head">내 글꼴로 바꾸기</p>' +
+      '<p class="names-note">이 컴퓨터에 <b>깔려 있는</b> 글꼴 이름을 그대로 적습니다. ' +
+        '내려받는 것도 웹폰트도 없어서, 보는 사람의 컴퓨터에도 그 글꼴이 있어야 같게 보입니다. ' +
+        '누구에게나 같게 보여야 하면 웹폰트를 쓰고 <code>CsatChart.ensureFonts({ href, families })</code> 로 먼저 받아 둡니다.</p>' +
+      '<div class="grid2">' + fontFieldsHtml + '</div>' +
+    '</div>';
+
   // 여기서부터는 options 가 아니라 자료(data)를 고치는 칸이다 — data-opt 가
   // 아니라 data-data 로 표시해 아래 두 갈래의 배선이 섞이지 않게 한다.
   const dirHtml = hasBarDirection
@@ -1406,6 +1522,7 @@ function card(type, ordinal) {
             '</div>' +
             checksHtml +
             '<div class="grid2">' + selectParts.join('') + '</div>' +
+            fontBlockHtml +
             dirHtml +
             '<p class="names-head">그래프 안의 이름</p>' +
             '<p class="names-note">칸을 고치면 그림의 그 자리가 바로 바뀝니다.</p>' +
@@ -1579,6 +1696,34 @@ function card(type, ordinal) {
       if (c.type === 'checkbox') { c.checked = !!state.options[key]; return; }
       c.value = state.options[key];
     });
+    el.querySelectorAll('[data-font]').forEach(function (c) {
+      c.value = nameFromStack((state.options.fontStack || {})[c.getAttribute('data-font')]);
+    });
+    syncFontNotes();
+  }
+
+  /**
+   * 「이 PC에 있다/없다」 한 줄을 칸마다 다시 쓴다.
+   *
+   * 없는 글꼴 이름은 브라우저가 말없이 삼킨다 — 그림이 안 바뀌는데 이유를
+   * 알 수 없으면 오타를 고칠 수도 없다. 그래서 적어 넣는 즉시 알려 준다.
+   */
+  function syncFontNotes() {
+    el.querySelectorAll('[data-font-note]').forEach(function (note) {
+      const role = note.getAttribute('data-font-note');
+      const input = el.querySelector('[data-font="' + role + '"]');
+      const has = fontInstalled(input.value);
+      note.hidden = has === null;
+      if (has === null) { note.textContent = ''; return; }
+      note.className = 'font-note ' + (has ? 'ok' : 'missing');
+      note.innerHTML = (has ? ICON_FONT_OK : ICON_FONT_MISSING) +
+        '<span>' + (has
+          ? '이 컴퓨터에 있는 글꼴입니다 — 그림이 이 글꼴로 그려집니다.'
+          // 「기본 글꼴 그대로」가 아니다. 없는 이름은 뒤에 붙인 총칭 글꼴
+          // (serif·sans-serif)로 떨어지므로 Noto 도 아닌 제3의 글꼴이 나온다.
+          : '이 컴퓨터에는 없는 이름입니다 — 이 글꼴로는 그려지지 않습니다. 이름을 다시 보세요.') +
+        '</span>';
+    });
   }
 
   /**
@@ -1631,6 +1776,21 @@ function card(type, ordinal) {
         state.options[key] = c.value;
       }
       apply(key === 'footnotes' ? 'notes' : 'opt');
+    });
+  });
+
+  // 「내 글꼴」 칸 — 적은 것은 이름 하나지만 options.fontStack 에는 CSS 글꼴
+  // 목록으로 넣는다. 비우면 그 자리만 기본 글꼴로 돌아간다.
+  el.querySelectorAll('[data-font]').forEach(function (c) {
+    c.addEventListener('input', function () {
+      const role = c.getAttribute('data-font');
+      const stack = stackFromName(role, c.value);
+      state.options.fontStack = Object.assign({}, state.options.fontStack);
+      // 지울 때도 키를 **없애지 않고** undefined 를 넣는다 — 위 OPTION_DEFAULTS
+      // 주석과 같은 이유다. 키가 사라지면 라이브러리 쪽 값이 그대로 살아남는다.
+      state.options.fontStack[role] = stack || undefined;
+      syncFontNotes();
+      apply('font');
     });
   });
 

@@ -71,8 +71,6 @@ export function renderTernaryGraph(
   // 상단 꼭짓점을 padding.top + 11에 배치
   const cy = padding.top + 11 + triH * 2 / 3;
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
 
   // 삼각형 꼭짓점
   const topPt = { x: cx, y: cy - triH * 2 / 3 };
@@ -143,7 +141,7 @@ export function renderTernaryGraph(
   const cTick = { x: Math.cos(Math.PI / 3), y: -Math.sin(Math.PI / 3) };
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1.5;
 
@@ -186,7 +184,7 @@ export function renderTernaryGraph(
   }
 
   // 축 라벨 — 자리는 재는 쪽(fitAxisNames)과 같은 계산을 쓴다
-  ctx.font = getFont(nameFit.fontSize, font, customFont, 'bold');
+  ctx.font = getFont(nameFit.fontSize, options, 'bold');
   ctx.fillStyle = '#000';
   const labelLineH = nameFit.fontSize * 1.3;
   const spots = namePlaces(w, plotX + plotW / 2, padding.top, triSize, nameFit.lines, labelLineH);
@@ -211,7 +209,7 @@ export function renderTernaryGraph(
     // 라벨
     if (p.label) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+      ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       ctx.fillText(p.label, x + 10, y - 4);
@@ -220,7 +218,7 @@ export function renderTernaryGraph(
     // 데이터 라벨 (값 표시)
     if (options.showDataLabels) {
       ctx.fillStyle = '#555';
-      ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont);
+      ctx.font = getFont(options.fontSize.dataLabel * 0.8, options);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(`(${p.a}, ${p.b}, ${p.c})`, x + 10, y + 4);
@@ -228,11 +226,11 @@ export function renderTernaryGraph(
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
 
   // 출처 + 각주 — 삼각형 좌우 범위 기준
-  drawSourceAndFootnote({ ctx, plotX: leftPt.x, plotW: rightPt.x - leftPt.x, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX: leftPt.x, plotW: rightPt.x - leftPt.x, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 // ── 축 이름 자리 잡기 ────────────────────────────────────────
@@ -283,7 +281,7 @@ function fitAxisNames(
   maxSize: number,
 ): { size: number; lines: string[][]; fontSize: number } {
   ctx.save();
-  const makeFont = (size: number) => getFont(size, options.fontFamily, options.customFont, 'bold');
+  const makeFont = (size: number) => getFont(size, options, 'bold');
   let fontSize = options.fontSize.axisLabel * 1.3;
   // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
   const given = labels.map((l) => (l || '').split('\\n'));

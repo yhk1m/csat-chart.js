@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { type CubeGraphData, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont } from '../canvas/renderer';
+import { clearCanvas, getFont, sansFont, type FontOptions } from '../canvas/renderer';
 import { drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 
@@ -64,8 +64,6 @@ export function renderCubeGraph(
 ) {
   clearCanvas(ctx, w, h);
 
-  const font = options.fontFamily;
-  const cf = options.customFont;
   const fs = options.fontSize;
 
   const topPad = options.title ? 100 : 60;
@@ -80,7 +78,7 @@ export function renderCubeGraph(
   // 이름은 오른쪽으로 58.1px 이 캔버스 밖이었다. 이름이 놓일 자리는 큐브
   // 배율에 딸려 있으므로, 여백을 넓히는 것이 곧 **배율을 줄이는 것**이다.
   const fit = fitCubeScale(ctx, data, w, h, topPad, availH,
-    Math.min(availW * 0.5, availH * 0.55), fs, font, cf);
+    Math.min(availW * 0.5, availH * 0.55), fs, options);
   const scale = fit.scale;
 
   // 큐브 중심을 화면 중심에 맞추기
@@ -117,7 +115,7 @@ export function renderCubeGraph(
   }
 
   // 축 화살표 + 라벨
-  drawAxes(ctx, data, cx, cy, scale, w, h, font, cf, fs, fit.names, fit.nameSize);
+  drawAxes(ctx, data, cx, cy, scale, w, h, options, fs, fit.names, fit.nameSize);
 
   // 데이터 포인트
   // 큐브 중심 (2D)
@@ -147,7 +145,7 @@ export function renderCubeGraph(
     // **함께** 안으로 민다. 유도선이 그대로 점을 가리키므로 어느 점의
     // 이름인지가 흐려지지 않는다. (「서울특별시 강남구」가 왼쪽으로 53.4px
     // 넘던 자리다. 들어가 있으면 좌표가 한 픽셀도 안 움직인다.)
-    ctx.font = getFont(fs.dataLabel + 10, font, cf, 'bold');
+    ctx.font = getFont(fs.dataLabel + 10, options, 'bold');
     ctx.textAlign = dx >= 0 ? 'left' : 'right';
     ctx.textBaseline = 'middle';
     const anchor = nudgeInside(ctx, pt.label, px + dx + (dx >= 0 ? 4 : -4), py + dy, w, h);
@@ -175,21 +173,24 @@ export function renderCubeGraph(
   const plotW = cubeRight - cubeLeft;
 
   if (options.title) {
+    // 제목은 고딕 자리다 — 다른 종류가 drawTitle 로 하는 일을 여기서 직접 한다
+    // (정육면체는 제목 자리가 축 꼭대기에 매여 있어 공용 함수를 못 쓴다).
+    const titleFont = sansFont(options);
     const yAxisTop = project(0, 1.25, 0, cx, cy, scale);
     ctx.fillStyle = '#000';
-    ctx.font = `bold ${fs.title}px 'Noto Sans KR', sans-serif`;
+    ctx.font = `bold ${fs.title}px ${titleFont}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     // 제목은 캔버스 가운데에 놓이므로 길면 양쪽으로 넘친다 — 줄여 담고 민다
     drawFloatingLabel(ctx, options.title, w / 2, yAxisTop[1] - 50, w, h, fs.title,
-      (size) => `bold ${size}px 'Noto Sans KR', sans-serif`);
+      (size) => `bold ${size}px ${titleFont}`);
   }
 
   // Z축 이름/높음 라벨 아래 기준
   const zAxisEnd = project(1.25, 0, 0, cx, cy, scale);
   const zHighRef = project(1, 0, 0, cx, cy, scale);
   const sourceY = Math.max(zAxisEnd[1] + 20 + fs.axisLabel, zHighRef[1] + 10 + fs.axisLabel * 0.9) + 47;
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: sourceY, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: sourceY, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel });
 }
 
 function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
@@ -282,14 +283,13 @@ function fitCubeScale(
   topPad: number, availH: number,
   maxScale: number,
   fs: GraphOptions['fontSize'],
-  font: GraphOptions['fontFamily'],
-  cf: string,
+  options: FontOptions,
 ): { scale: number; names: AxisNameLines; nameSize: number } {
   ctx.save();
 
   let nameSize = fs.axisLabel;
-  const makeNameFont = (size: number) => getFont(size, font, cf, 'bold');
-  const dirFont = getFont(fs.axisLabel * 0.9, font, cf, 'normal');
+  const makeNameFont = (size: number) => getFont(size, options, 'bold');
+  const dirFont = getFont(fs.axisLabel * 0.9, options, 'normal');
   let names: AxisNameLines = { x: [data.xAxis.name], y: [data.yAxis.name], z: [data.zAxis.name] };
 
   const fits = (s: number) => {
@@ -347,8 +347,7 @@ function drawAxes(
   data: CubeGraphData,
   cx: number, cy: number, scale: number,
   w: number, h: number,
-  font: GraphOptions['fontFamily'],
-  cf: string,
+  options: FontOptions,
   fs: GraphOptions['fontSize'],
   names: AxisNameLines,
   nameSize: number,
@@ -374,8 +373,8 @@ function drawAxes(
   const zEnd = project(0, 0, ext, cx, cy, scale);
   drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1]);
 
-  const nameFont = getFont(nameSize, font, cf, 'bold');
-  const dirFont = getFont(fs.axisLabel * 0.9, font, cf, 'normal');
+  const nameFont = getFont(nameSize, options, 'bold');
+  const dirFont = getFont(fs.axisLabel * 0.9, options, 'normal');
 
   // 배율을 이미 맞췄으므로 여기서 미는 일은 거의 없다. 사용자가 준 오프셋이
   // 캔버스 밖을 가리키는 경우를 위한 마지막 안전장치다.

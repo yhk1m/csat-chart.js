@@ -29,13 +29,13 @@ export function renderClimateGraph(
     options.legendLabel2 || data.tempLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - 130 - (130 + legendW), ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+        w - 130 - (130 + legendW), options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
     : 0;
 
   const padding: Padding = {
@@ -78,8 +78,6 @@ export function renderClimateGraph(
       };
   if (precipAxis.min < 0) precipAxis.min = 0;
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const indices = INTERVAL_INDICES[data.monthInterval] ?? INTERVAL_INDICES[12];
 
   // 격자선 + Y축 (좌: 기온)
@@ -88,7 +86,7 @@ export function renderClimateGraph(
     min: tempAxis.min, max: tempAxis.max, step: tempAxis.step,
     label: data.tempLabel,
     side: 'left',
-    fontFamily: font, customFont,
+    fonts: options,
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
@@ -100,7 +98,7 @@ export function renderClimateGraph(
     min: precipAxis.min, max: precipAxis.max, step: precipAxis.step,
     label: data.precipLabel,
     side: 'right',
-    fontFamily: font, customFont,
+    fonts: options,
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
   });
@@ -111,7 +109,7 @@ export function renderClimateGraph(
       ctx, padding, width: w, height: h,
       labels: MONTH_LABELS,
       indices,
-      fontFamily: font, customFont,
+      fonts: options,
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
     });
@@ -120,7 +118,7 @@ export function renderClimateGraph(
     drawXAxis({
       ctx, padding, width: w, height: h,
       labels: filteredLabels,
-      fontFamily: font, customFont,
+      fonts: options,
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
     });
@@ -153,7 +151,7 @@ export function renderClimateGraph(
   // 데이터 라벨 (강수량)
   if (options.showDataLabels) {
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (let s = 0; s < indices.length; s++) {
@@ -195,7 +193,7 @@ export function renderClimateGraph(
 
     if (options.showDataLabels) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+      ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(String(data.months[i].temp), cx, y - 8);
@@ -203,11 +201,11 @@ export function renderClimateGraph(
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
   // (월) 라벨
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
@@ -216,7 +214,7 @@ export function renderClimateGraph(
 
   if (showLegend) {
     drawLegend({
-      ctx,
+      ctx, fonts: options,
       items: [
         { type: 'rect', fillStyle: '#AAA', strokeStyle: '#666', label: legendLabels[0] },
         { type: data.monthInterval === 12 ? 'line' : 'circle', fillStyle: '#000', label: legendLabels[1] },
@@ -230,5 +228,5 @@ export function renderClimateGraph(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel });
 }

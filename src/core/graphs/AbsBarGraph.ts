@@ -18,12 +18,10 @@ export function renderAbsBarGraph(
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
 
@@ -34,12 +32,12 @@ export function renderAbsBarGraph(
   let unitW = 0;
   if (hasGroups || data.unitAdjacent || data.insideLegend) {
     ctx.save();
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     if (hasGroups) {
       groupLabelW = widestLabel(ctx, data.groups!.map((g) => g.label));
       catLabelW = widestLabel(ctx, data.categories.map((c) => c.label));
     }
-    ctx.font = getFont(options.fontSize.axisLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
     unitW = ctx.measureText(data.unit).width;
     ctx.restore();
   }
@@ -52,7 +50,7 @@ export function renderAbsBarGraph(
     : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100);
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, w - padLeft - padRight)
+    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, w - padLeft - padRight, options)
     : 0;
 
   const padding: Padding = {
@@ -131,7 +129,7 @@ export function renderAbsBarGraph(
       min: axis.min, max: axis.max, step: axis.step,
       label: data.unit,
       side: 'left',
-      fontFamily: font, customFont,
+      fonts: options,
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
       drawGrid: true,
@@ -168,7 +166,7 @@ export function renderAbsBarGraph(
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
             ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), cx, y + barH / 2);
@@ -197,7 +195,7 @@ export function renderAbsBarGraph(
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
             ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(String(val), bx + barW / 2, by - 4);
@@ -222,7 +220,7 @@ export function renderAbsBarGraph(
     // 편차 그래프는 라벨이 플롯 아래가 아니라 0선 바로 아래에 붙는다.
     const labelY = data.categoryLabelAtBaseline ? baseY + 6 : plotY + plotH + 12;
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     // 범주 이름이 서로 붙으면 몇 개 걸러 그린다
@@ -251,7 +249,7 @@ export function renderAbsBarGraph(
       ticks.push(axis.max);
     }
 
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -282,7 +280,7 @@ export function renderAbsBarGraph(
     }
 
     // 단위 — 기본은 축 오른쪽에 떨어뜨리고, unitAdjacent 면 마지막 눈금 숫자에 바로 붙인다
-    ctx.font = getFont(options.fontSize.axisLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -332,7 +330,7 @@ export function renderAbsBarGraph(
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
             ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), bx + bw / 2, cy);
@@ -361,7 +359,7 @@ export function renderAbsBarGraph(
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
             ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), bx + bw + 4, by + barH / 2);
@@ -375,7 +373,7 @@ export function renderAbsBarGraph(
     const catLabelX = hasGroups ? plotX - 12 : plotX - 10;
     for (let c = 0; c < n; c++) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+      ctx.font = getFont(options.fontSize.tick, options, 'bold');
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(data.categories[c].label, catLabelX, centerY[c]);
@@ -393,7 +391,7 @@ export function renderAbsBarGraph(
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
   // 범례
   if (showLegend && data.insideLegend) {
@@ -410,7 +408,7 @@ export function renderAbsBarGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
-      font: getFont(options.fontSize.dataLabel * 0.9, font, customFont, 'bold'),
+      font: getFont(options.fontSize.dataLabel * 0.9, options, 'bold'),
       avoid: barRects,
     });
   } else if (showLegend) {
@@ -422,7 +420,7 @@ export function renderAbsBarGraph(
       label,
     }));
     drawLegend({
-      ctx, items, position: legendPos,
+      ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.85 + 5,
@@ -430,7 +428,7 @@ export function renderAbsBarGraph(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 function formatTick(val: number): string {

@@ -25,8 +25,6 @@ export function renderRadarChart(
 ) {
   clearCanvas(ctx, w, h);
 
-  const font = options.fontFamily;
-  const cf = options.customFont;
   const fs = options.fontSize;
   const n = data.axisLabels.length;
   if (n < 3) return;
@@ -35,7 +33,7 @@ export function renderRadarChart(
   const legendPos = options.legendPosition;
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5, 'line')
+    ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5, options, 'line')
     : 0;
 
   const topPad = options.title ? 60 : 10;
@@ -46,7 +44,7 @@ export function renderRadarChart(
     bottomPad += 70;
     // 상수 70 은 한 줄짜리 상자(높이 55.7)에도 모자랐다 — 실제 높이를 재서 잡는다
     bottomPad = Math.max(bottomPad, measureBottomLegend(
-      ctx, legendLabels, fs.dataLabel * 0.85 + 5, w - leftPad - rightPad, 'line', 30));
+      ctx, legendLabels, fs.dataLabel * 0.85 + 5, w - leftPad - rightPad, options, 'line', 30));
   }
   if (options.source) bottomPad += 25;
   bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
@@ -65,7 +63,7 @@ export function renderRadarChart(
   // 곧 **반지름을 줄이는 것**이다 (범례 때 플롯이 줄어든 것과 같은 손해다).
   // 다만 그림이 5분의 1 넘게 줄어들 판이면 줄이기 전에 이름을 접는다.
   const labelFontSize = fs.axisLabel * 0.85;
-  const makeLabelFont = (size: number) => getFont(size, font, cf, 'bold');
+  const makeLabelFont = (size: number) => getFont(size, options, 'bold');
   const { radius, labelLines, labelSize } = fitAxisLabels(
     ctx, data.axisLabels, angles, cx, cy, w, h,
     Math.min(availW, availH) / 2 - 40, labelFontSize, makeLabelFont,
@@ -110,7 +108,7 @@ export function renderRadarChart(
 
   // 눈금값
   ctx.fillStyle = '#888';
-  ctx.font = getFont(fs.tick * 0.8, font, cf, 'normal');
+  ctx.font = getFont(fs.tick * 0.8, options, 'normal');
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   for (let step = 1; step <= data.gridSteps; step++) {
@@ -209,7 +207,7 @@ export function renderRadarChart(
       };
     });
     drawLegend({
-      ctx, items, position: legendPos,
+      ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: fs.dataLabel * 0.85 + 5,
@@ -219,8 +217,8 @@ export function renderRadarChart(
 
   const plotX = leftPad;
   const plotW = availW;
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: fs.title, canvasWidth: w });
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: fs.title, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel, canvasWidth: w });
 }
 
 function formatTick(v: number): string {

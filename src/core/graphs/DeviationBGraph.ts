@@ -1,7 +1,7 @@
 // © 2026 김용현
 // 모드 B — 지역별 편차 (비교형)
 import { type DeviationBData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, getFont, type FontOptions } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
@@ -22,13 +22,13 @@ export function renderDeviationBGraph(
     options.legendLabel2 || data.tempDiffLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - 130 - (130 + legendW), ['rect', 'circle'])
+        w - 130 - (130 + legendW), options, ['rect', 'circle'])
     : 0;
 
   const padding: Padding = {
@@ -50,8 +50,6 @@ export function renderDeviationBGraph(
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
   const regions = data.regions;
   const n = regions.length;
 
@@ -84,8 +82,8 @@ export function renderDeviationBGraph(
   }
 
   // Y축 좌 (기온 차이), 우 (강수량 차이)
-  drawDevBYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempUnit, font, customFont, options.fontSize);
-  drawDevBYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipUnit, font, customFont, options.fontSize);
+  drawDevBYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempUnit, options, options.fontSize);
+  drawDevBYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipUnit, options, options.fontSize);
 
   // X축
   ctx.strokeStyle = '#000';
@@ -110,12 +108,12 @@ export function renderDeviationBGraph(
 
   // X축 라벨 (크게)
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick * 1.2, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick * 1.2, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   // 지역 이름은 칸 가운데에 놓이므로 양 끝 칸의 이름이 캔버스를 넘을 수 있다.
   // 아래 여백에 떠 있는 글자라 안으로 밀어도 어느 막대의 이름인지 안 흐려진다.
-  const regionFont = (size: number) => getFont(size, font, customFont, 'bold');
+  const regionFont = (size: number) => getFont(size, options, 'bold');
   for (let i = 0; i < n; i++) {
     const cx = plotX + slotW * i + slotW / 2;
     drawFloatingLabel(ctx, regions[i].label, cx, plotY + plotH + 12, w, h,
@@ -150,7 +148,7 @@ export function renderDeviationBGraph(
 
   // 데이터 라벨
   if (options.showDataLabels) {
-    ctx.font = getFont(options.fontSize.dataLabel, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
     ctx.textAlign = 'center';
     for (let i = 0; i < n; i++) {
       const cx = plotX + slotW * i + slotW / 2;
@@ -170,7 +168,7 @@ export function renderDeviationBGraph(
 
   if (showLegend) {
     drawLegend({
-      ctx,
+      ctx, fonts: options,
       items: [
         { type: 'rect', fillStyle: '#888', strokeStyle: '#444', label: legendLabels[0] },
         { type: 'circle', fillStyle: '#000', label: legendLabels[1] },
@@ -183,8 +181,8 @@ export function renderDeviationBGraph(
     });
   }
 
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel });
 }
 
 function drawDevBYAxis(
@@ -195,8 +193,7 @@ function drawDevBYAxis(
   axis: { min: number; max: number; step: number },
   side: 'left' | 'right',
   label: string,
-  fontFamily: 'serif' | 'sans' | 'custom',
-  customFont: string | undefined,
+  fonts: FontOptions,
   fontSize: { tick: number; axisLabel: number }
 ) {
   const plotX = padding.left;
@@ -213,7 +210,7 @@ function drawDevBYAxis(
   ctx.stroke();
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(fontSize.tick, fontFamily, customFont, 'bold');
+  ctx.font = getFont(fontSize.tick, fonts, 'bold');
   ctx.textBaseline = 'middle';
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
@@ -239,7 +236,7 @@ function drawDevBYAxis(
   }
 
   ctx.save();
-  ctx.font = getFont(fontSize.axisLabel, fontFamily, customFont, 'bold');
+  ctx.font = getFont(fontSize.axisLabel, fonts, 'bold');
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'bottom';
   const labelX = side === 'left' ? x - 12 : x + 12;

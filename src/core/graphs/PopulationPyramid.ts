@@ -67,13 +67,13 @@ export function renderPyramidGraph(
     options.legendLabel2 || data.femaleLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5)
+    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
-        w - 60 - (80 + legendW))
+        w - 60 - (80 + legendW), options)
     : 0;
 
   const padding: Padding = {
@@ -95,8 +95,6 @@ export function renderPyramidGraph(
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
 
-  const font = options.fontFamily;
-  const customFont = options.customFont;
 
   // 입력값 그대로 사용
   const displayAges = data.ages;
@@ -173,7 +171,7 @@ export function renderPyramidGraph(
   // 눈금 간격 — 격자선·눈금·숫자가 모두 이 값을 쓴다.
   // 숫자 폭을 재야 하므로 눈금 글꼴을 잠깐 걸어 둔다.
   ctx.save();
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   const tickStep = pickTickStep(maxVal, halfW, ctx.measureText(fmtTick(maxVal)).width);
   ctx.restore();
 
@@ -225,7 +223,7 @@ export function renderPyramidGraph(
   if (data.numericAgeAxis) {
     // 시험지 방식 — 연령대 이름 대신 나이 수치 눈금을 왼쪽에 둔다.
     // 구간이 5세 단위라 i 번째 막대의 아래 경계가 i*5 세다.
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     ctx.textAlign = 'right';
     const ageStep = 20;
     const topAge = n * 5; // 구간 × 5세 (17구간이면 85, 18구간이면 90)
@@ -243,12 +241,12 @@ export function renderPyramidGraph(
       // 나이 단위는 축 위 여백에 떠 있다 — 캔버스를 벗어나면 안으로 민다
       ctx.textBaseline = 'bottom';
       drawFloatingLabel(ctx, data.ageUnit, plotX + 4, plotY - 8, w, h,
-        options.fontSize.tick, (size) => getFont(size, font, customFont, 'bold'));
-      ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+        options.fontSize.tick, (size) => getFont(size, options, 'bold'));
+      ctx.font = getFont(options.fontSize.tick, options, 'bold');
       ctx.textBaseline = 'middle';
     }
   } else {
-    ctx.font = getFont(options.fontSize.tick * 0.75, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick * 0.75, options, 'bold');
     for (let i = 0; i < n; i++) {
       const y = plotY + plotH - (i + 1) * barH + barH / 2;
       if (side === 'center') {
@@ -265,7 +263,7 @@ export function renderPyramidGraph(
   }
 
   // X축 눈금 (좌우 대칭)
-  ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#000';
 
@@ -319,7 +317,7 @@ export function renderPyramidGraph(
   }
 
   // 축 라벨 (좌: 남, 우: 여)
-  ctx.font = getFont(options.fontSize.axisLabel, font, customFont, 'bold');
+  ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
@@ -333,24 +331,24 @@ export function renderPyramidGraph(
     // 마지막 눈금 숫자는 축 끝에 가운데 정렬이라 절반이 플롯 밖으로 나온다.
     // 그만큼 더 밀어야 숫자와 붙지 않는다. 글자 크기도 숫자와 같게 맞춘다 —
     // 크기가 다르면 같은 줄에 놓아도 글줄이 어긋나 보인다.
-    ctx.font = getFont(options.fontSize.tick, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     const lastTickHalfW = ctx.measureText(fmtTick(maxVal)).width / 2;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + lastTickHalfW + 8, plotY + plotH + 10,
-      w, h, options.fontSize.tick, (size) => getFont(size, font, customFont, 'bold'));
+      w, h, options.fontSize.tick, (size) => getFont(size, options, 'bold'));
   } else {
-    ctx.font = getFont(options.fontSize.axisLabel * 0.85, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.axisLabel * 0.85, options, 'bold');
     const unitY = plotY + plotH + 10 + options.fontSize.tick + 22;
     ctx.textAlign = 'left';
     drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + 4, unitY, w, h,
-      options.fontSize.axisLabel * 0.85, (size) => getFont(size, font, customFont, 'bold'));
+      options.fontSize.axisLabel * 0.85, (size) => getFont(size, options, 'bold'));
   }
   ctx.restore();
 
   // 데이터 라벨
   if (options.showDataLabels) {
-    ctx.font = getFont(options.fontSize.dataLabel * 0.8, font, customFont, 'bold');
+    ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
     ctx.fillStyle = '#000';
     for (let i = 0; i < n; i++) {
       const y = plotY + plotH - (i + 1) * barH + barH / 2;
@@ -371,13 +369,13 @@ export function renderPyramidGraph(
   }
 
   // 제목
-  drawTitle({ ctx, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
+  drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
 
   // 범례
 
   if (showLegend) {
     drawLegend({
-      ctx,
+      ctx, fonts: options,
       items: [
         { type: 'rect', fillStyle: '#666', strokeStyle: '#444', label: legendLabels[0] },
         { type: 'rect', fillStyle: '#BBB', strokeStyle: '#888', label: legendLabels[1] },
@@ -390,5 +388,5 @@ export function renderPyramidGraph(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }

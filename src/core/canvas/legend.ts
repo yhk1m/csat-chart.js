@@ -1,6 +1,7 @@
 // © 2026 김용현
 // 공통 범례 렌더링
 import { type LegendPosition, type InsideLegendCorner } from '../types/index';
+import { sansFont, type FontOptions } from './renderer';
 
 export interface LegendItem {
   type: 'rect' | 'circle' | 'line';
@@ -177,13 +178,20 @@ interface LegendParams {
   /** 캔버스 높이 — 상자를 여기 안에 가둔다 */
   canvasH: number;
   fontSize: number;
+  /**
+   * 글꼴 옵션. `options` 를 그대로 넘긴다.
+   *
+   * 바깥 범례는 언제나 **고딕 자리**다(시험지 원본이 그렇다). 그 자리에 무슨
+   * 글꼴을 쓸지는 `options.fontStack.sans` 가 정한다. 선택 항목으로 두지
+   * 않는다 — 빠뜨린 호출부를 컴파일러가 잡아야 한다.
+   */
+  fonts: FontOptions;
   /** 하단 범례의 plotH 아래 오프셋 (기본 50) */
   bottomOffset?: number;
   /** 우측 범례의 plotW 오른쪽 간격 (기본 20) */
   rightGap?: number;
 }
 
-const LEGEND_FONT = "'Noto Sans KR', sans-serif";
 const ICON_GAP = 10;
 const BOX_PADDING = 12;
 const ITEM_SPACING = 30;
@@ -195,10 +203,18 @@ export function measureLegendWidth(
   ctx: CanvasRenderingContext2D,
   labels: string[],
   fontSize: number,
+  /**
+   * 글꼴 옵션. `options` 를 그대로 넘긴다.
+   *
+   * 선택 인자 **앞**에 둔 이유가 있다. 뒤에 붙이면 `iconType` 자리에 있던
+   * `'circle'` 이 그대로 밀려 들어가도 컴파일이 통과한다. 앞에 두면 자리를
+   * 빠뜨린 호출부가 전부 타입 오류가 된다.
+   */
+  fonts: FontOptions,
   iconType: 'rect' | 'circle' | 'line' = 'rect'
 ): number {
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${LEGEND_FONT}`;
+  ctx.font = `bold ${fontSize}px ${sansFont(fonts)}`;
   const iconSize = iconType === 'line' ? LINE_ICON_SIZE : 16;
   const iconGap = 10;
   const padding = 12;
@@ -241,12 +257,15 @@ export function layoutBottomLegend(
   iconWidths: number[],
   fontSize: number,
   boxW: number,
+  /** 글꼴 옵션. `options` 를 그대로 넘긴다 (선택 인자 앞에 둔 이유는 위 참고). */
+  fonts: FontOptions,
   opts: { iconGap?: number; padding?: number; spacing?: number; font?: string } = {},
 ): BottomLegendLayout {
   const iconGap = opts.iconGap ?? ICON_GAP;
   const padding = opts.padding ?? BOX_PADDING;
   const spacing = opts.spacing ?? ITEM_SPACING;
-  const fontOf = (fs: number) => (opts.font ? withFontSize(opts.font, fs) : `bold ${fs}px ${LEGEND_FONT}`);
+  const legendFont = sansFont(fonts);
+  const fontOf = (fs: number) => (opts.font ? withFontSize(opts.font, fs) : `bold ${fs}px ${legendFont}`);
   const inner = Math.max(1, boxW - padding * 2);
 
   ctx.save();
@@ -299,6 +318,8 @@ export function measureBottomLegend(
   labels: string[],
   fontSize: number,
   plotW: number,
+  /** 글꼴 옵션. `options` 를 그대로 넘긴다 (선택 인자 앞에 둔 이유는 위 참고). */
+  fonts: FontOptions,
   iconType: 'rect' | 'circle' | 'line' | ('rect' | 'circle' | 'line')[] = 'rect',
   bottomOffset = 50,
 ): number {
@@ -306,7 +327,7 @@ export function measureBottomLegend(
   const sizeOf = (t: 'rect' | 'circle' | 'line') => (t === 'line' ? LINE_ICON_SIZE : 16);
   const iconWidths = labels.map((_, i) =>
     sizeOf(Array.isArray(iconType) ? (iconType[i] ?? 'rect') : iconType));
-  const { boxH } = layoutBottomLegend(ctx, labels, iconWidths, fontSize, plotW);
+  const { boxH } = layoutBottomLegend(ctx, labels, iconWidths, fontSize, plotW, fonts);
   return bottomOffset + boxH + 2;
 }
 
@@ -314,14 +335,15 @@ export function drawLegend({
   ctx, items, position,
   plotX, plotY, plotW, plotH,
   canvasW, canvasH,
-  fontSize,
+  fontSize, fonts,
   bottomOffset = 50,
   rightGap = 20,
 }: LegendParams): number {
   if (items.length === 0) return 0;
 
+  const legendFont = sansFont(fonts);
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${LEGEND_FONT}`;
+  ctx.font = `bold ${fontSize}px ${legendFont}`;
 
   const iconGap = ICON_GAP;
   const padding = BOX_PADDING;
@@ -336,7 +358,7 @@ export function drawLegend({
     // 한 줄에 다 못 넣으면 줄을 늘린다 (이름은 자르지 않는다).
     const boxW = plotW;
     const layout = layoutBottomLegend(
-      ctx, items.map((i) => i.label), items.map(iconWidthOf), fontSize, boxW);
+      ctx, items.map((i) => i.label), items.map(iconWidthOf), fontSize, boxW, fonts);
     const boxH = layout.boxH;
     const boxX = plotX;
     // 호출부가 잡아 둔 아래 여백이 모자라도 캔버스 밖으로는 내보내지 않는다
@@ -361,7 +383,7 @@ export function drawLegend({
         const item = items[index];
         const iSize = iconWidthOf(item);
         drawIcon(ctx, item, cx, cy, iSize);
-        ctx.font = `bold ${layout.fontSize}px ${LEGEND_FONT}`;
+        ctx.font = `bold ${layout.fontSize}px ${legendFont}`;
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
@@ -396,7 +418,7 @@ export function drawLegend({
       const ix = boxX + padding;
       const iSize = iconWidthOf(item);
       drawIcon(ctx, item, ix, cy, iSize);
-      ctx.font = `bold ${fontSize}px ${LEGEND_FONT}`;
+      ctx.font = `bold ${fontSize}px ${legendFont}`;
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';

@@ -366,7 +366,7 @@
   <div class="topbar-inner">
     <a class="brand" href="#top">csat-chart.js</a>
     <nav aria-label="바로가기">
-      <a class="hide-sm" href="#gallery">그래프 16종</a>
+      <a class="hide-sm" href="#gallery">그래프 17종</a>
       <a class="hide-sm" href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
       <a class="gh" href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
     </nav>
@@ -393,7 +393,7 @@
 
     <section class="hero" aria-label="예시 그래프">
       <div class="hero-head">
-        <h2 id="hero-caption">예시 — 아래 16종 중 하나</h2>
+        <h2 id="hero-caption">예시 — 아래 17종 중 하나</h2>
         <a href="#card-climate">데이터 편집하러 가기
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
@@ -429,13 +429,13 @@
      두면 안내 문구가 제목과 색인까지 지워 버린다. -->
 <div class="band">
   <div class="wrap gallery-head">
-    <h2 class="section-title">그래프 <span class="num">16</span>종</h2>
+    <h2 class="section-title">그래프 <span class="num">17</span>종</h2>
     <p class="section-sub">오른쪽 칸에서 제목·출처를 바꾸고, 「각주·범례·이름 바꾸기」를 펼치면
       그래프 안의 (가)(나)(다)까지 글자칸으로 고칩니다. 숫자와 구조는 JSON 칸에 그대로 남아
       있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.
       만들고 계신 프로그램에 이 라이브러리를 붙이시려면 「AI에게 시킬 프롬프트」를 복사해,
       평소 쓰시는 AI에 붙여넣으세요. HTML 한 장만 필요한 경우도 같은 프롬프트로 됩니다.</p>
-    <nav class="index" aria-label="그래프 16종 색인">
+    <nav class="index" aria-label="그래프 17종 색인">
       <ul id="index-list"></ul>
     </nav>
   </div>
@@ -462,7 +462,8 @@
 const LABELS = {
   'absbar': '절댓값 막대', 'category-dot': '범주 점', 'climate': '기후 그래프',
   'cube': '정육면체', 'data-table': '항목×지역 표', 'deviation-a': '월별 편차',
-  'deviation-b': '지역별 편차', 'hythergraph': '하이서그래프', 'line': '꺾은선',
+  'deviation-b': '지역별 편차', 'econ-plane': '경제 좌표평면',
+  'hythergraph': '하이서그래프', 'line': '꺾은선',
   'matrix-table': '계단식 행렬표', 'pyramid': '인구 피라미드', 'radar': '방사형',
   'scatter': '산점도·버블', 'stacked': '100% 막대·원', 'ternary': '삼각 그래프',
   'treemap': '트리맵',
@@ -476,6 +477,7 @@ const USAGE_HINTS = {
   'data-table': '이럴 때 씁니다 — 항목과 지역을 표로 정리해 수치를 비교할 때',
   'deviation-a': '이럴 때 씁니다 — 월별로 평년값과의 편차를 볼 때',
   'deviation-b': '이럴 때 씁니다 — 지역별로 기준값과의 편차를 볼 때',
+  'econ-plane': '이럴 때 씁니다 — 수요·공급이나 총수요·총공급처럼 좌표평면 위의 직선·점·화살표로 설명할 때',
   'hythergraph': '이럴 때 씁니다 — 기온·강수량의 조합으로 기후형을 비교할 때',
   'line': '이럴 때 씁니다 — 시간에 따른 값의 변화 추세를 볼 때',
   'matrix-table': '이럴 때 씁니다 — 지역 간 거리·교류량을 행렬로 볼 때',
@@ -491,7 +493,8 @@ const FACTORY = {
   'absbar': 'createDefaultAbsBarData', 'category-dot': 'createDefaultCategoryDotData',
   'climate': 'createDefaultClimateData', 'cube': 'createDefaultCubeData',
   'data-table': 'createDefaultDataTableData', 'deviation-a': 'createDefaultDeviationAData',
-  'deviation-b': 'createDefaultDeviationBData', 'hythergraph': 'createDefaultHythergraphData',
+  'deviation-b': 'createDefaultDeviationBData', 'econ-plane': 'createDefaultEconPlaneData',
+  'hythergraph': 'createDefaultHythergraphData',
   'line': 'createDefaultLineData', 'matrix-table': 'createDefaultMatrixTableData',
   'pyramid': 'createDefaultPyramidData', 'radar': 'createDefaultRadarData',
   'scatter': 'createDefaultScatterData', 'stacked': 'createDefaultStackedData',
@@ -704,7 +707,7 @@ function sampleWithPatch(type) {
 
 /* ── 옵션 ──────────────────────────────────────────────────────────────────
  *
- * options 는 16종이 함께 쓰는 유일한 덩어리다. 여기서 노출하는 것과 «일부러»
+ * options 는 17종이 함께 쓰는 유일한 덩어리다. 여기서 노출하는 것과 «일부러»
  * 빼는 것을 갈라 둔다.
  *
  * 빼는 것:
@@ -793,13 +796,15 @@ function fontInstalled(name) {
 
 /**
  * 그 옵션을 «실제로 읽는» 종류만 적는다. 읽지 않는 카드에서는 조작칸을 아예
- * 그리지 않는다 — sourceInline 을 뺀 것과 같은 이유다. 목록은 렌더러 16종을
+ * 그리지 않는다 — sourceInline 을 뺀 것과 같은 이유다. 목록은 렌더러 17종을
  * 상대로 직접 확인했다(`grep -rL showLegend src/core/graphs`).
- *   · showDataLabels 를 안 읽는 여덟 — cube·data-table·deviation-a·
+ *   · showDataLabels 를 안 읽는 아홉 — cube·data-table·deviation-a·econ-plane·
  *     hythergraph·line·matrix-table·radar·treemap
- *   · showLegend·legendPosition 을 안 읽는 여섯 — cube·data-table·
+ *   · showLegend·legendPosition 을 안 읽는 일곱 — cube·data-table·econ-plane·
  *     matrix-table·scatter·ternary·treemap
- * title·source·footnotes·fontFamily 는 16종 전부가 읽는다.
+ * econ-plane 은 범례라는 것 자체가 없는 종류다 — 시험지 경제 그림은 선 끝에
+ * 이름을 달지 범례 상자를 두지 않는다.
+ * title·source·footnotes·fontFamily 는 17종 전부가 읽는다.
  */
 const SUPPORTS_DATA_LABELS = ['absbar', 'category-dot', 'climate', 'deviation-b',
   'pyramid', 'scatter', 'stacked', 'ternary'];
@@ -928,8 +933,8 @@ function changedOptions(opts) {
  * 칸에 「서울」이라고 적으면 그림이 깨진다. 그런데 이름과 열거값을 «낱말»로는
  * 가를 수 없다 — pyramid 의 `unit` 은 열거값('percent')인데 같은 pyramid 의
  * `ageUnit` 과 deviation-b 의 `precipUnit` 은 이름이다. 그래서 낱말 규칙을
- * 쓰지 않고, 16종의 문자열 잎 89개를 전수 조사해(src/core/types/*.ts) 이름인
- * 61개만 «경로 모양» 으로 적어 둔다. 여기 없는 문자열은 전부 손대지 않는다.
+ * 쓰지 않고, 17종의 문자열 잎 100개를 전수 조사해(src/core/types/*.ts) 이름인
+ * 66개만 «경로 모양» 으로 적어 둔다. 여기 없는 문자열은 전부 손대지 않는다.
  *
  * scatter 의 `quadrantLabels` 는 이름이지만 뺀다 — 지금 어느 렌더러도 읽지
  * 않는 죽은 필드다(validate.ts 에도 그렇게 적혀 있다). 고쳐도 그림이 안 변하는
@@ -950,6 +955,8 @@ const LABEL_PATHS = {
   'deviation-a': ['tempLabel', 'precipLabel', 'tempAxisName', 'precipAxisName'],
   'deviation-b': ['regions[].label', 'precipDiffLabel', 'tempDiffLabel',
     'precipUnit', 'tempUnit'],
+  'econ-plane': ['xAxis.label', 'yAxis.label', 'lines[].label', 'points[].label',
+    'arrows[].label'],
   'hythergraph': ['series[].label', 'xUnit', 'yUnit'],
   'line': ['series[].label', 'xLabels[]', 'xUnit', 'yUnit'],
   'matrix-table': ['names[]', 'unit'],
@@ -985,6 +992,8 @@ const FIELD_GLOSS = {
   'ageUnit': '나이 축 단위',
   'fillLegend.title': '색 범례 제목', 'fillLegend.items[].label': '색 범례 항목',
   'bubbleLegendItems[].label': '버블 범례 항목',
+  'xAxis.label': '가로축 이름', 'yAxis.label': '세로축 이름',
+  'lines[].label': '선 이름', 'arrows[].label': '화살표 이름',
   'xAxis.name': 'X축 이름', 'xAxis.lowLabel': 'X축 낮은 쪽', 'xAxis.highLabel': 'X축 높은 쪽',
   'yAxis.name': 'Y축 이름', 'yAxis.lowLabel': 'Y축 낮은 쪽', 'yAxis.highLabel': 'Y축 높은 쪽',
   'zAxis.name': 'Z축 이름', 'zAxis.lowLabel': 'Z축 낮은 쪽', 'zAxis.highLabel': 'Z축 높은 쪽',
@@ -1162,7 +1171,8 @@ const RENDERER = {
   'absbar': 'renderAbsBarGraph', 'category-dot': 'renderCategoryDotGraph',
   'climate': 'renderClimateGraph', 'cube': 'renderCubeGraph',
   'data-table': 'renderDataTable', 'deviation-a': 'renderDeviationAGraph',
-  'deviation-b': 'renderDeviationBGraph', 'hythergraph': 'renderHythergraph',
+  'deviation-b': 'renderDeviationBGraph', 'econ-plane': 'renderEconPlane',
+  'hythergraph': 'renderHythergraph',
   'line': 'renderLineGraph', 'matrix-table': 'renderMatrixTable',
   'pyramid': 'renderPyramidGraph', 'radar': 'renderRadarChart',
   'scatter': 'renderScatterGraph', 'stacked': 'renderStackedGraph',
@@ -1182,6 +1192,7 @@ const PROMPT_EXAMPLES = {
   'data-table': '(가)~(라) 네 지역의 연평균 기온·연강수량·기온의 연교차. 출처는 기상청.',
   'deviation-a': '2024년 대구의 월별 기온과 강수량이 평년값과 얼마나 달랐는지. 출처는 기상청.',
   'deviation-b': 'A~C 세 지역의 기온과 강수량이 전국 평균과 얼마나 다른지. 출처는 기상청.',
+  'econ-plane': 'X재 시장의 수요·공급 곡선과 균형점 E. 최고 가격제를 시행했을 때의 거래량을 점선으로 함께 보이기.',
   'hythergraph': '부산과 시드니의 기후 비교 — 남반구와 북반구의 계절이 반대인 것이 보이게. 출처는 기상청과 세계기상기구(WMO) 평년값.',
   'line': '2000년부터 2024년까지 우리나라 1인 가구 비율의 변화. 출처는 통계청 인구주택총조사.',
   'matrix-table': '(가)~(라) 네 도시 사이의 하루 통근·통학 인구. 출처는 통계청.',
@@ -1217,7 +1228,7 @@ function shapeOf(v) {
  * 길이를 마음대로 바꿀 수 없는 배열. 여기 적힌 개수와 다르면 그리기 전에
  * 검증이 막는다(`src/validate.ts` 의 FIXED_LENGTHS). 프롬프트에 이 한 줄이
  * 없으면 처음 보는 모델이 「달을 여섯 개만 넣자」 같은 판단을 하고 그림이
- * 아예 안 나온다. 이 지도는 외워 적은 것이 아니라, 16종의 모든 배열 칸에
+ * 아예 안 나온다. 이 지도는 외워 적은 것이 아니라, 17종의 모든 배열 칸에
  * 원소를 하나씩 더해 보며 던지는 칸만 골라 확인한 것이다.
  */
 const FIXED_LENGTHS = {
@@ -1225,6 +1236,22 @@ const FIXED_LENGTHS = {
   'deviation-a': { 'baseMonths': 12, 'months': 12 },
   'scatter': { 'quadrantLabels': 4 },
   'ternary': { 'axisLabels': 3 },
+};
+
+/**
+ * 기본값 말고 다른 «시작점» 이 더 있는 종류. 지금은 경제 좌표평면뿐이다.
+ *
+ * 이 한 줄이 없으면 처음 보는 모델이 총수요·총공급 그림을 만들 때
+ * createDefaultEconPlaneData() (수요·공급 교차) 에서 시작해 직선 좌표를 하나하나
+ * 갈아 끼운다 — 이미 있는 것을 손으로 다시 치는 셈이다.
+ */
+const PRESETS = {
+  'econ-plane': [
+    '  같은 종류에 시작점이 셋 더 있습니다. 그리려는 그림에 가까운 것에서 시작하세요 —',
+    '    createSupplyDemandData()  수요·공급 교차 + 균형점 E (기본값이 이것입니다)',
+    '    createAdAsData()          총수요·총공급 (물가 × 실질 GDP, 눈금 없음)',
+    '    createPointShiftData()    이름 붙인 점 + 유도선 + 점 사이 화살표',
+  ].join('\n'),
 };
 
 function fixedLengthLine(type) {
@@ -1335,6 +1362,7 @@ function promptFor(type) {
     '  지어내면 검증에 걸려 그림이 아예 안 나옵니다. 그 함수가 돌려주는 모양 —',
     '  ' + shapeOf(CsatChart[factory]()),
     fixedLengthLine(type),
+    PRESETS[type] || null,
     '',
     PROMPT_LIFECYCLE,
     '',
@@ -1347,9 +1375,9 @@ function promptFor(type) {
     PROMPT_TS,
     '',
     '[번들 크기 — 이 종류 하나만 쓰신다면]',
-    'CsatChart 를 가져오면 렌더러 16종이 전부 딸려옵니다(약 95 KB). 한 종류만 쓸 거라면',
+    'CsatChart 를 가져오면 렌더러 17종이 전부 딸려옵니다(약 110 KB). 한 종류만 쓸 거라면',
     '저수준 함수 ' + RENDERER[type] + '(ctx, 가로, 세로, 데이터, 옵션) 하나만 가져오는',
-    '편이 훨씬 작습니다(종류에 따라 4~17 KB). 대신 파사드가 해 주던 것이 없어집니다 —',
+    '편이 훨씬 작습니다(종류에 따라 4~19 KB). 대신 파사드가 해 주던 것이 없어집니다 —',
     '옵션은 createDefaultGraphOptions() 로 온전한 것을 만들어 넘기고, 구형 브라우저를',
     '생각한다면 그리기 전에 installRoundRectPolyfill() 을 한 번 부르세요.',
     '',
@@ -1888,7 +1916,7 @@ function buildHero() {
   img.src = chart.toDataURL({ scale: 2 });
   img.alt = (options.title || LABELS[type]) + ' 예시 그래프';
   document.getElementById('hero-caption').textContent =
-    '예시 — ' + LABELS[type] + ' (전체 16종 중 하나)';
+    '예시 — ' + LABELS[type] + ' (전체 17종 중 하나)';
 }
 
 function buildStartCode() {

@@ -5,7 +5,8 @@ import { CHART_TYPES, REGISTRY } from '../src/registry';
 
 const RENDERERS = [
   'renderAbsBarGraph', 'renderCategoryDotGraph', 'renderClimateGraph', 'renderCubeGraph',
-  'renderDataTable', 'renderDeviationAGraph', 'renderDeviationBGraph', 'renderHythergraph',
+  'renderDataTable', 'renderDeviationAGraph', 'renderDeviationBGraph', 'renderEconPlane',
+  'renderHythergraph',
   'renderLineGraph', 'renderMatrixTable', 'renderPyramidGraph', 'renderRadarChart',
   'renderScatterGraph', 'renderStackedGraph', 'renderTernaryGraph', 'renderTreemapGraph',
 ];
@@ -13,7 +14,8 @@ const RENDERERS = [
 const DEFAULT_FACTORIES = [
   'createDefaultGraphOptions', 'createDefaultAbsBarData', 'createDefaultCategoryDotData',
   'createDefaultClimateData', 'createDefaultCubeData', 'createDefaultDataTableData',
-  'createDefaultDeviationAData', 'createDefaultDeviationBData', 'createDefaultHythergraphData',
+  'createDefaultDeviationAData', 'createDefaultDeviationBData', 'createDefaultEconPlaneData',
+  'createDefaultHythergraphData',
   'createDefaultLineData', 'createDefaultMatrixTableData', 'createDefaultPyramidData',
   'createDefaultRadarData', 'createDefaultScatterData', 'createDefaultStackedData',
   'createDefaultTernaryData', 'createDefaultTreemapData',
@@ -48,6 +50,27 @@ describe('공개 표면', () => {
       expect(exported.has(entry.render), `${type} 의 렌더러`).toBe(true);
       expect(exported.has(entry.createDefaultData), `${type} 의 기본값 생성기`).toBe(true);
     }
+  });
+
+  /**
+   * 경제 좌표평면 프리셋 셋. `createDefault○○Data` 규칙 밖의 이름이라
+   * 위 목록에 안 걸린다 — 따로 센다.
+   */
+  it.each(['createSupplyDemandData', 'createAdAsData', 'createPointShiftData'])(
+    '경제 좌표평면 프리셋 %s 를 내보낸다',
+    (name) => {
+      const make = (lib as unknown as Record<string, () => lib.EconPlaneData>)[name];
+      expect(typeof make).toBe('function');
+      // 껍데기가 아니라 그릴 수 있는 자료여야 한다. 모양이 기본값과 같은지는
+      // validate.test.ts 가 assertChartData 로 따로 본다.
+      const d = make();
+      expect(d.quadrants === 'first' || d.quadrants === 'all').toBe(true);
+      expect(Array.isArray(d.lines) && Array.isArray(d.points) && Array.isArray(d.arrows)).toBe(true);
+    },
+  );
+
+  it('기본 경제 좌표평면은 수요·공급 프리셋과 같다', () => {
+    expect(lib.createDefaultEconPlaneData()).toEqual(lib.createSupplyDemandData());
   });
 
   it('축 계산 유틸을 내보낸다', () => {

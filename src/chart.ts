@@ -87,7 +87,7 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
    *
    * 필드가 아니라 **메서드**로 둔다. `static readonly ensureFonts = ensureFonts`
    * 로 적으면 ES2020 로 낮출 때 클래스 «뒤» 의 대입문이 되는데, 그것은 지울 수
-   * 없는 부수효과라 이 클래스와 레지스트리와 렌더러 16종이 모든 번들에 박힌다.
+   * 없는 부수효과라 이 클래스와 레지스트리와 렌더러 17종이 모든 번들에 박힌다.
    * 메서드는 클래스 본문의 일부라 어느 목표에서도 그런 일이 없다 — 실제로
    * 겪은 문제이고, `test/bundle.test.ts` 가 이걸 회귀로 잡지는 않으니 여기
    * 적어 둔다.

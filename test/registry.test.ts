@@ -5,17 +5,18 @@ import { REGISTRY, CHART_TYPES, isCsatChartType } from '../src/registry';
 import { clearCanvas, createDefaultGraphOptions } from '../src/core/index';
 
 describe('레지스트리', () => {
-  it('16종을 담는다', () => {
-    expect(CHART_TYPES).toHaveLength(16);
+  it('17종을 담는다', () => {
+    expect(CHART_TYPES).toHaveLength(17);
   });
 
-  it('키가 정확히 이 16개다', () => {
+  it('키가 정확히 이 17개다', () => {
     // ChartDataMap 과 REGISTRY 의 키가 어긋나면 tsc 가 먼저 막는다.
     // 이 테스트가 잡는 건 다른 것이다 — 오타 난 키가 양쪽에 똑같이 들어간 경우.
     expect([...CHART_TYPES]).toEqual([
       'absbar', 'category-dot', 'climate', 'cube', 'data-table',
-      'deviation-a', 'deviation-b', 'hythergraph', 'line', 'matrix-table',
-      'pyramid', 'radar', 'scatter', 'stacked', 'ternary', 'treemap',
+      'deviation-a', 'deviation-b', 'econ-plane', 'hythergraph', 'line',
+      'matrix-table', 'pyramid', 'radar', 'scatter', 'stacked', 'ternary',
+      'treemap',
     ]);
   });
 

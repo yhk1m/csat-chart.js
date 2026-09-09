@@ -33,7 +33,7 @@ export type { EnsureFontsOptions } from './fonts';
 // 사정은 `./roundrect` 참고.
 export { installRoundRectPolyfill } from './roundrect';
 
-// ── 저수준 렌더러 16종 ─────────────────────────────────
+// ── 저수준 렌더러 17종 ─────────────────────────────────
 export {
   renderAbsBarGraph,
   renderCategoryDotGraph,
@@ -42,6 +42,7 @@ export {
   renderDataTable,
   renderDeviationAGraph,
   renderDeviationBGraph,
+  renderEconPlane,
   renderHythergraph,
   renderLineGraph,
   renderMatrixTable,
@@ -66,6 +67,7 @@ export {
   createDefaultDataTableData,
   createDefaultDeviationAData,
   createDefaultDeviationBData,
+  createDefaultEconPlaneData,
   createDefaultHythergraphData,
   createDefaultLineData,
   createDefaultMatrixTableData,
@@ -75,6 +77,15 @@ export {
   createDefaultStackedData,
   createDefaultTernaryData,
   createDefaultTreemapData,
+} from './core/index';
+
+// ── 경제 좌표평면 프리셋 ───────────────────────────────
+// 열세 장에서 되풀이되는 그림 셋. `createDefaultEconPlaneData()` 는 이 중
+// 가장 흔한 `createSupplyDemandData()` 를 그대로 돌려준다.
+export {
+  createSupplyDemandData,
+  createAdAsData,
+  createPointShiftData,
 } from './core/index';
 
 // ── 상수 ───────────────────────────────────────────────
@@ -100,7 +111,7 @@ import {
  * 부작용이 있을 수 있다고 보수적으로 가정하는 대상이라, 표시가 없으면 이
  * 상수들을 아무도 안 써도 문장 자체가 안 지워진다 — 여기서는 값이 각각
  * `core` 배열 하나씩만 가리키므로 결과가 이 파일 안에서 끝나 심각하지 않지만,
- * `registry.ts` 의 `CHART_TYPES` 는 같은 문제가 16종 렌더러 전체를 붙드는
+ * `registry.ts` 의 `CHART_TYPES` 는 같은 문제가 17종 렌더러 전체를 붙드는
  * 문제로 번진다. 그 사례를 따라 여기도 표시해 둔다.
  */
 export const AGE_GROUPS = /* @__PURE__ */ Object.freeze(coreAgeGroups);
@@ -139,6 +150,16 @@ export type {
   DeviationAData,
   DeviationBData,
   DeviationBRegion,
+  EconArrow,
+  EconAxis,
+  EconDash,
+  EconGuide,
+  EconLabelPos,
+  EconLine,
+  EconPlaneData,
+  EconPoint,
+  EconQuadrants,
+  EconXY,
   CubeAxisConfig,
   CubeGraphData,
   CubePoint,

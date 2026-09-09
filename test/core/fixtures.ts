@@ -12,14 +12,15 @@ import {
   renderDeviationAGraph, renderDeviationBGraph, renderHythergraph,
   renderPyramidGraph, renderRadarChart, renderScatterGraph,
   renderStackedGraph, renderTernaryGraph, renderCategoryDotGraph, renderLineGraph,
-  renderMatrixTable, renderDataTable, renderTreemapGraph,
+  renderMatrixTable, renderDataTable, renderTreemapGraph, renderEconPlane,
   createDefaultAbsBarData, createDefaultClimateData, createDefaultCubeData,
   createDefaultDeviationAData, createDefaultDeviationBData,
   createDefaultHythergraphData, createDefaultPyramidData,
   createDefaultRadarData, createDefaultScatterData,
   createDefaultStackedData, createDefaultTernaryData, createDefaultCategoryDotData,
-  createDefaultLineData, createDefaultTreemapData,
+  createDefaultLineData, createDefaultTreemapData, createDefaultEconPlaneData,
   createDefaultGraphOptions,
+  type EconPlaneData,
 } from '../../src/core/index';
 
 export type Renderer = (
@@ -452,6 +453,86 @@ const lineWithData = () => {
 const absBarLongText = () => createDefaultAbsBarData();
 
 /** 렌더러 이름 → [렌더 함수, 데이터 생성기] */
+/* ── 경제 좌표평면 ────────────────────────────────────────────────────────
+ *
+ * 기본 데이터가 이미 가장 흔한 그림(수요·공급 교차)이라 채워 넣을 것이 없다.
+ * 아래 셋은 기본값으로는 한 번도 그려지지 않는 길을 밟는 케이스다 —
+ * 축 생략 기호·화살표·네 사분면·십자 유도선·점 없는 유도선.
+ */
+
+/**
+ * 2026학년도 9월 경제 7번 모양 — **축 생략 기호**(두 축 모두)·눈금이 0에서
+ * 시작하지 않는 축·점마다 내리는 유도선·점 사이 화살표·나침반 네 방향의
+ * 점 이름을 한 장에 모았다.
+ */
+const econPlaneShift = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: { label: '경제 활동 참가율(%)', min: 66, max: 86, ticks: [72, 80], broken: true },
+  yAxis: { label: '고용률(%)', min: 48, max: 68, ticks: [54, 60, 64], broken: true },
+  grid: false,
+  dash: 'dashed',
+  lines: [],
+  points: [
+    { x: 72, y: 54, label: 't년', labelPos: 'bottom-left', guide: 'both', dot: true },
+    { x: 72, y: 60, label: 't+1년', labelPos: 'top-left', guide: 'both', dot: true },
+    { x: 80, y: 64, label: 't+2년', labelPos: 'right', guide: 'both', dot: true },
+    { x: 80, y: 60, label: 't+3년', labelPos: 'right', guide: 'both', dot: true },
+  ],
+  arrows: [
+    { from: { x: 72, y: 54 }, to: { x: 72, y: 60 }, offset: 0, shorten: 14, label: '', labelPos: 'right' },
+    { from: { x: 72, y: 60 }, to: { x: 80, y: 64 }, offset: 0, shorten: 14, label: '', labelPos: 'right' },
+    { from: { x: 80, y: 64 }, to: { x: 80, y: 60 }, offset: 0, shorten: 14, label: '', labelPos: 'right' },
+  ],
+});
+
+/**
+ * 2027학년도 6월 경제 16번 모양 — **네 사분면**(축 양끝 화살촉)·촘촘한 점선·
+ * 음수 눈금(빼기 기호 U+2212)·플롯 «안쪽» 에 놓인 눈금 숫자를 감시한다.
+ * 안쪽 숫자는 뒤로 지나가는 점선을 희게 끊고 그린다.
+ */
+const econPlaneQuadrants = (): EconPlaneData => ({
+  quadrants: 'all',
+  xAxis: { label: '물가 상승률(%)', min: -8, max: 8, ticks: [-5, -1, 3, 5], broken: false },
+  yAxis: { label: '경제 성장률(%)', min: -8, max: 8, ticks: [5, 3, -5], broken: false },
+  grid: false,
+  dash: 'dotted',
+  lines: [],
+  points: [
+    { x: -5, y: 5, label: 't+4년', labelPos: 'left', guide: 'both', dot: true },
+    { x: 5, y: 3, label: 't+1년', labelPos: 'right', guide: 'both', dot: true },
+    { x: -1, y: -5, label: 't+3년', labelPos: 'left', guide: 'both', dot: true },
+    { x: 3, y: -5, label: 't+2년', labelPos: 'right', guide: 'both', dot: true },
+  ],
+  arrows: [],
+});
+
+/**
+ * 총수요·총공급 — **비켜 놓은 화살표**와 그 옆 이름 `(가)`·`(나)`(2026학년도
+ * 9월 16번)에, 남은 두 갈래를 일부러 얹었다: 십자 유도선(`guide: 'cross'`,
+ * 2026학년도 수능 12번)과 점 없는 유도선(`dot: false`, 2026학년도 수능 7번).
+ * 실물 한 장을 그대로 옮긴 것이 아니라 **덜 쓰이는 길을 한 장에 모은** 케이스다.
+ */
+const econPlaneAdAs = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: { label: '실질 GDP', min: 0, max: 10, ticks: [], broken: false },
+  yAxis: { label: '물가', min: 0, max: 10, ticks: [], broken: false },
+  grid: false,
+  dash: 'dashed',
+  lines: [
+    { label: '총공급', from: { x: 1, y: 1 }, to: { x: 8.5, y: 8.5 }, labelAt: 'to' },
+    { label: '총수요', from: { x: 1, y: 8.5 }, to: { x: 8.5, y: 1 }, labelAt: 'to' },
+  ],
+  points: [
+    { x: 4.75, y: 4.75, label: 'E', labelPos: 'right', guide: 'cross', dot: true },
+    { x: 2.2, y: 7.3, label: '', labelPos: 'right', guide: 'none', dot: true },
+    { x: 2.2, y: 2.2, label: '', labelPos: 'right', guide: 'to-x', dot: false },
+  ],
+  arrows: [
+    { from: { x: 4.75, y: 4.75 }, to: { x: 2.9, y: 6.6 }, offset: 14, shorten: 14, label: '(가)', labelPos: 'right' },
+    { from: { x: 4.75, y: 4.75 }, to: { x: 2.9, y: 2.9 }, offset: -14, shorten: 14, label: '(나)', labelPos: 'right' },
+  ],
+});
+
 export const CASES: [string, Renderer, () => unknown][] = [
   ['absbar', renderAbsBarGraph as Renderer, createDefaultAbsBarData],
   ['absbarLongText', renderAbsBarGraph as Renderer, absBarLongText],
@@ -467,6 +548,11 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['dataTable', renderDataTable as Renderer, dataTableExam],
   ['deviationAExam', renderDeviationAGraph as Renderer, deviationAExam],
   ['deviationB', renderDeviationBGraph as Renderer, deviationBWithData],
+  ['econPlane', renderEconPlane as Renderer, createDefaultEconPlaneData],
+  ['econPlaneAdAs', renderEconPlane as Renderer, econPlaneAdAs],
+  ['econPlaneLongText', renderEconPlane as Renderer, createDefaultEconPlaneData],
+  ['econPlaneQuadrants', renderEconPlane as Renderer, econPlaneQuadrants],
+  ['econPlaneShift', renderEconPlane as Renderer, econPlaneShift],
   ['hythergraph', renderHythergraph as Renderer, hythergraphWithData],
   ['line', renderLineGraph as Renderer, lineWithData],
   ['pyramid', renderPyramidGraph as Renderer, pyramidWithData],

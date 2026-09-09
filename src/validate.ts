@@ -130,7 +130,7 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
   }
 
   const given = data as Record<string, unknown>;
-  // 매핑 타입이라 반환값이 16종의 유니온이다. Record 로 바로 못 좁히므로
+  // 매핑 타입이라 반환값이 17종의 유니온이다. Record 로 바로 못 좁히므로
   // unknown 을 거친다. 키와 종류만 훑을 것이므로 안전하다.
   const shape = REGISTRY[type].createDefaultData() as unknown as Record<string, unknown>;
   const lengths = FIXED_LENGTHS[type] ?? {};

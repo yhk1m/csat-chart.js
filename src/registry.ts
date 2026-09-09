@@ -1,5 +1,5 @@
 // © 2026 김용현
-// 문자열 키 하나로 16종을 고르게 한다. 렌더러와 기본 데이터를 짝지어 두는 곳.
+// 문자열 키 하나로 17종을 고르게 한다. 렌더러와 기본 데이터를 짝지어 두는 곳.
 import {
   renderAbsBarGraph,
   renderCategoryDotGraph,
@@ -8,6 +8,7 @@ import {
   renderDataTable,
   renderDeviationAGraph,
   renderDeviationBGraph,
+  renderEconPlane,
   renderHythergraph,
   renderLineGraph,
   renderMatrixTable,
@@ -24,6 +25,7 @@ import {
   createDefaultDataTableData,
   createDefaultDeviationAData,
   createDefaultDeviationBData,
+  createDefaultEconPlaneData,
   createDefaultHythergraphData,
   createDefaultLineData,
   createDefaultMatrixTableData,
@@ -43,8 +45,8 @@ import type { ChartDataMap, CsatChartType } from './types';
  * **키마다 제네릭을 따로 두는 이유가 있다.** 하나로 뭉뚱그리면(`data: never` 같은)
  * 항목을 엉뚱하게 이어도 컴파일과 테스트가 모두 통과한다 — `radar` 를 산점도
  * 렌더러에 연결해도 그림은 나오고 픽셀도 찍히기 때문이다. 이렇게 두면 잘못
- * 이을 수 있는 480가지 중 478가지가 컴파일 오류가 되고, 항목마다 붙던
- * `as` 캐스팅 16개가 사라진다.
+ * 이을 수 있는 544가지 중 542가지가 컴파일 오류가 되고, 항목마다 붙던
+ * `as` 캐스팅 17개가 사라진다.
  */
 export interface RegistryEntry<T extends CsatChartType> {
   render: (
@@ -72,6 +74,7 @@ export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
   // 위 climate 주석 참고 — 이 칸의 렌더러만 바꾼 오배선은 컴파일러가 잡지 못한다.
   'deviation-a': { render: renderDeviationAGraph, createDefaultData: createDefaultDeviationAData },
   'deviation-b': { render: renderDeviationBGraph, createDefaultData: createDefaultDeviationBData },
+  'econ-plane': { render: renderEconPlane, createDefaultData: createDefaultEconPlaneData },
   hythergraph: { render: renderHythergraph, createDefaultData: createDefaultHythergraphData },
   line: { render: renderLineGraph, createDefaultData: createDefaultLineData },
   'matrix-table': { render: renderMatrixTable, createDefaultData: createDefaultMatrixTableData },
@@ -97,7 +100,7 @@ export const REGISTRY: { [K in CsatChartType]: RegistryEntry<K> } = {
  * 모두 이 모듈 맨 위에서 실행되는 함수 호출이다 — 번들러는 함수 호출에
  * 부작용이 있을 수 있다고 보수적으로 가정하므로, 표시가 없으면 `CHART_TYPES`
  * 를 아무도 안 써도 이 문장을 지우지 못하고, 그 문장이 붙들고 있는
- * `REGISTRY`(=16종 렌더러 전부)까지 함께 남는다. **셋 중 하나라도 빠지면**
+ * `REGISTRY`(=17종 렌더러 전부)까지 함께 남는다. **셋 중 하나라도 빠지면**
  * 나머지 호출이 여전히 `REGISTRY` 를 읽으므로 소용이 없다 — 실제로 겪은
  * 문제다(`Object.freeze` 하나만 표시했을 때는 번들이 전혀 줄지 않았다).
  * 표시를 지우면 저수준 렌더러 하나만 가져와도 번들이 줄지 않는 문제가

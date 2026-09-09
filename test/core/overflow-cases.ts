@@ -1,5 +1,5 @@
 // © 2026 김용현
-// 넘침 진단·회귀용 케이스 16종 × 두 자료 × 두 범례 위치.
+// 넘침 진단·회귀용 케이스 17종 × 두 자료 × 두 범례 위치.
 //
 // 자료 A 는 데모 페이지(docs/index.html)의 표본을 그대로 옮긴 것이고,
 // 자료 B 는 «선생님이 실제로 칠 만한» 긴 한글 이름(시·군·구 이름 등)이다.
@@ -7,12 +7,14 @@
 // 축 단위·눈금 이름·제목·출처·각주·값 라벨·그림 안 점 이름·표 머리글.
 import {
   renderAbsBarGraph, renderCategoryDotGraph, renderClimateGraph, renderCubeGraph,
-  renderDataTable, renderDeviationAGraph, renderDeviationBGraph, renderHythergraph,
+  renderDataTable, renderDeviationAGraph, renderDeviationBGraph, renderEconPlane,
+  renderHythergraph,
   renderLineGraph, renderMatrixTable, renderPyramidGraph, renderRadarChart,
   renderScatterGraph, renderStackedGraph, renderTernaryGraph, renderTreemapGraph,
   createDefaultAbsBarData, createDefaultCategoryDotData, createDefaultClimateData,
   createDefaultCubeData, createDefaultDataTableData, createDefaultDeviationAData,
-  createDefaultDeviationBData, createDefaultHythergraphData, createDefaultLineData,
+  createDefaultDeviationBData, createDefaultEconPlaneData, createDefaultHythergraphData,
+  createDefaultLineData,
   createDefaultMatrixTableData, createDefaultPyramidData, createDefaultRadarData,
   createDefaultScatterData, createDefaultStackedData, createDefaultTernaryData,
   createDefaultTreemapData, createDefaultGraphOptions,
@@ -139,6 +141,12 @@ const A_LINE = {
   yRange: { min: 0, max: 5, auto: true },
   labelPlacement: 'lineEnd', showMarkers: true,
 };
+
+/**
+ * 경제 좌표평면 — 데모 표본은 기본값(수요·공급 교차) 그대로다.
+ * 글자가 나오는 자리: 축 이름 둘·눈금 숫자·선 끝 이름 둘·점 이름 하나.
+ */
+const A_ECON_PLANE: Maker = createDefaultEconPlaneData;
 
 const A_SCATTER: Maker = () => {
   const d = createDefaultScatterData();
@@ -273,6 +281,42 @@ const B_SCATTER: Maker = () => {
   return d;
 };
 
+/**
+ * 경제 좌표평면의 긴 이름 판.
+ *
+ * 이 종류는 범례가 없으므로 글자가 길어지는 자리가 다르다 — **축 이름**(왼쪽
+ * 위·오른쪽 끝에 떠 있다), **선 끝 이름**(오른쪽 여백을 먹는다), **점 이름**
+ * (플롯 안에 있다가 가장자리로 밀린다), 그리고 자릿수가 큰 **눈금 숫자**다.
+ * 넷을 한꺼번에 늘리고, 축 생략 기호까지 걸어 왼쪽 여백을 더 좁힌다.
+ */
+const B_ECON_PLANE: Maker = () => ({
+  quadrants: 'first',
+  xAxis: {
+    label: '경제 활동 참가율(%)', min: 900000, max: 1200000,
+    ticks: [1000000, 1100000], broken: true,
+  },
+  yAxis: {
+    label: '1인당 지역내총생산(백만 원)', min: 900000, max: 1200000,
+    ticks: [1000000, 1100000], broken: true,
+  },
+  grid: true,
+  dash: 'dashed',
+  lines: [
+    { label: '강원특별자치도 춘천시 공급', from: { x: 900000, y: 900000 }, to: { x: 1100000, y: 1100000 }, labelAt: 'to' },
+    { label: '경기도 성남시 분당구 수요', from: { x: 900000, y: 1100000 }, to: { x: 1100000, y: 900000 }, labelAt: 'to' },
+  ],
+  points: [
+    { x: 1000000, y: 1000000, label: '서울특별시 강남구', labelPos: 'top-right', guide: 'both', dot: true },
+    { x: 1100000, y: 1100000, label: '전라남도 여수시', labelPos: 'right', guide: 'both', dot: true },
+  ],
+  arrows: [
+    {
+      from: { x: 1000000, y: 1000000 }, to: { x: 1100000, y: 1100000 },
+      offset: 12, shorten: 14, label: '경기도 성남시 분당구', labelPos: 'right',
+    },
+  ],
+});
+
 const B_ABSBAR_INSIDE: Maker = () => {
   const d = B_ABSBAR() as ReturnType<typeof createDefaultAbsBarData>;
   d.insideLegend = 'top-right';
@@ -362,6 +406,7 @@ const TYPES: Entry[] = [
   ['deviation-a(안쪽범례)', renderDeviationAGraph as ProbeCase['render'], () => clone(A_DEVIATION_A), B_DEVIATION_A],
   ['deviation-a', renderDeviationAGraph as ProbeCase['render'], createDefaultDeviationAData, B_DEVIATION_A_OUT],
   ['deviation-b', renderDeviationBGraph as ProbeCase['render'], () => clone(A_DEVIATION_B), B_DEVIATION_B],
+  ['econ-plane', renderEconPlane as ProbeCase['render'], A_ECON_PLANE, B_ECON_PLANE],
   ['hythergraph', renderHythergraph as ProbeCase['render'], () => clone(A_HYTHER), B_HYTHER],
   ['line', renderLineGraph as ProbeCase['render'], () => clone(A_LINE), B_LINE],
   ['matrix-table', renderMatrixTable as ProbeCase['render'], createDefaultMatrixTableData, B_MATRIX_TABLE],

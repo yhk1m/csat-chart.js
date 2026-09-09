@@ -15,7 +15,7 @@ import { defineConfig, type Format, type Options } from 'tsup';
  *
  * 주의: `Object.assign(__csat.CsatChart, __csat)` 은 export 이름이
  * `name` · `length` · `prototype` 중 하나와 겹치면 던진다 — 함수(클래스)의
- * 쓰기 불가 own property 라서다. 지금 48개 export 중엔 없지만, 나중에
+ * 쓰기 불가 own property 라서다. 지금 53개 export 중엔 없지만, 나중에
  * export 이름을 추가할 때 이 셋은 피해야 한다.
  */
 const UMD_BANNER = '(function(){';

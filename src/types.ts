@@ -12,6 +12,7 @@ import type {
   DataTableData,
   DeviationAData,
   DeviationBData,
+  EconPlaneData,
   GraphOptions,
   HythergraphData,
   LineGraphData,
@@ -32,6 +33,7 @@ export interface ChartDataMap {
   'data-table': DataTableData;
   'deviation-a': DeviationAData;
   'deviation-b': DeviationBData;
+  'econ-plane': EconPlaneData;
   hythergraph: HythergraphData;
   line: LineGraphData;
   'matrix-table': MatrixTableData;
@@ -64,7 +66,7 @@ export interface ConfigFor<T extends CsatChartType> {
   options?: PartialGraphOptions;
 }
 
-/** 16종을 모은 판별 유니온. */
+/** 17종을 모은 판별 유니온. */
 export type CsatChartConfig = { [K in CsatChartType]: ConfigFor<K> }[CsatChartType];
 
 /** 한 종류의 부분 갱신. 준 것만 덮는다. */

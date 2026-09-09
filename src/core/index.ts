@@ -8,6 +8,7 @@ export { renderCategoryDotGraph } from './graphs/CategoryDotGraph';
 export { renderLineGraph } from './graphs/LineGraph';
 export { renderMatrixTable } from './graphs/MatrixTable';
 export { renderDataTable } from './graphs/DataTable';
+export { renderEconPlane } from './graphs/EconPlane';
 export { renderTreemapGraph } from './graphs/TreemapGraph';
 export { renderClimateGraph } from './graphs/ClimateGraph';
 export { renderCubeGraph } from './graphs/CubeGraph';

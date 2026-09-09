@@ -2,7 +2,8 @@
 
 수능·모의고사 시험지 양식의 그래프를 Canvas 2D로 그리는 라이브러리입니다.
 축·범례·각주·출처의 배치, 명조 글꼴, 흑백 인쇄를 전제한 해칭 패턴까지
-시험지 관습을 그대로 따릅니다. **런타임 의존성이 없습니다.**
+시험지 관습을 그대로 따릅니다. 지리 열여섯 종으로 시작했고, 1.4.0 에서 경제
+좌표평면이 더해져 열일곱 종입니다. **런타임 의존성이 없습니다.**
 
 - npm: https://www.npmjs.com/package/csat-chart.js
 - 데모: https://yhk1m.github.io/csat-chart.js/
@@ -68,7 +69,7 @@
 `tempRange`·`precipRange` 는 `auto: true` 라 값에 맞춰 알아서 잡힙니다. 눈금을 고정하고
 싶으면 `auto: false` 로 두고 `min`·`max` 를 적으세요.
 
-## 그래프 16종
+## 그래프 17종
 
 | `type` | 그래프 | 기본 데이터 | 저수준 렌더러 | 데이터 타입 |
 |---|---|---|---|---|
@@ -79,6 +80,7 @@
 | `data-table` | 항목×지역 표 | `createDefaultDataTableData()` | `renderDataTable` | `DataTableData` |
 | `deviation-a` | 월별 편차 | `createDefaultDeviationAData()` | `renderDeviationAGraph` | `DeviationAData` |
 | `deviation-b` | 지역별 편차 | `createDefaultDeviationBData()` | `renderDeviationBGraph` | `DeviationBData` |
+| `econ-plane` | 경제 좌표평면 | `createDefaultEconPlaneData()` | `renderEconPlane` | `EconPlaneData` |
 | `hythergraph` | 하이서그래프 | `createDefaultHythergraphData()` | `renderHythergraph` | `HythergraphData` |
 | `line` | 꺾은선 | `createDefaultLineData()` | `renderLineGraph` | `LineGraphData` |
 | `matrix-table` | 계단식 행렬표 | `createDefaultMatrixTableData()` | `renderMatrixTable` | `MatrixTableData` |
@@ -92,8 +94,55 @@
 기본 데이터는 표의 `createDefault○○Data()` 로 얻어 고쳐 씁니다 — 어느 종류든 이
 이름 규칙을 따릅니다. 저수준 렌더러 이름은 그렇지 않습니다 — `renderDataTable`·
 `renderHythergraph`·`renderMatrixTable`·`renderRadarChart` 넷은 `render○○Graph`
-를 따르지 않으니 표에서 확인하세요. 데이터 모양이 어긋나면 한국어 메시지로
+를 따르지 않으니 표에서 확인하세요. 저수준 렌더러 이름에는 `renderEconPlane`
+처럼 `Graph` 가 안 붙는 것도 있습니다. 데이터 모양이 어긋나면 한국어 메시지로
 알려줍니다 — [오류 가려내기](#오류-가려내기) 참고.
+
+## 경제 좌표평면
+
+`econ-plane` 은 수능 경제 문항의 그림입니다. 주제가 달라도(수요·공급, 총수요·
+총공급, 생산가능곡선, 고용 지표, 물가-성장률) 그림은 한 장입니다 — 화살표 달린
+좌표평면 위에 **직선·점·유도선·화살표** 네 가지만 놓입니다.
+
+**범례가 없습니다.** 선은 제 끝에 이름을 답니다(`lines[].label`). 지리 열여섯
+종과 가장 크게 갈리는 곳이고, 시험지 그림이 실제로 그렇습니다.
+
+```js
+const data = CsatChart.createSupplyDemandData();   // 수요·공급 교차 + 균형점 E
+data.xAxis.label = '수량(개)';
+data.yAxis.label = '가격(만 원)';
+data.points.push({
+  x: 6, y: 2, label: '', labelPos: 'top', guide: 'both', dot: false,  // 점 없이 유도선만
+});
+new CsatChart('c', { type: 'econ-plane', data: data });
+```
+
+기본값 말고 **시작점이 셋** 있습니다. 그리려는 그림에 가까운 것에서 시작하세요.
+
+| 시작점 | 그리는 것 |
+|---|---|
+| `createSupplyDemandData()` | 수요·공급 교차 + 균형점 `E` (열세 장 중 여섯 장이 이 그림입니다. `createDefaultEconPlaneData()` 가 이것을 돌려줍니다) |
+| `createAdAsData()` | 총수요·총공급 — 물가 × 실질 GDP, 눈금 없음 |
+| `createPointShiftData()` | 이름 붙인 점 + 축으로 내리는 유도선 + 점 사이 화살표 (이것도 여섯 장) |
+
+칸마다 하는 일은 이렇습니다.
+
+| 칸 | 값 | 하는 일 |
+|---|---|---|
+| `quadrants` | `'first'`·`'all'` | `'all'` 이면 네 사분면을 그리고 축 양끝에 화살촉을 답니다 |
+| `xAxis`·`yAxis` | `{ label, min, max, ticks, broken }` | `ticks` 는 눈금 «값» 배열입니다. **자는 언제나 고르고 눈금만 띄엄띄엄 찍힙니다** — `[0, 10, 20, 50]` 이면 50 이 20 의 세 배 거리에 섭니다. `broken: true` 면 원점과 첫 눈금 사이에 생략 기호 `≈` 를 넣습니다 |
+| `grid` | boolean | 눈금 자리마다 점선 격자를 깝니다 |
+| `dash` | `'dashed'`·`'dotted'` | 격자와 유도선의 점선 모양 |
+| `lines[]` | `{ label, from, to, labelAt }` | 직선 하나. 이름은 `labelAt` 이 가리키는 끝에 붙습니다(`'to'` 가 보통) |
+| `points[]` | `{ x, y, label, labelPos, guide, dot }` | `labelPos` 는 나침반 여덟 방향, `guide` 는 `'none'`·`'to-x'`·`'to-y'`·`'both'`·`'cross'`, `dot: false` 면 점 없이 유도선만 남습니다 |
+| `arrows[]` | `{ from, to, offset, shorten, label, labelPos }` | `offset` 은 잇는 선에서 **진행 방향 오른쪽**으로 비켜 놓는 픽셀(곡선을 따라가는 화살표가 이 꼴), `shorten` 은 양 끝을 줄여 점에 안 닿게 하는 픽셀 |
+
+눈금 표시선(축에 붙는 작은 선분)은 그리지 않습니다 — 시험지가 그렇습니다.
+격자나 유도선이 축까지 닿아 자리를 알려 줍니다.
+
+두 그림을 나란히 놓는 문항(2026학년도 수능 경제 5번의 〈X재 시장〉·〈Y재 시장〉)은
+캔버스 둘에 각각 그리고 배치는 쓰시는 쪽에서 합니다. 이 종류는 캔버스 한 장에
+그림 한 장을 그립니다.
 
 ## 옵션
 
@@ -103,8 +152,8 @@
 |---|---|---|
 | `title` | `''` | 제목 |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline` 이면 각주와 같은 줄)에 오른쪽 정렬로 적힙니다 |
-| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). **지금은 `stacked` 에서만 동작합니다** |
-| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙입니다(시험지 관습). **지금은 `scatter` 에서만 동작합니다** |
+| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). **지금은 `stacked`·`econ-plane` 에서만 동작합니다** |
+| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙입니다(시험지 관습). **지금은 `scatter`·`econ-plane` 에서만 동작합니다** |
 | `footnotes` | `['']` | 각주 목록. 앞에 `* ` 를 자동으로 붙이므로 직접 적지 않습니다. 빈 문자열은 무시됩니다 |
 | `fontFamily` | `'serif'` | `'serif'`(명조)·`'sans'`(고딕)·`'custom'` 중 하나 |
 | `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 **축 쪽에만** 쓸 글꼴 이름 |
@@ -115,6 +164,10 @@
 | `legendPosition` | `'bottom'` | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나 |
 | `legendLabel1` | `''` | 두 계열을 쓰는 종류(기후·편차·인구 피라미드)의 첫 계열 범례 이름. 비워 두면 데이터가 준 이름을 씁니다 |
 | `legendLabel2` | `''` | 같은 종류의 두 번째 계열 범례 이름 |
+
+`econ-plane` 은 `showLegend`·`legendPosition`·`showDataLabels` 를 읽지 않습니다.
+시험지 경제 그림에는 범례 상자가 없기 때문입니다 — 선은 제 끝에 이름을 답니다.
+나머지 옵션(제목·출처·각주·글꼴)은 다른 종류와 똑같이 동작합니다.
 
 `fontSize` 는 하나만 부분 지정해도 됩니다 — TypeScript·JavaScript 모두 마찬가지입니다.
 
@@ -378,11 +431,11 @@ render○○(ctx, width, height, data, options): void
 
 | 무엇을 가져오나 | 크기 |
 |---|---|
-| 라이브러리 전부 | 95.9 KB |
-| `CsatChart` 만 | 94.6 KB |
-| `renderClimateGraph` 만 | **10.0 KB** |
+| 라이브러리 전부 | 112.6 KB |
+| `CsatChart` 만 | 110.0 KB |
+| `renderClimateGraph` 만 | **12.0 KB** |
 
-`CsatChart` 는 `type` 을 문자열로 받아 그때그때 렌더러를 고르므로 16종을 전부
+`CsatChart` 는 `type` 을 문자열로 받아 그때그때 렌더러를 고르므로 17종을 전부
 붙들고 있어야 합니다. 기후 그래프 하나만 필요한 앱이라면 저수준 렌더러를 직접
 부르는 편이 아홉 배 가볍습니다. CDN 으로 쓰면 어차피 한 벌을 통째로 받으므로 이
 이야기는 해당하지 않습니다.
@@ -402,6 +455,8 @@ render○○(ctx, width, height, data, options): void
 
 지리 교사가 수업·평가 자료를 만들려고 쓰던 렌더러를 떼어내 공개한 것입니다.
 [GeoTester](https://geotester-v2.vercel.app) 와 GeoGrapher 에서 쓰이던 코드입니다.
+1.4.0 의 `econ-plane` 은 그 바깥에서 온 첫 종류입니다 — 수능 경제 문항의 그림
+열세 장(2026학년도 수능·9월, 2027학년도 6월)을 재어 만들었습니다.
 
 ## 기여
 

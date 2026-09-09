@@ -6,7 +6,7 @@
 유추해서 쓰지 말고 이 문서에 적힌 이름·모양을 그대로 따른다. 이 문서에 없는
 API는 존재를 가정하지 않는다.
 
-- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.3.0)
+- 저장소: https://github.com/yhk1m/csat-chart.js (branch `master`, v1.4.0)
 - 라이브 데모: https://yhk1m.github.io/csat-chart.js/
 - 라이선스: MIT, 런타임 의존성 0
 
@@ -82,13 +82,14 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
    (`{ fontSize: { title: 44 } }`). `footnotes`는 배열이고, 빈 문자열
    `''`은 무시된다.
 
-## 3. 그래프 16종
+## 3. 그래프 17종
 
 아래 표는 빌드된 라이브러리(`dist/csat-chart.cjs`)를 직접 불러와
 `createDefault○○Data()`의 실제 반환값을 찍어서 만들었다 — 손으로 옮겨 적지
 않았다. **저수준 렌더러 이름 중 넷(`renderDataTable`·`renderHythergraph`·
 `renderMatrixTable`·`renderRadarChart`)은 `render○○Graph` 규칙을 따르지
-않는다.** 규칙대로 이름을 추측하면(`renderDataTableGraph` 등) `undefined`가
+않는다(`renderEconPlane`도 `Graph`가 안 붙는다).** 규칙대로 이름을
+추측하면(`renderDataTableGraph`·`renderEconPlaneGraph` 등) `undefined`가
 된다 — 반드시 아래 정확한 이름을 쓴다.
 
 | `type` | 그리는 것 | 기본 데이터 팩토리 | 저수준 렌더러 |
@@ -100,6 +101,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 | `data-table` | 항목×지역 수치 표 (그래프 아님) | `createDefaultDataTableData` | `renderDataTable` |
 | `deviation-a` | 기준값 대비 월별 기온·강수량 편차 (시계열, climate와 같은 틀) | `createDefaultDeviationAData` | `renderDeviationAGraph` |
 | `deviation-b` | 기준값 대비 지역별 기온·강수량 편차 (사분면 비교형) | `createDefaultDeviationBData` | `renderDeviationBGraph` |
+| `econ-plane` | 수능 «경제» 좌표평면 — 직선·점·유도선·화살표. 범례가 없다 | `createDefaultEconPlaneData` | `renderEconPlane` |
 | `hythergraph` | 월별 기온-강수량을 이어 그리는 하이서그래프(폐곡선) | `createDefaultHythergraphData` | `renderHythergraph` |
 | `line` | 꺾은선 그래프 (선 종류·기호로 계열 구분) | `createDefaultLineData` | `renderLineGraph` |
 | `matrix-table` | 지역 간 짝별 값(예: 거리)을 계단식 삼각형 표로 표시 (그래프 아님) | `createDefaultMatrixTableData` | `renderMatrixTable` |
@@ -170,6 +172,28 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `tempUnit`: string (기본 `'(°C)'`)
 - `precipRange`: `{ min: -200, max: 200, auto: true }`
 - `tempRange`: `{ min: -10, max: 10, auto: true }`
+
+**econ-plane** — 유일한 비지리 종류. 바꿔볼 만한 필드: `lines`, `points`, `arrows`, `xAxis`, `yAxis`
+- `quadrants`: `'first' | 'all'` (기본 `'first'`) — `'all'`이면 네 사분면, 축 양끝에 화살촉
+- `xAxis`·`yAxis`: `{ label: string, min: number, max: number, ticks: number[], broken: boolean }`
+- `grid`: boolean (기본 `true`) — 눈금 자리마다 점선 격자
+- `dash`: `'dashed' | 'dotted'` (기본 `'dashed'`) — 격자·유도선의 점선 모양
+- `lines`: 배열(2) of `{ label: string, from: {x,y}, to: {x,y}, labelAt: 'from'|'to' }`
+- `points`: 배열(1) of `{ x, y, label: string, labelPos: 나침반 8방향, guide: 'none'|'to-x'|'to-y'|'both'|'cross', dot: boolean }`
+- `arrows`: 배열(0) of `{ from: {x,y}, to: {x,y}, offset: number, shorten: number, label: string, labelPos: 나침반 8방향 }`
+
+이 종류만 아는 것 넷:
+1. **범례가 없다.** `showLegend`·`legendPosition`·`showDataLabels`를 아예 읽지
+   않는다. 선 이름은 `lines[].label`로 주고, 그 선의 `labelAt` 쪽 끝에 붙는다.
+2. **`ticks`는 «값» 배열이다.** 자는 언제나 고르고 눈금만 띄엄띄엄 찍힌다 —
+   `[0, 10, 20, 50]`이면 50이 20의 세 배 거리에 선다. 간격을 주는 것이 아니다.
+   눈금 표시선(축에 붙는 작은 선분)은 그리지 않는다.
+3. **시작점이 넷이다.** `createDefaultEconPlaneData()`(= `createSupplyDemandData()`,
+   수요·공급 교차)·`createAdAsData()`(총수요·총공급)·`createPointShiftData()`
+   (점 + 유도선 + 화살표). 그리려는 그림에 가까운 것에서 시작한다 — 직선
+   좌표를 손으로 다시 치지 않는다.
+4. **`points[].dot: false`**면 점 없이 유도선만 남는다. 문항이 쓰는 값마다
+   파선을 내리되 교점에 점은 찍지 않는 그림이 실제로 있다.
 
 **hythergraph** — 기본값이 전부 0(규칙 3). 바꿔볼 만한 필드: `series`
 - `series`: 배열(1) of `{ label: string, months: 배열(12) of {temp, precip} }`
@@ -399,7 +423,7 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
 ```
 
 - 첫째: `type`을 잘못 적으면 편집 거리(Levenshtein) 3 이내의 가장 가까운
-  이름을 제안한다. 못 찾으면 대신 16종 전체 목록을 보여준다.
+  이름을 제안한다. 못 찾으면 대신 17종 전체 목록을 보여준다.
 - 둘째: 기본 데이터에 있는 키가 `data`에 없으면 어떤 키인지 짚어 준다.
 - 셋째: 배열의 **원소** 자료형까지 검사한다 — `months: [1,2,...,12]`처럼
   달마다 숫자 하나만 넣는 실수(배열이고 길이도 12라 겉보기엔 통과할 법함)를
@@ -416,9 +440,16 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 
 ## 7. 알려진 한계 — 고치려 하지 말 것
 
-- **`sourceLeft`는 `stacked`에서만, `sourceInline`은 `scatter`에서만
-  동작한다.** 나머지 14종에 이 옵션을 줘도 조용히 무시된다(예외 없음) —
-  버그가 아니라 이식 원본의 범위다.
+- **`sourceLeft`는 `stacked`와 `econ-plane`에서만, `sourceInline`은 `scatter`와
+  `econ-plane`에서만 동작한다.** 나머지에 이 옵션을 줘도 조용히 무시된다(예외
+  없음) — 버그가 아니라 이식 원본의 범위다.
+- **`econ-plane`은 축 이름을 여러 줄로 쓰지 못한다.** 실물 시험지는 「가격」과
+  「(만 원)」을 두 줄로 앉히는 경우가 있는데, 이 렌더러는 한 줄로만 그린다 —
+  `'가격(만 원)'`처럼 한 줄로 적는다. 위 첨자(`Eₓ`)도 마찬가지다. 캔버스에는
+  첨자라는 것이 없으므로 `'Ex'`나 유니코드 첨자 문자를 직접 쓴다.
+- **`econ-plane`은 캔버스 한 장에 그림 한 장을 그린다.** 두 그림을 나란히 놓는
+  문항(2026학년도 수능 경제 5번)은 캔버스 둘에 각각 그리고 배치는 부르는 쪽이
+  한다. `panels` 같은 필드는 없다 — 있다고 가정하지 말 것.
 - **`pyramid`의 `sexFills`는 막대 색만 바꾸고 범례 색은 안 바꾼다.**
   범례 스와치는 `renderPyramidGraph` 안에 `#666`/`#BBB`로 하드코딩돼 있어,
   `data.sexFills`로 막대를 파란색/빨간색으로 바꿔도 범례 네모는 여전히
@@ -438,7 +469,7 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 
 ## 8. 저수준 경로
 
-`CsatChart` 파사드를 거치지 않고 렌더러 16종을 직접 부를 수 있다. 모두 같은
+`CsatChart` 파사드를 거치지 않고 렌더러 17종을 직접 부를 수 있다. 모두 같은
 시그니처다:
 
 ```ts
@@ -451,7 +482,7 @@ function render○○(
 ): void
 ```
 
-이름은 3절 표의 "저수준 렌더러" 열을 그대로 쓴다(넷은 `render○○Graph`
+이름은 3절 표의 "저수준 렌더러" 열을 그대로 쓴다(다섯은 `render○○Graph`
 규칙을 안 따르니 주의). `CsatChart`가 자동으로 해 주는 일 — 캔버스 크기
 보정, 데이터 모양 검증, 글꼴 도착 후 다시 그리기 — 은 저수준 렌더러를 직접
 부르면 전혀 일어나지 않는다.

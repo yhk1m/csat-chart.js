@@ -3,7 +3,7 @@
 //
 // 1.2.0 까지는 제목·출처·각주·범례가 글꼴을 상수로 박아 두고 `options` 를 아예
 // 보지 않았다. 그래서 자기 글꼴을 준 사람은 축만 그 글꼴이고 제목은 Noto Sans 인
-// 그림을 받았다. 그 결함이 돌아오지 않게, 렌더러 16종을 전부 돌려 «Noto 라는
+// 그림을 받았다. 그 결함이 돌아오지 않게, 렌더러 17종을 전부 돌려 «Noto 라는
 // 글자가 한 번도 `ctx.font` 에 실리지 않는다» 를 지킨다.
 import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
@@ -118,7 +118,7 @@ describe('글꼴 자리 풀기', () => {
   });
 });
 
-describe('fontStack 이 렌더러 16종에 닿는다', () => {
+describe('fontStack 이 렌더러 17종에 닿는다', () => {
   it.each(CASES)('%s — 두 자리를 다 주면 Noto 가 한 번도 안 쓰인다', (_name, fn, makeData) => {
     const fonts = renderWith(fn, makeData(), {
       fontStack: { serif: SERIF_MARK, sans: SANS_MARK },
@@ -134,8 +134,8 @@ describe('fontStack 이 렌더러 16종에 닿는다', () => {
     expect(fonts.some((f) => f.includes(DEFAULT_SANS_STACK)), '기본 고딕이 남아 있다').toBe(false);
   });
 
-  // 16종을 하나도 빠뜨리지 않았는지 — 케이스 목록이 아니라 레지스트리에서 센다
-  it('CASES 가 16종을 모두 덮는다', () => {
+  // 17종을 하나도 빠뜨리지 않았는지 — 케이스 목록이 아니라 레지스트리에서 센다
+  it('CASES 가 17종을 모두 덮는다', () => {
     const covered = new Set(CASES.map(([, fn]) => fn as unknown));
     for (const type of CHART_TYPES) {
       expect(covered.has(REGISTRY[type].render as unknown), `${type} 가 빠졌다`).toBe(true);

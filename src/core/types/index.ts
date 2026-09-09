@@ -9,6 +9,7 @@ export * from './absbar';
 export * from './scatter';
 export * from './hythergraph';
 export * from './cube';
+export * from './econplane';
 export * from './radar';
 export * from './categorydot';
 export * from './line';

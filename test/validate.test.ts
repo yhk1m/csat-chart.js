@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { CsatChartError, assertChartType, assertChartData } from '../src/validate';
 import { CHART_TYPES, REGISTRY } from '../src/registry';
+import { createAdAsData, createPointShiftData, createSupplyDemandData } from '../src/core/index';
 
 describe('assertChartType', () => {
   it('아는 키는 통과시킨다', () => {
@@ -79,6 +80,14 @@ describe('assertChartData', () => {
     expect(() =>
       assertChartData('climate', { ...c, months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }),
     ).toThrow(/data\.months\[0\]: 객체여야 합니다 \(지금 숫자\)/);
+  });
+
+  it('경제 좌표평면의 프리셋 셋도 통과한다', () => {
+    // 기본값과 «같은 모양» 이라는 뜻이다. 프리셋을 손보다 칸 하나를 빠뜨리면
+    // 여기서 잡힌다 — 그림은 나오는데 검증만 막히는 어긋남이 생기지 않게.
+    for (const make of [createSupplyDemandData, createAdAsData, createPointShiftData]) {
+      expect(() => assertChartData('econ-plane', make())).not.toThrow();
+    }
   });
 
   it('선택 필드를 더 준 것은 통과한다', () => {

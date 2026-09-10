@@ -11,6 +11,7 @@ import {
   LINE_DASH,
   LINE_STYLE_ORDER,
   LINE_MARKER_ORDER,
+  defaultLineLeader,
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
@@ -107,8 +108,10 @@ export function renderLineGraph(
       // 예전에는 그래도 60을 비워, 연도 눈금 밑에 빈 띠가 남고 플롯만 눌렸다.
       if (useLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter((f) => f.trim()).length * 22;
+      const notes = options.footnotes.filter((f) => f.trim()).length;
+      // 출처를 각주와 같은 줄에 두면(sourceInline) 줄이 하나 줄어든다
+      if (options.source && !(options.sourceInline && notes > 0)) b += 30;
+      b += notes * 22;
       return b;
     })(),
     left: 130,
@@ -138,6 +141,8 @@ export function renderLineGraph(
         step: data.yRange.step || Math.max(1, Math.round((data.yRange.max - data.yRange.min) / 6)),
       };
 
+  const gridColor = data.gridColor ?? '#ccc';
+
   // 사각 테두리
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 2;
@@ -159,12 +164,42 @@ export function renderLineGraph(
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
+    gridColor,
   });
 
   // x 위치 — 첫 점과 마지막 점이 좌우 끝에 오도록 나눈다
   const stepX = n > 1 ? plotW / (n - 1) : 0;
   const toX = (i: number) => plotX + stepX * i;
   const toY = (v: number) => plotY + plotH - ((v - axis.min) / (axis.max - axis.min)) * plotH;
+
+  // x 라벨을 어느 자리에 그리는가 — 빈 이름은 건너뛰고, 이름끼리 서로 붙으면 몇 개 걸러 그린다.
+  // 걸러내기는 **이름이 있는 자리들 사이의 간격**으로 판단한다. 칸 간격으로 재면 빈
+  // 이름이 섞인 5년 자료·10년 라벨에서 이름 있는 자리까지 엉뚱하게 빠진다.
+  // 세로 격자도 **같은 자리**에만 긋는다 (라벨과 격자가 늘 함께 간다).
+  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  const named = data.xLabels.flatMap((l, i) => (l !== '' ? [i] : []));
+  const namedGap = named.length > 1
+    ? Math.min(...named.slice(1).map((v, k) => v - named[k]))
+    : 1;
+  const xStride = labelStride(stepX * namedGap, widestLabel(ctx, data.xLabels));
+  const shownSet = new Set(named.filter((_, k) => k % xStride === 0));
+  const labelShown = (i: number) => shownSet.has(i);
+
+  // 세로 격자 — 선보다 먼저 그려야 선이 위에 남는다
+  if (data.xGrid) {
+    ctx.save();
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 4]);
+    for (let i = 1; i < n - 1; i++) {
+      if (!labelShown(i)) continue;
+      ctx.beginPath();
+      ctx.moveTo(toX(i), plotY);
+      ctx.lineTo(toX(i), plotY + plotH);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // 0 기준선 (편차 그래프)
   if (data.zeroBaseline && axis.min < 0 && axis.max > 0) {
@@ -225,12 +260,12 @@ export function renderLineGraph(
     ctx.restore();
   });
 
-  // 선
+  // 선 — 계열마다 종류·굵기·색이 다를 수 있다
   data.series.forEach((s, si) => {
     const style = s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length];
     ctx.save();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = s.stroke ?? '#000';
+    ctx.lineWidth = s.lineWidth ?? 2;
     ctx.setLineDash(LINE_DASH[style]);
     ctx.beginPath();
     let started = false;
@@ -289,14 +324,66 @@ export function renderLineGraph(
     });
   }
 
-  // X축 눈금 이름
+  // 계열 이름 — 유도선. 라벨을 점에서 (dx, dy) 떨어진 곳에 쓰고,
+  // 라벨 상자 가장자리에서 점을 향해 가는 실선을 점 3px 앞까지 긋는다.
+  // 상자가 점을 덮으면 선은 생략한다.
+  if (data.labelPlacement === 'leader') {
+    ctx.save();
+    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lineH = options.fontSize.dataLabel;
+    data.series.forEach((s, si) => {
+      const top = tops[si];
+      const leader = s.leader ?? defaultLineLeader(n);
+      // 가리킬 점 번호가 범위를 벗어나면(행을 지운 뒤 등) 끝으로 당기고,
+      // 그 점에 값이 없으면 값이 있는 가장 가까운 점으로 옮긴다
+      const start = Math.min(n - 1, Math.max(0, Math.round(leader.at)));
+      let at = -1;
+      for (let d = 0; d < n && at < 0; d++) {
+        for (const k of [start - d, start + d]) {
+          if (k >= 0 && k < n && top[k] !== null) { at = k; break; }
+        }
+      }
+      if (at < 0) return;
+
+      const px = toX(at);
+      const py = toY(top[at] as number);
+      const lx = px + leader.dx;
+      const ly = py + leader.dy;
+      const halfW = ctx.measureText(s.label).width / 2 + 2;
+      const halfH = lineH / 2 + 2;
+
+      // 라벨 중심→점 선분이 상자 경계와 만나는 매개변수 t (t < 1 이면 점이 상자 밖)
+      const vx = px - lx;
+      const vy = py - ly;
+      const t = Math.min(
+        vx !== 0 ? halfW / Math.abs(vx) : Infinity,
+        vy !== 0 ? halfH / Math.abs(vy) : Infinity,
+      );
+      const dist = Math.hypot(vx, vy);
+      if (Number.isFinite(t) && t < 1 && dist > 3) {
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(lx + vx * t, ly + vy * t);
+        ctx.lineTo(px - (vx / dist) * 3, py - (vy / dist) * 3);
+        ctx.stroke();
+      }
+      ctx.fillText(s.label, lx, ly);
+    });
+    ctx.restore();
+  }
+
+  // X축 눈금 이름 — 빈 이름은 건너뛴다
   ctx.fillStyle = '#000';
   ctx.font = getFont(options.fontSize.tick, options, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const xStride = labelStride(stepX, widestLabel(ctx, data.xLabels));
   data.xLabels.forEach((label, i) => {
-    if (i % xStride !== 0) return;
+    if (!labelShown(i)) return;
     ctx.fillText(label, toX(i), plotY + plotH + 10);
   });
 
@@ -340,10 +427,12 @@ export function renderLineGraph(
     }
     ctx.restore();
   } else if (useLegend) {
+    // 범례 아이콘도 선과 같은 색·굵기·대시로
     const items: LegendItem[] = data.series.map((s, si) => ({
       type: 'line',
-      fillStyle: '#000',
-      strokeStyle: '#000',
+      fillStyle: s.stroke ?? '#000',
+      strokeStyle: s.stroke ?? '#000',
+      lineWidth: s.lineWidth ?? 2,
       label: s.label,
       dash: LINE_DASH[s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length]],
     }));
@@ -358,6 +447,7 @@ export function renderLineGraph(
   drawSourceAndFootnote({
     ctx, fonts: options, plotX, plotW, height: h, canvasWidth: w,
     source: options.source,
+    sourceInline: options.sourceInline,
     footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel * 0.85,
   });

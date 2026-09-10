@@ -21,6 +21,8 @@ interface YAxisParams extends AxisOptions {
   label: string;
   side: 'left' | 'right';
   drawGrid?: boolean;
+  /** 격자선 색 — 미지정이면 #ccc. 시험지 틀은 더 진한 점선을 쓴다 */
+  gridColor?: string;
 }
 
 interface XAxisParams extends AxisOptions {
@@ -40,6 +42,7 @@ export function drawYAxis({
   min, max, step, label, side,
   fonts, tickFontSize, labelFontSize,
   drawGrid = false,
+  gridColor = '#ccc',
 }: YAxisParams) {
   const plot = plotArea(padding, width, height);
   const x = side === 'left' ? plot.x : plot.x + plot.w;
@@ -87,7 +90,7 @@ export function drawYAxis({
     // 격자선
     if (drawGrid && i > 0 && i < ticks.length - 1) {
       ctx.save();
-      ctx.strokeStyle = '#ccc';
+      ctx.strokeStyle = gridColor;
       ctx.lineWidth = 0.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();

@@ -447,6 +447,54 @@ const lineWithData = () => {
 };
 
 /**
+ * 2027학년도 6월 모평 한국지리 17번 모양 — 5년 자료에 10년 라벨(빈 이름),
+ * 계열은 굵은 일점쇄선·굵은 회색 실선·가는 검정 실선, 이름은 **유도선**.
+ * 세로 격자·진한 격자·출처 인라인까지 감시한다.
+ */
+const lineLeader = () => {
+  const d = createDefaultLineData();
+  d.xLabels = ['1980', '', '1990', '', '2000', '', '2010', '', '2020'];
+  d.series = [
+    { label: '(가)', values: [190, 150, 130, 113, 100, 85, 83, 89, 88],
+      lineStyle: 'dashdot', lineWidth: 3.5, leader: { at: 2, dx: 40, dy: -45 } },
+    { label: '(나)', values: [88, 93, 97, 98, 100, 100, 99, 103, 104],
+      lineStyle: 'solid', lineWidth: 3.5, stroke: '#999', leader: { at: 2, dx: -30, dy: -45 } },
+    { label: '(다)', values: [57, 70, 87, 97, 100, 100, 99, 98, 97],
+      lineStyle: 'solid', lineWidth: 1.5, leader: { at: 3, dx: 30, dy: 45 } },
+  ];
+  d.xUnit = '(년)';
+  d.yUnit = '';
+  d.yRange = { min: 0, max: 200, auto: false, step: 50 };
+  d.labelPlacement = 'leader';
+  d.showMarkers = false;
+  d.xGrid = true;
+  d.gridColor = '#555';
+  return d;
+};
+
+/**
+ * 2026학년도 9월 모평 한국지리 13번 모양 — 0 에서 시작하지 않는 y(80~120),
+ * 굵은 실선·파선·일점쇄선, 이름은 선 끝. 제목·세로 격자·출처 인라인.
+ */
+const lineEndExam = () => {
+  const d = createDefaultLineData();
+  d.xLabels = ['1990', '1995', '2000', '2005', '2010', '2015', '2023'];
+  d.series = [
+    { label: 'A', values: [93, 92.5, 97.5, 100, 105, 113, 119], lineStyle: 'solid', lineWidth: 3 },
+    { label: 'B', values: [81, 89, 94, 100, 104.5, 111, 115], lineStyle: 'dashed' },
+    { label: 'C', values: [99, 101, 101.5, 100, 100, 103, 99.5], lineStyle: 'dashdot' },
+  ];
+  d.xUnit = '(년)';
+  d.yUnit = '';
+  d.yRange = { min: 80, max: 120, auto: false, step: 10 };
+  d.labelPlacement = 'lineEnd';
+  d.showMarkers = false;
+  d.xGrid = true;
+  d.gridColor = '#555';
+  return d;
+};
+
+/**
  * 제목·각주가 캔버스보다 긴 경우 — 잘리지 않고 줄어드는지 감시한다.
  * 데이터는 기본값 그대로 두고 글자만 길게 준다.
  */
@@ -639,6 +687,8 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['econPlaneTickLabels', renderEconPlane as Renderer, econPlaneTickLabels],
   ['hythergraph', renderHythergraph as Renderer, hythergraphWithData],
   ['line', renderLineGraph as Renderer, lineWithData],
+  ['lineLeader', renderLineGraph as Renderer, lineLeader],
+  ['lineEndExam', renderLineGraph as Renderer, lineEndExam],
   ['pyramid', renderPyramidGraph as Renderer, pyramidWithData],
   ['pyramidExam', renderPyramidGraph as Renderer, pyramidExam],
   ['pyramidTopBin', renderPyramidGraph as Renderer, pyramidTopBin],

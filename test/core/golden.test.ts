@@ -36,6 +36,24 @@ function optionsFor(name: string) {
       sourceInline: true,
     };
   }
+  // 꺾은선 시험지 두 장 — 각주·출처 인라인, 한 장은 제목까지
+  if (name === 'lineLeader') {
+    return {
+      ...base,
+      source: '(국가데이터처)',
+      footnotes: ['각 지역의 2000년 인구를 100으로 했을 때의 상댓값임.', '2020년 행정 구역을 기준으로 함.'],
+      sourceInline: true,
+    };
+  }
+  if (name === 'lineEndExam') {
+    return {
+      ...base,
+      title: '〈권역별 인구 변화〉',
+      source: '(통계청)',
+      footnotes: ['각 권역의 2005년 인구를 100으로 했을 때의 상댓값임.'],
+      sourceInline: true,
+    };
+  }
   if (!name.endsWith('LongText')) return base;
   return {
     ...base,

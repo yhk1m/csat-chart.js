@@ -354,7 +354,7 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 | `title` | `''` | 제목 |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline`이면 각주와 같은 줄)에 오른쪽 정렬 |
 | `sourceLeft` | `undefined` | 출처 줄 왼쪽에 함께 적을 글(예: 연도). **`stacked`에서만 동작한다** — 다른 15종은 이 값을 아예 읽지 않는다 |
-| `sourceInline` | `undefined` | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. **`scatter`에서만 동작한다** — 다른 15종은 읽지 않는다 |
+| `sourceInline` | `undefined` | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. **`scatter`·`econ-plane`·`line`에서만 동작한다** — 다른 14종은 읽지 않는다 |
 | `footnotes` | `['']` | 각주 목록. `* `를 자동으로 붙인다. 빈 문자열은 무시 |
 | `fontFamily` | `'serif'` | `'serif'`(명조) / `'sans'`(고딕) / `'custom'` |
 | `customFont` | `''` | `fontFamily`가 `'custom'`일 때 쓸 글꼴 이름. **축 쪽만 바꾼다** — 제목·범례는 못 건드린다 |

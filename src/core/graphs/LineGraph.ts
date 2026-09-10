@@ -178,7 +178,7 @@ export function renderLineGraph(
   // 이름이 섞인 5년 자료·10년 라벨에서 이름 있는 자리까지 엉뚱하게 빠진다.
   // 세로 격자도 **같은 자리**에만 긋는다 (라벨과 격자가 늘 함께 간다).
   ctx.font = getFont(options.fontSize.tick, options, 'bold');
-  const named = data.xLabels.flatMap((l, i) => (l !== '' ? [i] : []));
+  const named = data.xLabels.flatMap((l, i) => (l.trim() !== '' ? [i] : []));
   const namedGap = named.length > 1
     ? Math.min(...named.slice(1).map((v, k) => v - named[k]))
     : 1;

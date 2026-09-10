@@ -16,7 +16,7 @@ const DEFAULT_FACTORIES = [
   'createDefaultClimateData', 'createDefaultCubeData', 'createDefaultDataTableData',
   'createDefaultDeviationAData', 'createDefaultDeviationBData', 'createDefaultEconPlaneData',
   'createDefaultHythergraphData',
-  'createDefaultLineData', 'createDefaultMatrixTableData', 'createDefaultPyramidData',
+  'createDefaultLineData', 'defaultLineLeader', 'createDefaultMatrixTableData', 'createDefaultPyramidData',
   'createDefaultRadarData', 'createDefaultScatterData', 'createDefaultStackedData',
   'createDefaultTernaryData', 'createDefaultTreemapData',
 ];

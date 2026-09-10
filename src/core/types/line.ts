@@ -22,6 +22,18 @@ export type LineMarker = 'circle' | 'square' | 'triangle' | 'diamond';
 
 export const LINE_MARKER_ORDER: LineMarker[] = ['circle', 'square', 'triangle', 'diamond'];
 
+/** 유도선 라벨 자리 — 가리킬 점 번호와, 그 점에서 라벨 중심까지의 오프셋(px) */
+export interface LineLeader {
+  at: number;
+  dx: number;
+  dy: number;
+}
+
+/** 유도선 라벨의 기본 자리 — 가운데 점에서 오른쪽 위 */
+export function defaultLineLeader(pointCount: number): LineLeader {
+  return { at: Math.floor(Math.max(0, pointCount - 1) / 2), dx: 20, dy: -30 };
+}
+
 export interface LineSeries {
   label: string;
   /** xLabels 와 같은 길이. 빠진 값은 null 로 둔다 (선이 끊긴다). */
@@ -35,14 +47,23 @@ export interface LineSeries {
    * `stacked` 와 함께 쓰면 아래 계열의 경계까지만 채워 누적 면적이 된다.
    */
   areaFill?: string;
+  /** 선 색. 미지정이면 검정. 시험지는 회색(#999)으로 한 계열을 가르기도 한다 */
+  stroke?: string;
+  /** 선 굵기(px). 미지정이면 2 */
+  lineWidth?: number;
+  /** 유도선 라벨 자리 (labelPlacement: 'leader' 일 때). 미지정이면 defaultLineLeader */
+  leader?: LineLeader;
 }
 
-/** 계열 이름을 어디에 쓸지 */
-export type LineLabelPlacement = 'lineEnd' | 'legend';
+/** 계열 이름을 어디에 쓸지 — 선 끝 · 범례 상자 · 유도선 */
+export type LineLabelPlacement = 'lineEnd' | 'legend' | 'leader';
 
 export interface LineGraphData {
   series: LineSeries[];
-  /** x축 눈금 이름 (예: 1~12월) */
+  /**
+   * x축 눈금 이름 (예: 1~12월). **빈 문자열이면 그 자리의 이름·세로 격자를
+   * 생략한다** — 5년 자료에 10년 라벨(1980·1990·…)을 다는 시험지 관습.
+   */
   xLabels: string[];
   /** x축 끝에 붙는 단위 (예: '(월)') */
   xUnit: string;
@@ -64,6 +85,10 @@ export interface LineGraphData {
    * 시험지 누적 면적 그래프가 이 방식이다. `labelPlacement:'legend'` 와 함께 쓴다.
    */
   insideLegend?: boolean;
+  /** x 눈금 자리에 세로 점선 격자. 첫·끝은 테두리와 겹치므로 안쪽만 긋는다 */
+  xGrid?: boolean;
+  /** 격자 색. 미지정이면 #ccc. 시험지는 #555 쯤의 진한 점선이다 */
+  gridColor?: string;
 }
 
 export function createDefaultLineData(): LineGraphData {

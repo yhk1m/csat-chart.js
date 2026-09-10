@@ -479,7 +479,7 @@ const USAGE_HINTS = {
   'deviation-b': '이럴 때 씁니다 — 지역별로 기준값과의 편차를 볼 때',
   'econ-plane': '이럴 때 씁니다 — 수요·공급이나 명목·실질 GDP처럼 좌표평면 위의 직선·점·화살표·꺾은선으로 설명할 때',
   'hythergraph': '이럴 때 씁니다 — 기온·강수량의 조합으로 기후형을 비교할 때',
-  'line': '이럴 때 씁니다 — 시간에 따른 값의 변화 추세를 볼 때',
+  'line': '이럴 때 씁니다 — 시간에 따른 값의 변화 추세를 볼 때. 계열은 선 종류·굵기·회색으로 가르고, 이름은 선 끝이나 유도선으로 답니다',
   'matrix-table': '이럴 때 씁니다 — 지역 간 거리·교류량을 행렬로 볼 때',
   'pyramid': '이럴 때 씁니다 — 연령·성별 인구 구조를 볼 때',
   'radar': '이럴 때 씁니다 — 여러 항목의 균형을 한눈에 비교할 때',
@@ -662,16 +662,24 @@ const SAMPLE_OVERRIDES = {
     'zAxis': { 'name': 'Z축', 'lowLabel': '낮음', 'highLabel': '높음',
       'lowOffset': { 'x': 55, 'y': 10 }, 'highOffset': { 'x': 0, 'y': 0 } },
   },
-  // 기본값 i*2 는 정직선이다. 실제로 굽이치는 자료 — 우리나라 합계출산율
-  // 추이(1970~2025, 명) — 로 바꿔 «꺾은선» 이라는 이름값을 하게 했다.
+  // 1.6.0 이 넓힌 자리를 한 장에 다 보인다 — 2027학년도 6월 모평 한국지리 17번
+  // 모양. 자료는 5년마다인데 라벨·세로 격자는 10년마다(빈 이름), 계열은
+  // 굵은 일점쇄선·굵은 회색 실선·가는 검정 실선로 가르고, 이름은 선 끝이 아니라
+  // 유도선으로 선 곁에 단다. 격자는 진하고 1px(1.6.1 의 gridWidth).
   'line': {
     'series': [
-      { 'label': '합계출산율', 'values': [4.53, 2.82, 1.57, 1.47, 1.23, 1.24, 0.84, 0.81, 0.78, 0.72, 0.75, 0.75] },
+      { 'label': '(가)', 'values': [190, 150, 130, 113, 100, 85, 83, 89, 88],
+        'lineStyle': 'dashdot', 'lineWidth': 3.5, 'leader': { 'at': 2, 'dx': 40, 'dy': -45 } },
+      { 'label': '(나)', 'values': [88, 93, 97, 98, 100, 100, 99, 103, 104],
+        'lineStyle': 'solid', 'lineWidth': 3.5, 'stroke': '#999', 'leader': { 'at': 2, 'dx': -30, 'dy': -45 } },
+      { 'label': '(다)', 'values': [57, 70, 87, 97, 100, 100, 99, 98, 97],
+        'lineStyle': 'solid', 'lineWidth': 1.5, 'leader': { 'at': 3, 'dx': 30, 'dy': 45 } },
     ],
-    'xLabels': ['1970', '1980', '1990', '2000', '2010', '2015', '2020', '2021', '2022', '2023', '2024', '2025'],
-    'xUnit': '(년)', 'yUnit': '(명)',
-    'yRange': { 'min': 0, 'max': 5, 'auto': true },
-    'labelPlacement': 'lineEnd', 'showMarkers': true,
+    'xLabels': ['1980', '', '1990', '', '2000', '', '2010', '', '2020'],
+    'xUnit': '(년)', 'yUnit': '',
+    'yRange': { 'min': 0, 'max': 200, 'auto': false, 'step': 50 },
+    'labelPlacement': 'leader', 'showMarkers': false,
+    'xGrid': true, 'gridColor': '#555', 'gridWidth': 1,
   },
 };
 
@@ -693,6 +701,13 @@ const OPTIONS_OVERRIDES = {
   'climate': { 'title': '서울의 기후', 'source': '기상청', 'footnotes': ['1991~2020년의 평년값임.'] },
   'scatter': { 'title': '시·도별 인구밀도와 1인당 지역내총생산', 'source': '통계청, 2023' },
   'stacked': { 'title': '(가)~(다) 지역의 산업별 취업자 비중', 'source': '통계청' },
+  // 꺾은선 표본은 시험지 모양이라 각주 둘과 출처를 붙인다. 시험지처럼 출처를
+  // 마지막 각주 줄에 나란히 두는 sourceInline 은 1.6.0 부터 line 도 읽지만,
+  // 이 화면은 그 옵션을 내지 않으므로(위 OPTION_DEFAULTS 의 「빼는 것」) 여기서도 안 준다.
+  'line': {
+    'source': '국가데이터처',
+    'footnotes': ['각 지역의 2000년 인구를 100으로 했을 때의 상댓값임.', '2020년 행정 구역을 기준으로 함.'],
+  },
   'pyramid': {
     'title': '우리나라의 인구 피라미드', 'source': '통계청, 2023',
     // src/core/graphs/PopulationPyramid.ts 의 알려진 동작(CHANGELOG 「알아 둘
@@ -740,9 +755,9 @@ function sampleWithPatch(type) {
  *
  * 빼는 것:
  *   · sourceInline·sourceLeft — 공통 옵션이지만 실제로 넘겨받는 렌더러가
- *     각각 scatter·stacked 하나뿐이다(CHANGELOG 「알아 둘 동작」). 나머지
- *     열네 장에서는 켜도 아무 일이 안 일어난다. 켰는데 안 변하는 스위치는
- *     없느니만 못하다.
+ *     sourceInline 은 scatter·econ-plane·line, sourceLeft 는 stacked·econ-plane
+ *     뿐이다(README 「옵션」). 나머지 장에서는 켜도 아무 일이 안 일어난다.
+ *     켰는데 안 변하는 스위치는 없느니만 못하다.
  *   · fontFamily:'custom' — 짝이 되는 customFont 를 함께 주지 않으면 글꼴
  *     이름이 빈 문자열이 되어 그림이 깨진다. 명조·고딕 둘만 낸다. 게다가
  *     customFont 은 **축 쪽만** 바꾸고 제목·범례는 못 건드려서, 자기 글꼴을

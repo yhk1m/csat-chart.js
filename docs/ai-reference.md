@@ -228,12 +228,13 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 
 **line** — 바꿔볼 만한 필드: `series`, `xLabels`
 - `series`: 배열(1) of `{ label: string, values: number[] }` (실제 필드는 `(number|null)[]`도 허용 — `null`은 선이 끊김을 뜻함)
-- `xLabels`: 배열(12) of string
+- `xLabels`: 배열(12) of string — **빈 문자열이면 그 자리의 이름·세로 격자를 생략한다** (5년 자료에 10년 라벨)
 - `xUnit`: string (기본 `'(월)'`)
 - `yUnit`: string (기본 `''`)
 - `yRange`: `{ min: 0, max: 100, auto: true }`
-- `labelPlacement`: `'lineEnd' | 'legend'` (기본 `'lineEnd'`)
+- `labelPlacement`: `'lineEnd' | 'legend' | 'leader'` (기본 `'lineEnd'`). `'leader'`는 유도선 — 이름을 선 근처에 쓰고 짧은 선으로 가리킨다
 - `showMarkers`: boolean (기본 `true`)
+- 선택 필드(1.6.0): `series[].stroke`(선 색, 기본 검정 — 시험지는 `'#999'` 회색으로 한 계열을 가른다), `series[].lineWidth`(px, 기본 2), `series[].leader`(`{ at, dx, dy }` — 가리킬 점 번호와 라벨 오프셋, 기본 가운데 점에서 `+20, -30`), `xGrid`(세로 점선 격자), `gridColor`(격자 색, 기본 `'#ccc'` — 시험지는 `'#555'`)
 
 **matrix-table** — `values[i][j]`는 `j < i`인 칸만 쓰인다(아래 삼각형).
 바꿔볼 만한 필드: `names`, `values`
@@ -462,8 +463,8 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 
 ## 7. 알려진 한계 — 고치려 하지 말 것
 
-- **`sourceLeft`는 `stacked`와 `econ-plane`에서만, `sourceInline`은 `scatter`와
-  `econ-plane`에서만 동작한다.** 나머지에 이 옵션을 줘도 조용히 무시된다(예외
+- **`sourceLeft`는 `stacked`와 `econ-plane`에서만, `sourceInline`은 `scatter`·
+  `econ-plane`·`line`에서만 동작한다.** 나머지에 이 옵션을 줘도 조용히 무시된다(예외
   없음) — 버그가 아니라 이식 원본의 범위다.
 - **`econ-plane`의 «가로축» 이름은 한 줄이다.** 세로축은 1.5.0부터 리터럴
   `

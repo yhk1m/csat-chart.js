@@ -143,6 +143,7 @@ export function renderLineGraph(
       };
 
   const gridColor = data.gridColor ?? '#ccc';
+  const gridWidth = data.gridWidth ?? 0.5;
 
   // 사각 테두리
   ctx.strokeStyle = '#000';
@@ -166,6 +167,7 @@ export function renderLineGraph(
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
     gridColor,
+    gridWidth,
   });
 
   // x 위치 — 첫 점과 마지막 점이 좌우 끝에 오도록 나눈다
@@ -190,7 +192,7 @@ export function renderLineGraph(
   if (data.xGrid) {
     ctx.save();
     ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = gridWidth;
     ctx.setLineDash([4, 4]);
     for (let i = 1; i < n - 1; i++) {
       if (!labelShown(i)) continue;

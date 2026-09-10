@@ -234,7 +234,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `yRange`: `{ min: 0, max: 100, auto: true }`
 - `labelPlacement`: `'lineEnd' | 'legend' | 'leader'` (기본 `'lineEnd'`). `'leader'`는 유도선 — 이름을 선 근처에 쓰고 짧은 선으로 가리킨다
 - `showMarkers`: boolean (기본 `true`)
-- 선택 필드(1.6.0): `series[].stroke`(선 색, 기본 검정 — 시험지는 `'#999'` 회색으로 한 계열을 가른다), `series[].lineWidth`(px, 기본 2), `series[].leader`(`{ at, dx, dy }` — 가리킬 점 번호와 라벨 오프셋, 기본 가운데 점에서 `+20, -30`), `xGrid`(세로 점선 격자), `gridColor`(격자 색, 기본 `'#ccc'` — 시험지는 `'#555'`)
+- 선택 필드(1.6.0): `series[].stroke`(선 색, 기본 검정 — 시험지는 `'#999'` 회색으로 한 계열을 가른다), `series[].lineWidth`(px, 기본 2), `series[].leader`(`{ at, dx, dy }` — 가리킬 점 번호와 라벨 오프셋, 기본 가운데 점에서 `+20, -30`), `xGrid`(세로 점선 격자), `gridColor`(격자 색, 기본 `'#ccc'` — 시험지는 `'#555'`), `gridWidth`(격자 굵기 px, 기본 0.5 — 시험지는 1, 1.6.1)
 
 **matrix-table** — `values[i][j]`는 `j < i`인 칸만 쓰인다(아래 삼각형).
 바꿔볼 만한 필드: `names`, `values`

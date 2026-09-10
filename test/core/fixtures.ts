@@ -469,6 +469,7 @@ const lineLeader = () => {
   d.showMarkers = false;
   d.xGrid = true;
   d.gridColor = '#555';
+  d.gridWidth = 1;
   return d;
 };
 
@@ -491,6 +492,7 @@ const lineEndExam = () => {
   d.showMarkers = false;
   d.xGrid = true;
   d.gridColor = '#555';
+  d.gridWidth = 1;
   return d;
 };
 

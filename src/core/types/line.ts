@@ -89,6 +89,8 @@ export interface LineGraphData {
   xGrid?: boolean;
   /** 격자 색. 미지정이면 #ccc. 시험지는 #555 쯤의 진한 점선이다 */
   gridColor?: string;
+  /** 격자 굵기(px). 미지정이면 0.5. 시험지 점선은 1px 쯤이라 gridColor 와 함께 올린다 */
+  gridWidth?: number;
 }
 
 export function createDefaultLineData(): LineGraphData {

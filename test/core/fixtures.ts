@@ -664,6 +664,27 @@ const econPlaneTickLabels = (): EconPlaneData => ({
   arrows: [],
 });
 
+/**
+ * 물결 자리를 자료가 정하는 그림 — `brokenAt`.
+ *
+ * 축은 고용 지표(`econPlaneShift`)에서 빌렸다. 기본 자리는 원점과 첫 눈금의
+ * 한가운데(가로 69쯤·세로 51쯤)인데, 여기서는 첫 눈금 «바로 앞» 으로 당겨
+ * 붙였다(71·53). 교과서가 흔히 그 자리에 찍는다.
+ */
+const econPlaneBrokenAt = (): EconPlaneData => ({
+  quadrants: 'first',
+  xAxis: { label: '경제 활동 참가율(%)', min: 66, max: 86, ticks: [72, 80], broken: true, brokenAt: 71 },
+  yAxis: { label: '고용률(%)', min: 48, max: 68, ticks: [54, 60, 64], broken: true, brokenAt: 53 },
+  grid: false,
+  dash: 'dashed',
+  lines: [],
+  points: [
+    { x: 72, y: 54, label: 'A', labelPos: 'top-left', guide: 'both', dot: true },
+    { x: 80, y: 64, label: 'B', labelPos: 'top-left', guide: 'both', dot: true },
+  ],
+  arrows: [],
+});
+
 export const CASES: [string, Renderer, () => unknown][] = [
   ['absbar', renderAbsBarGraph as Renderer, createDefaultAbsBarData],
   ['absbarLongText', renderAbsBarGraph as Renderer, absBarLongText],
@@ -681,6 +702,7 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['deviationB', renderDeviationBGraph as Renderer, deviationBWithData],
   ['econPlane', renderEconPlane as Renderer, createDefaultEconPlaneData],
   ['econPlaneAdAs', renderEconPlane as Renderer, econPlaneAdAs],
+  ['econPlaneBrokenAt', renderEconPlane as Renderer, econPlaneBrokenAt],
   ['econPlaneDashed', renderEconPlane as Renderer, econPlaneDashed],
   ['econPlaneLongText', renderEconPlane as Renderer, createDefaultEconPlaneData],
   ['econPlaneQuadrants', renderEconPlane as Renderer, econPlaneQuadrants],

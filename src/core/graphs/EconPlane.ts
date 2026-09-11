@@ -101,6 +101,20 @@ function span(axis: EconAxis): number {
   return Number.isFinite(d) && Math.abs(d) > 1e-9 ? d : 1;
 }
 
+/**
+ * `brokenAt` 을 축 안으로 들인다.
+ *
+ * 물결은 축 «위» 에 얹는 기호다. 축 밖 값을 그대로 받으면 기호만 홀로 플롯
+ * 바깥에 떠서 무엇을 자른 자리인지 읽히지 않는다. 숫자가 아닌 값(NaN·Infinity)도
+ * 여기서 걸러 «미지정» 과 같게 만든다 — 부르는 쪽이 null 을 기본 자리로 읽는다.
+ */
+function clampAxis(value: number | undefined, axis: EconAxis): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  const lo = Math.min(axis.min, axis.max);
+  const hi = Math.max(axis.min, axis.max);
+  return Math.min(Math.max(value, lo), hi);
+}
+
 /** 계열 배열 — 검증기의 얕은 검사가 닿지 않는 선택 항목이라 여기서 한 번 더 본다 */
 function seriesOf(data: EconPlaneData): EconSeries[] {
   return Array.isArray(data.series) ? data.series.filter((s) => s && Array.isArray(s.points)) : [];
@@ -385,13 +399,21 @@ export function renderEconPlane(
   if (four) drawArrowHead(ctx, axX, yTop, axX, yBottom);
 
   // 생략 기호는 원점과 첫 눈금의 한가운데에 놓는다 (2026학년도 9월 7번 실측).
+  // `brokenAt` 을 적으면 그 «값» 자리로 옮긴다 — 실물 한 장에서 잰 자리가 모든
+  // 그림에 맞지는 않기 때문이다.
   if (data.xAxis.broken) {
+    const at = clampAxis(data.xAxis.brokenAt, data.xAxis);
     const first = data.xAxis.ticks.find((v) => v !== 0);
-    drawBreakMark(ctx, first == null ? axX + plotW * 0.12 : (axX + toX(first)) / 2, axY, false);
+    const x = at != null ? toX(at)
+      : first == null ? axX + plotW * 0.12 : (axX + toX(first)) / 2;
+    drawBreakMark(ctx, x, axY, false);
   }
   if (data.yAxis.broken) {
+    const at = clampAxis(data.yAxis.brokenAt, data.yAxis);
     const first = data.yAxis.ticks.find((v) => v !== 0);
-    drawBreakMark(ctx, axX, first == null ? axY - plotH * 0.12 : (axY + toY(first)) / 2, true);
+    const y = at != null ? toY(at)
+      : first == null ? axY - plotH * 0.12 : (axY + toY(first)) / 2;
+    drawBreakMark(ctx, axX, y, true);
   }
   ctx.restore();
 

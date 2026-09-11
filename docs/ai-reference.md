@@ -175,7 +175,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 
 **econ-plane** — 유일한 비지리 종류. 바꿔볼 만한 필드: `lines`, `points`, `arrows`, `series`, `xAxis`, `yAxis`
 - `quadrants`: `'first' | 'all'` (기본 `'first'`) — `'all'`이면 네 사분면, 축 양끝에 화살촉
-- `xAxis`·`yAxis`: `{ label: string, min: number, max: number, ticks: number[], broken: boolean }`
+- `xAxis`·`yAxis`: `{ label: string, min: number, max: number, ticks: number[], broken: boolean, brokenAt?: number }` — `brokenAt` 은 생략 기호 `≈` 를 놓을 **축의 값**. 미지정이면 원점과 첫 눈금의 한가운데
 - `grid`: boolean (기본 `true`) — 눈금 자리마다 점선 격자
 - `dash`: `'dashed' | 'dotted'` (기본 `'dashed'`) — 격자·유도선의 점선 모양
 - `lines`: 배열(2) of `{ label: string, from: {x,y}, to: {x,y}, labelAt: 'from'|'to' }`

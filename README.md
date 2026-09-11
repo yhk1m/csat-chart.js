@@ -144,7 +144,7 @@ new CsatChart('c', { type: 'econ-plane', data: data });
 | 칸 | 값 | 하는 일 |
 |---|---|---|
 | `quadrants` | `'first'`·`'all'` | `'all'` 이면 네 사분면을 그리고 축 양끝에 화살촉을 답니다 |
-| `xAxis`·`yAxis` | `{ label, min, max, ticks, broken }` | `ticks` 는 눈금 «값» 배열입니다. **자는 언제나 고르고 눈금만 띄엄띄엄 찍힙니다** — `[0, 10, 20, 50]` 이면 50 이 20 의 세 배 거리에 섭니다. `broken: true` 면 원점과 첫 눈금 사이에 생략 기호 `≈` 를 넣습니다 |
+| `xAxis`·`yAxis` | `{ label, min, max, ticks, broken, brokenAt? }` | `ticks` 는 눈금 «값» 배열입니다. **자는 언제나 고르고 눈금만 띄엄띄엄 찍힙니다** — `[0, 10, 20, 50]` 이면 50 이 20 의 세 배 거리에 섭니다. `broken: true` 면 원점과 첫 눈금 사이에 생략 기호 `≈` 를 넣고, `brokenAt` 에 **축의 값**을 적으면 그 자리로 옮깁니다(`min`~`max` 밖은 축 안으로 잘립니다) |
 | `grid` | boolean | 눈금 자리마다 점선 격자를 깝니다 |
 | `dash` | `'dashed'`·`'dotted'` | 격자와 유도선의 점선 모양 |
 | `lines[]` | `{ label, from, to, labelAt }` | 직선 하나. 이름은 `labelAt` 이 가리키는 끝에 붙습니다(`'to'` 가 보통) |

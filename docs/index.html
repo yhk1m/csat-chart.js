@@ -879,6 +879,7 @@ const SUPPORTS_BAR_DIRECTION = ['absbar', 'stacked'];
  * 축선을 흰색으로 끊고 그 자리에 물결 둘을 얹는다.
  *
  * 축마다 딴 값이라 조작칸도 둘로 가른다 — 한 축만 자른 그림이 실물에 있다.
+ * 1.7.0 부터는 자리도 자료가 정하므로(`brokenAt`) 칸이 축마다 둘씩, 넷이다.
  */
 const SUPPORTS_AXIS_BREAK = ['econ-plane'];
 
@@ -923,6 +924,12 @@ function isInert(key, type, data, options) {
     // StackedBarPie.ts 17번째 줄 — displayMode 가 'bar' 가 아니면 원 그래프로
     // 갈라지고, 그쪽(renderPieChart)은 barDirection 을 아예 읽지 않는다.
     return type === 'stacked' && data.displayMode !== 'bar';
+  }
+  if (key === 'xAxis.brokenAt' || key === 'yAxis.brokenAt') {
+    // 자리는 물결이 서 있을 때만 뜻이 있다. EconPlane.ts 는 broken 이 거짓이면
+    // brokenAt 을 아예 읽지 않는다.
+    const axis = data[key.split('.')[0]];
+    return !axis || !axis.broken;
   }
   if (key === 'showLegend') return !legendIsDrawn(type, data);
   if (key === 'legendPosition') {
@@ -1616,6 +1623,20 @@ function card(type, ordinal) {
           '<input type="checkbox" id="' + uid('ybreak') + '" data-data="yAxis.broken"' +
             ' title="data.yAxis.broken">' +
           '<label for="' + uid('ybreak') + '">세로축 물결</label></span>' +
+      '</div>' +
+      '<div class="grid2">' +
+        '<div class="field" data-wrap="xAxis.brokenAt">' +
+          '<label class="field-label" for="' + uid('xbreakat') + '">가로축 물결 자리</label>' +
+          '<input type="number" step="any" id="' + uid('xbreakat') + '"' +
+            ' data-data="xAxis.brokenAt" placeholder="비우면 첫 눈금과의 한가운데"' +
+            ' title="data.xAxis.brokenAt">' +
+        '</div>' +
+        '<div class="field" data-wrap="yAxis.brokenAt">' +
+          '<label class="field-label" for="' + uid('ybreakat') + '">세로축 물결 자리</label>' +
+          '<input type="number" step="any" id="' + uid('ybreakat') + '"' +
+            ' data-data="yAxis.brokenAt" placeholder="비우면 첫 눈금과의 한가운데"' +
+            ' title="data.yAxis.brokenAt">' +
+        '</div>' +
       '</div>'
     : '';
 
@@ -1825,9 +1846,17 @@ function card(type, ordinal) {
   function syncDataControls() {
     el.querySelectorAll('[data-data]').forEach(function (c) {
       const v = valueAt(state.data, c.getAttribute('data-data').split('.'));
-      if (v === undefined) return;
       if (c.type === 'checkbox') { c.checked = !!v; return; }
-      if (c.value !== v) c.value = v;
+      if (c.type === 'number') {
+        // 지금 치고 있는 칸은 건드리지 않는다. 「7.」 을 치는 중에 숫자로 되돌려
+        // 쓰면 소수점을 영영 찍을 수 없다.
+        if (c === document.activeElement) return;
+        // 숫자칸은 «적지 않음» 을 빈칸으로 보인다 — 비우면 기본 자리라는 뜻이다.
+        const text = v == null ? '' : String(v);
+        if (c.value !== text) c.value = text;
+        return;
+      }
+      if (v !== undefined && c.value !== v) c.value = v;
     });
   }
 
@@ -1940,9 +1969,23 @@ function card(type, ordinal) {
   // 자료 조작칸 — 고치는 대상이 options 가 아니라 data 다. 그래서 JSON 칸도
   // 함께 다시 써야 한다(apply 가 'json' 이 아닌 호출에서 그 일을 한다).
   el.querySelectorAll('[data-data]').forEach(function (c) {
-    c.addEventListener('change', function () {
+    // 숫자칸만 input 으로 받는다 — 치는 대로 그림이 따라와야 자리를 더듬어
+    // 찾을 수 있다. 나머지(선택·체크)는 change 로 족하다.
+    c.addEventListener(c.type === 'number' ? 'input' : 'change', function () {
       const path = c.getAttribute('data-data').split('.');
-      setAt(state.data, path, c.type === 'checkbox' ? c.checked : c.value);
+      let value;
+      if (c.type === 'checkbox') {
+        value = c.checked;
+      } else if (c.type === 'number') {
+        // 빈칸은 undefined — JSON.stringify 가 키를 통째로 빼 주므로 자료가
+        // 「안 적음」으로 돌아간다. 「-」 처럼 아직 수가 아닌 것은 NaN 이 되는데,
+        // 렌더러가 그것을 «적지 않음» 과 같게 보므로(clampAxis) 치는 도중에도
+        // 그림이 깨지지 않는다.
+        value = c.value.trim() === '' ? undefined : Number(c.value);
+      } else {
+        value = c.value;
+      }
+      setAt(state.data, path, value);
       apply('data');
     });
   });

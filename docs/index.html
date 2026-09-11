@@ -943,7 +943,7 @@ function initialOptions(type) {
   const o = {};
   OPTION_ORDER.forEach(function (k) {
     const d = OPTION_DEFAULTS[k];
-    // 배열·객체 기본값을 그대로 물리면 카드 열여섯 장이 **한 덩어리**를
+    // 배열·객체 기본값을 그대로 물리면 카드 열일곱 장이 **한 덩어리**를
     // 나눠 쓰게 된다 — 한 장에서 글꼴을 바꾸면 나머지 열다섯 장이 함께 바뀐다.
     if (Array.isArray(d)) { o[k] = d.slice(); return; }
     o[k] = (d && typeof d === 'object') ? Object.assign({}, d) : d;
@@ -1079,7 +1079,24 @@ const GLOSS_BY_TYPE = {
  * 볼 까닭이 없고, 쳐 보기 전에는 첨자라는 것이 있는 줄도 모른다 — 카드가 그리는
  * 표본(명목·실질 GDP)에는 첨자가 안 나오기 때문이다.
  */
+/**
+ * 「선 종류」 조작칸의 선택지.
+ *
+ * 빈 값은 «적지 않음» 이다 — 자료에서 `lineStyle` 키를 빼면 라이브러리가 계열
+ * 순서대로 실선→파선→점선→일점쇄선을 돌린다(`LINE_STYLE_ORDER`). 「기본」을
+ * 없애고 늘 값을 박으면 그 돌림을 다시는 쓸 수 없게 된다.
+ */
+const LINE_STYLE_OPTIONS = [
+  ['', '기본 (순서대로)'],
+  ['solid', '실선'],
+  ['dashed', '파선'],
+  ['dotted', '점선'],
+  ['dashdot', '일점쇄선'],
+];
+
 const NAMES_NOTE_EXTRA = {
+  'line': '계열 이름 옆의 <b>선 종류</b>로 선을 가릅니다. ' +
+    '「기본」이면 계열 순서대로 실선→파선→점선→일점쇄선이 돌아갑니다.',
   'econ-plane': '이름에 <code>D_1</code> 처럼 밑줄을 넣으면 뒤따르는 영문자·숫자가 ' +
     '<b>아래 첨자</b>가 됩니다. 한글 앞의 밑줄(<code>강원_춘천</code>)은 그대로 남습니다.',
 };
@@ -1358,7 +1375,7 @@ function fixedLengthLine(type) {
 }
 
 /**
- * 열여섯 장에서 «글자 하나까지 똑같은» 대목. 카드를 나란히 놓고 견주는 사람이
+ * 열일곱 장에서 «글자 하나까지 똑같은» 대목. 카드를 나란히 놓고 견주는 사람이
  * 보게 될 차이는 그래프이지 문장이 아니어야 한다. 그래서 종류에 따라 달라지는
  * 곳(종류 이름·공장 함수·데이터 모양·길이 고정·렌더러 이름·자료 예시)만
  * 따로 끼워 넣고 나머지는 이 상수들을 그대로 쓴다.
@@ -1535,7 +1552,7 @@ function card(type, ordinal) {
   el.id = 'card-' + type;
   const copyBtnLabel = ICON_COPY + '코드 복사';
   const promptBtnLabel = ICON_COPY + '프롬프트 복사';
-  // 한 페이지에 카드 열여섯 장이 있다. label[for] 가 엉뚱한 칸을 가리키지
+  // 한 페이지에 카드 열일곱 장이 있다. label[for] 가 엉뚱한 칸을 가리키지
   // 않도록 id 에 종류 이름을 붙여 카드마다 다르게 만든다.
   const uid = function (name) { return name + '-' + type; };
   const fieldId = uid('data');
@@ -1814,7 +1831,52 @@ function card(type, ordinal) {
       wrap.appendChild(lab);
       wrap.appendChild(input);
       namesBox.appendChild(wrap);
+
+      // 꺾은선은 계열 이름 «바로 옆» 에 그 계열의 선 종류를 세운다. 시험지가
+      // 계열을 가르는 첫째 수단이 선 종류라(색이 없다), 이름과 붙어 있어야
+      // 어느 선을 고치는 중인지 눈으로 따라갈 수 있다.
+      if (type === 'line' && l.shape === 'series[].label') {
+        namesBox.appendChild(lineStyleField(l.path[1], nth[l.shape]));
+      }
     });
+  }
+
+  /**
+   * 계열 하나의 「선 종류」 칸.
+   *
+   * 배선은 새로 깔지 않는다 — `data-data` 에 경로를 적어 두면 `syncDataControls()`
+   * 가 매번 살아 있는 칸을 다시 훑으므로 JSON 칸과의 왕복이 그대로 따라온다.
+   * 다만 이 칸은 자료를 보고 «그때그때» 짓는 것이라, 듣는 귀는 만들 때 단다.
+   */
+  function lineStyleField(si, nth) {
+    const id = uid('linestyle') + '-' + si;
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    const lab = document.createElement('label');
+    lab.className = 'field-label';
+    lab.setAttribute('for', id);
+    lab.textContent = '선 종류 ' + nth;
+    const sel = document.createElement('select');
+    sel.id = id;
+    sel.setAttribute('data-data', 'series.' + si + '.lineStyle');
+    sel.title = 'data.series[' + si + '].lineStyle';
+    LINE_STYLE_OPTIONS.forEach(function (o) {
+      const op = document.createElement('option');
+      op.value = o[0];
+      op.textContent = o[1];
+      sel.appendChild(op);
+    });
+    const cur = (state.data.series || [])[si];
+    sel.value = (cur && cur.lineStyle) || '';
+    sel.addEventListener('change', function () {
+      // 빈 값은 undefined 로 되돌린다 — JSON.stringify 가 키를 빼 주므로
+      // 자료가 「안 적음」으로 돌아가고, 돌림 차례가 되살아난다.
+      setAt(state.data, ['series', si, 'lineStyle'], sel.value || undefined);
+      apply('data');
+    });
+    wrap.appendChild(lab);
+    wrap.appendChild(sel);
+    return wrap;
   }
 
   /**
@@ -1856,7 +1918,13 @@ function card(type, ordinal) {
         if (c.value !== text) c.value = text;
         return;
       }
-      if (v !== undefined && c.value !== v) c.value = v;
+      if (v === undefined) {
+        // 「기본」 자리(빈 값)를 둔 선택칸은 «적지 않음» 으로 돌아간다. 그 자리가
+        // 없는 칸(막대 방향)은 건드리지 않는다 — 빈 값이 뜻하는 바가 없다.
+        if (c.tagName === 'SELECT' && c.querySelector('option[value=""]')) c.value = '';
+        return;
+      }
+      if (c.value !== v) c.value = v;
     });
   }
 

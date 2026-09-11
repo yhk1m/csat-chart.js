@@ -331,7 +331,7 @@ chart.download('시험지그림.png', { scale: 2 });
 ## 지원 환경
 
 - Chrome 99, Firefox 112, Safari 16.4(iOS 16.4) 이상은 아무것도 하지 않아도
-  16종 전부가 그대로 그려집니다 (빌드 타깃 ES2020).
+  17종 전부가 그대로 그려집니다 (빌드 타깃 ES2020).
 - 그 아래 — Chrome 80·Firefox 74·Safari 13.1 까지 — 도 그려집니다. **다만
   `absbar`·`climate`·`deviation-a`·`deviation-b`·`hythergraph`·`pyramid`·
   `scatter`·`stacked` 여덟 종류는 범례 박스를 그릴 때 `ctx.roundRect()` 를
@@ -470,7 +470,7 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
 `LINE_MARKER_ORDER`·`LINE_STYLE_ORDER`·`MONTH_LABELS_EN`·`MONTH_LABELS_NUM`·
 `LINE_DASH`. 모두 **얼려서** 내보냅니다. 렌더러가 기본값으로 읽는 바로 그 객체라서,
 얼지 않으면 `DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
-조용히 어긋납니다. `CHART_TYPES`(그래프 16종 목록)도 같은 이유로 따로 얼려서
+조용히 어긋납니다. `CHART_TYPES`(그래프 17종 목록)도 같은 이유로 따로 얼려서
 내보냅니다.
 
 ESM/CJS 로 쓸 때는 각각 이름으로 가져옵니다.

@@ -2,7 +2,17 @@
 // 공통 범례 렌더링
 import { type LegendPosition, type InsideLegendCorner } from '../types/index';
 import { textFont, type FontOptions } from './renderer';
-import { styleOf, type StyleTokens } from './style';
+import { styleOf, byStyle, type StyleTokens } from './style';
+import type { StyleName } from '../types/common';
+
+/**
+ * 1.7.0 범례 선 견본이 계열 선·표지 토큰과 달랐던 값 — classic 에서만 둔다.
+ * exam 은 비워 두어 `t.line.series`·`t.marker.r` 를 그대로 쓴다(견본 = 그림 속 계열).
+ */
+const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number }> = {
+  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5 },
+  exam: {},
+};
 
 export interface LegendItem {
   type: 'rect' | 'circle' | 'line';
@@ -13,7 +23,7 @@ export interface LegendItem {
   bordered?: boolean;
   /** 선 아이콘(line)의 대시 패턴 — 미지정 시 실선 */
   dash?: number[];
-  /** 선 아이콘(line)의 굵기 — 미지정 시 2.5 */
+  /** 선 아이콘(line)의 굵기 — 미지정 시 양식의 계열 선 굵기 (classic 2.5) */
   lineWidth?: number;
   /** 선 아이콘 가운데 점의 모양 — 미지정 시 원 */
   marker?: 'circle' | 'square';
@@ -126,7 +136,7 @@ export function drawInsideLegend({
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const cy = spot.y + 4 + rowH * (i + 0.5);
-    drawInsideIcon(ctx, item, spot.x + padX, cy, swatch, styleOf(fonts));
+    drawInsideIcon(ctx, item, spot.x + padX, cy, swatch, styleOf(fonts), byStyle(fonts, LOOK));
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -143,11 +153,12 @@ function drawInsideIcon(
   cy: number,
   size: number,
   t: StyleTokens,
+  look: (typeof LOOK)[StyleName],
 ) {
   if (item.type === 'line') {
     const w = size * 2;
     ctx.strokeStyle = typeof item.fillStyle === 'string' ? item.fillStyle : '#000';
-    ctx.lineWidth = item.lineWidth ?? 2;
+    ctx.lineWidth = item.lineWidth ?? look.insideLineW ?? t.line.series;
     ctx.setLineDash(item.dash && item.dash.length > 0 ? item.dash : []);
     ctx.beginPath();
     ctx.moveTo(x, cy);
@@ -353,7 +364,9 @@ export function drawLegend({
 }: LegendParams): number {
   if (items.length === 0) return 0;
 
-  const lg = styleOf(fonts).legend;
+  const t = styleOf(fonts);
+  const lg = t.legend;
+  const look = byStyle(fonts, LOOK);
   ctx.save();
   ctx.font = textFont(fonts, 'legend', fontSize);
 
@@ -394,7 +407,7 @@ export function drawLegend({
       for (const { index, width } of row) {
         const item = items[index];
         const iSize = iconWidthOf(item);
-        drawIcon(ctx, item, cx, cy, iSize, lg.swatchLine);
+        drawIcon(ctx, item, cx, cy, iSize, t, look);
         ctx.font = textFont(fonts, 'legend', layout.fontSize);
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
@@ -429,7 +442,7 @@ export function drawLegend({
     for (const item of items) {
       const ix = boxX + padding;
       const iSize = iconWidthOf(item);
-      drawIcon(ctx, item, ix, cy, iSize, lg.swatchLine);
+      drawIcon(ctx, item, ix, cy, iSize, t, look);
       ctx.font = textFont(fonts, 'legend', fontSize);
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
@@ -448,8 +461,10 @@ function drawIcon(
   x: number,
   cy: number,
   size: number,
-  swatchLine: number,
+  t: StyleTokens,
+  look: (typeof LOOK)[StyleName],
 ) {
+  const swatchLine = t.legend.swatchLine;
   if (item.type === 'rect') {
     ctx.fillStyle = item.fillStyle;
     ctx.fillRect(x, cy - size / 2, size, size);
@@ -470,7 +485,7 @@ function drawIcon(
   } else if (item.type === 'line') {
     ctx.save();
     ctx.strokeStyle = item.fillStyle;
-    ctx.lineWidth = item.lineWidth ?? 2.5;
+    ctx.lineWidth = item.lineWidth ?? look.lineW ?? t.line.series;
     if (item.dash && item.dash.length > 0) ctx.setLineDash(item.dash);
     ctx.beginPath();
     ctx.moveTo(x, cy);
@@ -479,7 +494,7 @@ function drawIcon(
     ctx.restore();
     ctx.fillStyle = item.fillStyle;
     ctx.beginPath();
-    ctx.arc(x + size / 2, cy, 3.5, 0, Math.PI * 2);
+    ctx.arc(x + size / 2, cy, look.dotR ?? t.marker.r, 0, Math.PI * 2);
     ctx.fill();
   }
 }

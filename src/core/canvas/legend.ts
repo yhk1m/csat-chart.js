@@ -4,6 +4,8 @@ import { type LegendPosition, type InsideLegendCorner } from '../types/index';
 import { textFont, type FontOptions } from './renderer';
 import { styleOf, byStyle, type StyleTokens } from './style';
 import type { StyleName } from '../types/common';
+import type { DotMarker } from '../types/categorydot';
+import { drawDotMarker } from './markers';
 
 /**
  * 1.7.0 범례 선 견본이 계열 선·표지 토큰과 달랐던 값 — classic 에서만 둔다.
@@ -27,8 +29,11 @@ export interface LegendItem {
   dash?: number[];
   /** 선 아이콘(line)의 굵기 — 미지정 시 양식의 계열 선 굵기 (classic 2.5) */
   lineWidth?: number;
-  /** 선 아이콘 가운데 점의 모양 — 미지정 시 원 */
-  marker?: 'circle' | 'square';
+  /**
+   * 점 모양. 선 아이콘(line)은 가운데 점(원·네모만 쓴다), 점 아이콘(circle)은 견본 자체 —
+   * 범주 점 그래프의 계열 기호(● ■ ▲ ◆)를 그대로 보인다. 미지정 시 원.
+   */
+  marker?: DotMarker;
   /**
    * 선 아이콘 가운데 점의 속을 비운다 (흰색 채움 + 검정 테두리).
    *
@@ -523,9 +528,13 @@ function drawIcon(
     }
   } else if (item.type === 'circle') {
     ctx.fillStyle = item.fillStyle;
-    ctx.beginPath();
-    ctx.arc(x + size / 2, cy, size / 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    if (item.marker && item.marker !== 'circle') {
+      drawDotMarker(ctx, item.marker, x + size / 2, cy, size / 2.5);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x + size / 2, cy, size / 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (item.type === 'line') {
     ctx.save();
     ctx.strokeStyle = item.fillStyle;

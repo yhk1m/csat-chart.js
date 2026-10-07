@@ -14,6 +14,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
+import { drawDotMarker } from '../canvas/markers';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
@@ -23,39 +24,6 @@ const LOOK = {
   // 음수 눈금은 −(U+2212). 양수의 + 는 저자 검토(2026-10-08)로 뺐다 — data.signedTicks 로 켠다
   exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9], catGrid: true, minorTickLen: 17, signed: 'minus' as false | 'minus' },
 };
-
-/** 기호 하나를 (cx, cy)에 그린다 */
-function drawMarker(
-  ctx: CanvasRenderingContext2D,
-  marker: DotMarker,
-  cx: number,
-  cy: number,
-  r: number
-) {
-  ctx.beginPath();
-  switch (marker) {
-    case 'circle':
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      break;
-    case 'square':
-      ctx.rect(cx - r, cy - r, r * 2, r * 2);
-      break;
-    case 'triangle':
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx + r, cy + r);
-      ctx.lineTo(cx - r, cy + r);
-      ctx.closePath();
-      break;
-    case 'diamond':
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx + r, cy);
-      ctx.lineTo(cx, cy + r);
-      ctx.lineTo(cx - r, cy);
-      ctx.closePath();
-      break;
-  }
-  ctx.fill();
-}
 
 export function renderCategoryDotGraph(
   ctx: CanvasRenderingContext2D,
@@ -195,7 +163,7 @@ export function renderCategoryDotGraph(
       const cy = valToY(val);
 
       ctx.fillStyle = '#000';
-      drawMarker(ctx, markers[s % markers.length], cx, cy, data.dotRadius);
+      drawDotMarker(ctx, markers[s % markers.length], cx, cy, data.dotRadius);
 
       if (options.showDataLabels) {
         ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8));
@@ -238,13 +206,14 @@ export function renderCategoryDotGraph(
   }
 
   if (showLegend) {
-    // 알려진 한계: 범례 아이콘은 모두 원이다. LegendItem 에 기호 모양이 없어서인데,
-    // 그걸 넣으려면 canvas/legend.ts 를 고쳐야 하고 그건 원본과의 텍스트 동일성
-    // (verify:port)을 깨뜨린다. 필요해지면 원본에서 먼저 고칠 것.
-    const items: LegendItem[] = data.seriesLabels.map((label) => ({
+    // 범례 견본은 계열의 점 모양을 따른다(exam). classic 은 1.7.0 그대로 모두 원이다 —
+    // 기준 이미지(계열 둘: ● ■)를 한 픽셀도 바꾸지 않으려고 양식으로 가른다.
+    const matchMarkers = byStyle(options, { classic: false, exam: true });
+    const items: LegendItem[] = data.seriesLabels.map((label, s) => ({
       type: 'circle',
       fillStyle: '#000',
       label,
+      ...(matchMarkers ? { marker: markers[s % markers.length] } : {}),
     }));
     drawLegend({
       ctx, fonts: options, items, position: legendPos,

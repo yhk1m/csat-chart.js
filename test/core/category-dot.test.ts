@@ -101,3 +101,41 @@ describe('CategoryDotGraph 눈금 부호', () => {
     expect(s).not.toMatch(/\+30|−30/);
   });
 });
+
+describe('범례 기호 — 계열의 점 모양을 따른다', () => {
+  /** 그린 순서대로 기호(arc·rect·moveTo)와 글자를 적는다 */
+  function legendShapes(style: 'exam' | 'classic', markers?: ('circle' | 'square' | 'triangle' | 'diamond')[]) {
+    const data = createDefaultCategoryDotData();
+    data.categories = [{ label: 'A', values: [10, 20, 30, 40] }, { label: 'B', values: [15, 25, 35, 45] }];
+    data.seriesLabels = ['갑', '을', '병', '정']; // 괄호 없이 — exam 은 괄호를 따로 찍는다
+    if (markers) data.seriesMarkers = markers;
+    const canvas = createCanvas(800, 600);
+    const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+    const log: string[] = [];
+    const c = ctx as unknown as Record<string, (...a: unknown[]) => unknown>;
+    for (const m of ['arc', 'rect', 'moveTo', 'fillText']) {
+      const orig = c[m].bind(ctx);
+      c[m] = (...a: unknown[]) => { log.push(m === 'fillText' ? `text:${a[0]}` : m); return orig(...a); };
+    }
+    renderCategoryDotGraph(ctx, 800, 600, data, { ...createDefaultGraphOptions(style), style, showDataLabels: false });
+    // 범례 글자 바로 앞에 그린 기호 하나
+    return data.seriesLabels.map((label) => {
+      const i = log.lastIndexOf(`text:${label}`);
+      expect(i, label).toBeGreaterThan(0);
+      const prev = log.slice(0, i).reverse().find((op) => !op.startsWith('text:'))!;
+      return { arc: 'circle', rect: 'square', moveTo: 'path' }[prev];
+    });
+  }
+
+  it('exam: 기본 순서 ● ■ ▲ ◆ 그대로', () => {
+    expect(legendShapes('exam')).toEqual(['circle', 'square', 'path', 'path']);
+  });
+
+  it('exam: seriesMarkers 를 준 대로', () => {
+    expect(legendShapes('exam', ['square', 'circle', 'diamond', 'square'])).toEqual(['square', 'circle', 'path', 'square']);
+  });
+
+  it('classic: 1.7.0 그대로 모두 ● (기준 이미지 보존)', () => {
+    expect(legendShapes('classic')).toEqual(['circle', 'circle', 'circle', 'circle']);
+  });
+});

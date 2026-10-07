@@ -59,8 +59,10 @@ export function renderScatterGraph(
 
   if (data.mode === 'deviation') {
     renderDeviation(ctx, w, h, data, options);
-  } else {
-    renderNormal(ctx, w, h, data, options);
+  } else if (renderNormal(ctx, w, h, data, options) === 'blocked') {
+    // exam: 플롯 안 어느 모서리도 버블을 덮지 않고는 범례를 못 놓는다 — 플롯을 줄여 오른쪽 바깥에
+    clearCanvas(ctx, w, h);
+    renderNormal(ctx, w, h, { ...data, bubbleLegendPosition: 'outside-right' }, options);
   }
 }
 
@@ -72,7 +74,7 @@ function renderNormal(
   h: number,
   data: ScatterGraphData,
   options: GraphOptions
-) {
+): 'blocked' | void {
   const fs = options.fontSize;
   const t = styleOf(options);
   const look = byStyle(options, LOOK);
@@ -314,6 +316,13 @@ function renderNormal(
     ? insideLegendBoxes(ctx, data, plotX, plotY, plotW, plotH, fs, options,
       bubbleRects(data, toCanvasX, toCanvasY, look.dotR))
     : [];
+  // exam: 범례 상자(둘레 6px 포함)가 버블·점을 하나라도 덮으면 이 그림을 버리고 바깥 범례로 다시 그린다
+  if (legendAvoid.length > 0) {
+    const dots = bubbleRects(data, toCanvasX, toCanvasY, look.dotR);
+    const covers = legendAvoid.some((b) => dots.some((r) =>
+      r.x1 > b.left && r.x0 < b.right && r.y1 > b.top && r.y0 < b.bottom));
+    if (covers) return 'blocked';
+  }
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, options, options.showDataLabels,
     { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h, legendAvoid);
 

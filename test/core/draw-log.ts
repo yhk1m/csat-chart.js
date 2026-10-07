@@ -4,12 +4,14 @@
 import { createCanvas } from '@napi-rs/canvas';
 
 export type Box = { left: number; right: number; top: number; bottom: number };
+/** 그린 차례가 붙은 상자 — 범례 상자 «뒤에» 그린 것은 범례 속 견본이다 */
+export type Drawn = Box & { seq: number };
 
 export interface DrawLog {
   segs: [number, number, number, number][];
   texts: { s: string; box: Box }[];
-  arcs: Box[];
-  strokeRects: Box[];
+  arcs: Drawn[];
+  strokeRects: Drawn[];
 }
 
 export function drawLogged(
@@ -19,6 +21,7 @@ export function drawLogged(
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
   const log: DrawLog = { segs: [], texts: [], arcs: [], strokeRects: [] };
   let path: [number, number][][] = [];
+  let seq = 0;
   const tf = (x: number, y: number): [number, number] => {
     const m = ctx.getTransform();
     return [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
@@ -39,12 +42,12 @@ export function drawLogged(
   c.lineTo = (x: number, y: number) => { (path[path.length - 1] ?? (path[0] = [])).push(tf(x, y)); o.lineTo(x, y); };
   c.rect = (x: number, y: number, w2: number, h2: number) => {
     const [a, b] = [tf(x, y), tf(x + w2, y + h2)];
-    log.arcs.push({ left: a[0], top: a[1], right: b[0], bottom: b[1] });
+    log.arcs.push({ left: a[0], top: a[1], right: b[0], bottom: b[1], seq: seq++ });
     o.rect(x, y, w2, h2);
   };
   c.arc = (x: number, y: number, r: number, s: number, e: number, ccw?: boolean) => {
     const [cx, cy] = tf(x, y);
-    log.arcs.push({ left: cx - r, right: cx + r, top: cy - r, bottom: cy + r });
+    log.arcs.push({ left: cx - r, right: cx + r, top: cy - r, bottom: cy + r, seq: seq++ });
     o.arc(x, y, r, s, e, ccw);
   };
   c.stroke = () => {
@@ -53,9 +56,18 @@ export function drawLogged(
     }
     o.stroke();
   };
+  // 둥근 사각형(산점도 범례 상자)도 사각 테두리로 본다
+  const roundRect = (ctx as unknown as { roundRect?: (...a: unknown[]) => void }).roundRect?.bind(ctx);
+  if (roundRect) {
+    c.roundRect = (x: number, y: number, w2: number, h2: number, r?: unknown) => {
+      const [a, b] = [tf(x, y), tf(x + w2, y + h2)];
+      log.strokeRects.push({ left: a[0], top: a[1], right: b[0], bottom: b[1], seq: seq++ });
+      roundRect(x, y, w2, h2, r);
+    };
+  }
   c.strokeRect = (x: number, y: number, w2: number, h2: number) => {
     const [a, b] = [tf(x, y), tf(x + w2, y + h2)];
-    log.strokeRects.push({ left: a[0], top: a[1], right: b[0], bottom: b[1] });
+    log.strokeRects.push({ left: a[0], top: a[1], right: b[0], bottom: b[1], seq: seq++ });
     o.strokeRect(x, y, w2, h2);
   };
   c.fillText = (s: string, x: number, y: number, mw?: number) => {

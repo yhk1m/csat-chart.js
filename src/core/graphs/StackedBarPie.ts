@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, textFont, textSize } from '../canvas/rendere
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
-import { EDGE, nudgeInside } from '../canvas/fit';
+import { EDGE, nudgeInside, textExtent } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
 
@@ -415,7 +415,8 @@ function renderPieChart(
       const ratio = total > 0 ? val / total : 0;
       const endAngle = startAngle + ratio * Math.PI * 2;
 
-      ctx.fillStyle = fillOf(ctx, data, s, t);
+      const sliceFill = fillOf(ctx, data, s, t);
+      ctx.fillStyle = sliceFill;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, maxR, startAngle, endAngle);
@@ -434,6 +435,13 @@ function renderPieChart(
         ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8));
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        // exam: 빗금 조각 위 숫자는 빗금선에 닿는다 — 숫자 자리를 흰 바탕으로 비우고 찍는다
+        if (typeof sliceFill !== 'string' && byStyle(options, { classic: false, exam: true })) {
+          const e = textExtent(ctx, String(val));
+          const pad = t.haloWidth / 2;
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(lx - e.left - pad, ly - e.up - pad, e.left + e.right + pad * 2, e.up + e.down + pad * 2);
+        }
         inkText(ctx, String(val), lx, ly, undefined, light, t);
       }
 

@@ -85,7 +85,8 @@ export function getFont(
 // 그대로 남는다(줄이는 쪽은 언제나 «요청 크기» 로 makeFont 를 다시 부른다).
 //
 // 잴 ctx 는 clearCanvas 가 걸어 둔다 — 모든 그리기가 그것으로 시작한다. 걸린 것이
-// 없으면(그리기 밖에서 부른 textFont) 키우지 않는다.
+// 없으면(그리기 밖에서 부른 textFont) 키우지 않고, 그 결과는 캐시에 남기지 않는다.
+// 잴 때는 감싼 ctx 를 벗겨(RAW_CTX) 감싸기 전 ctx 로 잰다 — 그래야 그리는 차례와 무관하다.
 
 /** 잴 때 쓰는 기준 크기 — 비율만 남기므로 글꼴마다 한 번 잰다. 작은 크기는 높이가 정수 px 로 반올림돼(@napi-rs/canvas) 크게 잰다 */
 const DIGIT_REF_PX = 1000;
@@ -97,7 +98,7 @@ let measureWidth = 0;
 export function currentMeasurer(): { ctx: CanvasRenderingContext2D | null; width: number } {
   return { ctx: measurer, width: measureWidth };
 }
-/** `${weight} 1000px ${stack}` → 숫자 높이 / 크기. 0 = 잴 수 없음 */
+/** `${weight} 1000px ${stack}` → 숫자 높이 / 크기. 잰 값(> 0)만 담는다 */
 const digitRatio = new Map<string, number>();
 
 /** 숫자 높이를 잴 ctx 를 건다 (null 이면 뗀다) */
@@ -111,18 +112,35 @@ export function resetDigitCache(): void {
   numeralScale.clear();
 }
 
+/**
+ * 감싼 ctx(parens.ts `textCtx`)가 이 이름으로 감싸기 전 ctx 를 내준다.
+ * 숫자 높이는 감싸지 않은 ctx 로 잰다 — 감싼 ctx 는 숫자 자리 글꼴을 이미 키운 크기로
+ * 재므로, 그것으로 재면 잰 비율이 목표 비율 그대로 나와 «키우지 않음» 이 캐시에 남는다.
+ * 그러면 어느 그림을 먼저 그렸느냐에 따라 숫자 크기가 달라진다(2.1.0 의 경제 좌표평면).
+ */
+export const RAW_CTX: unique symbol = Symbol('csat-chart.rawCtx');
+
+function unwrapCtx(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
+  let c = ctx;
+  for (let raw = (c as unknown as Record<symbol, unknown>)[RAW_CTX]; raw && raw !== c; raw = (c as unknown as Record<symbol, unknown>)[RAW_CTX]) {
+    c = raw as CanvasRenderingContext2D;
+  }
+  return c;
+}
+
 function digitHeightRatio(ctx: CanvasRenderingContext2D, weight: string, stack: string): number {
   const key = `${weight} ${DIGIT_REF_PX}px ${stack}`;
-  let r = digitRatio.get(key);
-  if (r === undefined) {
-    ctx.save();
-    ctx.font = key;
-    ctx.textBaseline = 'alphabetic';
-    const a = ctx.measureText('0123456789').actualBoundingBoxAscent;
-    ctx.restore();
-    r = typeof a === 'number' && a > 0 ? a / DIGIT_REF_PX : 0;
-    digitRatio.set(key, r);
-  }
+  const cached = digitRatio.get(key);
+  if (cached !== undefined) return cached;
+  const raw = unwrapCtx(ctx);
+  raw.save();
+  raw.font = key;
+  raw.textBaseline = 'alphabetic';
+  const a = raw.measureText('0123456789').actualBoundingBoxAscent;
+  raw.restore();
+  if (!(typeof a === 'number' && a > 0)) return 0; // 잴 수 없음 — 캐시에 남기지 않는다
+  const r = a / DIGIT_REF_PX;
+  digitRatio.set(key, r);
   return r;
 }
 

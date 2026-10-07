@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GlobalFonts, createCanvas } from '@napi-rs/canvas';
 import { textFont, createDefaultGraphOptions } from '../../src/core/index';
-import { numeralSize, setFontMeasurer, resetDigitCache } from '../../src/core/canvas/renderer';
+import { numeralSize, setFontMeasurer, resetDigitCache, RAW_CTX } from '../../src/core/canvas/renderer';
 import { EXAM_NUMERAL_STACK, EXAM_SERIF_STACK, examStyle, classicStyle } from '../../src/core/canvas/style';
 
 /** 글자 크기 × ratio 를 숫자 높이로 돌려주는 가짜 ctx */
@@ -63,6 +63,24 @@ describe('numeralSize — 숫자 높이를 목표 비율에 맞춘다', () => {
     expect(numeralSize(30, 'normal', STACK, 0.758, fakeCtx(undefined).ctx)).toBe(30);
     resetDigitCache();
     expect(numeralSize(30, 'normal', STACK, 0.758, fakeCtx(0).ctx)).toBe(30);
+  });
+
+  it('잴 수 없던 결과는 캐시에 남기지 않는다 — 다음에 잴 수 있는 ctx 로 다시 잰다', () => {
+    expect(numeralSize(30, 'normal', STACK, 0.758, fakeCtx(undefined).ctx)).toBe(30);
+    expect(numeralSize(30, 'normal', STACK, 0.758, fakeCtx(0.65).ctx)).toBeCloseTo(30 * 0.758 / 0.65, 1);
+  });
+
+  it('감싼 ctx 는 감싸기 전 ctx 로 잰다 (RAW_CTX)', () => {
+    const inner = fakeCtx(0.65);
+    const wrapped = new Proxy(inner.ctx as object, {
+      get(t, p) {
+        if (p === RAW_CTX) return t;
+        if (p === 'measureText') return () => ({ width: 0, actualBoundingBoxAscent: 758 });
+        return Reflect.get(t, p);
+      },
+    }) as CanvasRenderingContext2D;
+    expect(numeralSize(30, 'normal', STACK, 0.758, wrapped)).toBeCloseTo(30 * 0.758 / 0.65, 1);
+    expect(inner.calls).toHaveLength(1);
   });
 
   it('잴 ctx 가 없거나 목표가 없으면(classic) 그대로', () => {

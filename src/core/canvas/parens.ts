@@ -16,7 +16,7 @@
 // 숫자 자리(눈금·자료값)보다 낮다. exam 은 숫자 조각만 숫자 자리 크기(`numeralSize`)로
 // 찍고 alphabetic 기준선을 본 글줄과 맞춘다.
 import { styleOf } from './style';
-import { numeralScaleOf, numeralSize, parenStackOf, fontStackOf, currentMeasurer, type FontOptions } from './renderer';
+import { RAW_CTX, numeralScaleOf, numeralSize, parenStackOf, fontStackOf, currentMeasurer, type FontOptions } from './renderer';
 
 /** 괄호 잉크 높이 / 한글 잉크 높이 — 시험지 `(천만 명)` 실측 53/51px */
 export const PAREN_HEIGHT = 1.04;
@@ -330,6 +330,7 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
         return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, true, refScale(String(s)), digitFont());
       }
       if (prop === 'measureText') return (s: string) => measureMixed(target_, String(s), stack, refScale(String(s)), digitFont());
+      if (prop === RAW_CTX) return target_;
       const v = Reflect.get(target_, prop, target_);
       return typeof v === 'function' ? v.bind(target_) : v;
     },

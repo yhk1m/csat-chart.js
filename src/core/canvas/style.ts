@@ -90,8 +90,8 @@ export interface StyleTokens {
     barStroke: number;
     /** 계열 선 기본 굵기 */
     series: number;
-    /** 강조 계열 선 (기후·편차의 기온선) */
-    seriesStrong: number;
+    /** 기온선 — 기후 그래프·편차 A 의 기온 꺾은선 */
+    tempLine: number;
     /** 0 기준선 */
     zero: number;
     /** 표 바깥·안쪽 선 */
@@ -179,7 +179,7 @@ export const classicStyle: StyleTokens = {
     barGridColor: '#ddd',
     barStroke: 0.8,
     series: 2,
-    seriesStrong: 2.5,
+    tempLine: 2.5,
     zero: 1,
     tableOuter: 2,
     tableInner: 1,
@@ -251,7 +251,7 @@ export const examStyle: StyleTokens = {
     barGridColor: '#000',
     barStroke: 1.75,    // 0.36pt
     series: 3.9,        // 0.81pt
-    seriesStrong: 3.9,  // 기후·편차 기온선도 계열 선 0.81pt (실측 §2 deviation-a)
+    tempLine: 3.9,      // 기후·편차 기온선도 계열 선 0.81pt (실측 §2 deviation-a)
     zero: 1.75,         // 0.34–0.39pt
     tableOuter: 1.9,    // 0.39pt
     tableInner: 1.45,   // 0.30pt

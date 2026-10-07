@@ -193,7 +193,7 @@ export function renderDeviationAGraph(
   // 기온 편차 꺾은선 (12개월일 때만)
   if (data.monthInterval === 12) {
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = t.line.seriesStrong;
+    ctx.lineWidth = t.line.tempLine;
     ctx.beginPath();
     let prev: { x: number; y: number } | null = null;
     for (let s = 0; s < totalSlots; s++) {

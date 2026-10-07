@@ -178,7 +178,7 @@ export function renderClimateGraph(
   // 기온 꺾은선 (12개월일 때만)
   if (data.monthInterval === 12) {
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = t.line.seriesStrong;
+    ctx.lineWidth = t.line.tempLine;
     ctx.beginPath();
     for (let i = 0; i < 12; i++) {
       const cx = slotX(i);

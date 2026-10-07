@@ -27,6 +27,12 @@ import {
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
 import { styleOf, byStyle, leaderOf, tickDirOf, type TickDir } from '../canvas/style';
 
+const LOOK = {
+  classic: { openInset: 0 },
+  // 열린 L 자 틀에서 첫·끝 점을 축 끝에서 띄우는 거리 4.0pt (2026_11 wgeo q10 실측 4.02pt)
+  exam: { openInset: 19.4 },
+};
+
 /** 1.7.0 꺾은선 유도선 굵기 — classic 에서만. exam 은 t.leader */
 const CLASSIC_LEADER = { width: 1 };
 
@@ -191,9 +197,12 @@ export function renderLineGraph(
     tickDir: dir.y,
   });
 
-  // x 위치 — 첫 점과 마지막 점이 좌우 끝에 오도록 나눈다
-  const stepX = n > 1 ? plotW / (n - 1) : 0;
-  const toX = (i: number) => plotX + stepX * i;
+  // x 위치 — 첫 점과 마지막 점이 좌우 끝에 오도록 나눈다.
+  // exam 의 열린 L 자 틀은 두 끝에서 4.0pt 안쪽에 둔다 (2026_11 wgeo q10: 세로축 → 1970 4.02pt,
+  // 2020 → 가로축 끝 4.02pt). 닫힌 틀 표본 둘(2025_09 korgeo q20, 2027_09 korgeo q8)은 틀에 붙는다.
+  const xInset = data.frame === 'open' ? byStyle(options, LOOK).openInset : 0;
+  const stepX = n > 1 ? (plotW - xInset * 2) / (n - 1) : 0;
+  const toX = (i: number) => plotX + xInset + stepX * i;
   const toY = (v: number) => plotY + plotH - ((v - axis.min) / (axis.max - axis.min)) * plotH;
 
   // x 라벨을 어느 자리에 그리는가 — 빈 이름은 건너뛰고, 이름끼리 서로 붙으면 몇 개 걸러 그린다.

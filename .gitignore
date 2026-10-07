@@ -6,3 +6,6 @@ dist/
 # CI 가 dts 사용 확인 단계에서 저장소 안에 만드는 임시 폴더. 검사가 실패하면
 # rm -rf 가 돌지 않아 그대로 남는다 (.github/workflows/ci.yml 참고).
 .dtscheck/
+
+# 시험지 실측 도구의 중간 산출물 (다시 만들 수 있다)
+planning/specs/exam-samples/_work/

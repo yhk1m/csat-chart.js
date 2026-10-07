@@ -143,6 +143,18 @@ export interface StyleTokens {
   sourceInline: boolean;
   /** 눈금 방향을 종류별 기본값으로 정하는가 (false 면 늘 바깥) */
   ticksByType: boolean;
+  /**
+   * 눈금 숫자 자리 — 글자 **잉크**를 기준으로 잰 간격 (axes.ts `yTickLabelAt`·`xTickLabelAt`).
+   * null 이면 1.7.0 처럼 글자 상자 기준(`tickLabelGap`)으로 둔다.
+   */
+  tickText: {
+    /** 세로축 숫자 오른쪽 끝 ↔ 축선 바깥쪽 가장자리 */
+    yGap: number;
+    /** 축선 아래 가장자리 ↔ 가로축 숫자 잉크 위 */
+    xGap: number;
+    /** 바깥 눈금이 있으면 그 끝에서 이만큼 더 띄운다 */
+    pastTick: number;
+  } | null;
 }
 
 const same = (_fs: FontSizes, classicPx: number) => classicPx;
@@ -217,6 +229,7 @@ export const classicStyle: StyleTokens = {
   footnoteMark: () => '* ',
   sourceInline: false,
   ticksByType: false,
+  tickText: null,
 };
 
 /** 시험지 글자 — 굵은 글자는 표본 어디에도 없다(실측 §1.1) */
@@ -300,6 +313,10 @@ export const examStyle: StyleTokens = {
   footnoteMark: (i) => '* '.repeat(i + 1),
   sourceInline: true,
   ticksByType: true,
+  // 꺾은선 표본 둘(2026_11 wgeo-q10, 2027_09 korgeo-q8): 세로 숫자는 눈금에 가운데 맞춰
+  // 축에서 1.44–2.16pt 띄우고, 가로 숫자 잉크 위는 축 아래 3.1pt(안쪽 눈금)·3.8pt
+  // (바깥 2.6pt 눈금 끝 + 1.2pt). 맨 아래 「0」 은 가운데에 두되 가로 숫자와 1.2pt 이상 떨어진다
+  tickText: { yGap: 8.7, xGap: 15, pastTick: 5.8 }, // 1.8pt · 3.1pt · 1.2pt
 };
 
 const STYLES: Record<StyleName, StyleTokens> = { classic: classicStyle, exam: examStyle };

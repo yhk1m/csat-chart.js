@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type ClimateGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
-import { drawYAxis, drawXAxis } from '../canvas/axes';
+import { drawYAxis, drawXAxis, xTickLabelAt } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
@@ -227,9 +227,12 @@ export function renderClimateGraph(
     const lastCx = data.monthInterval === 12 ? slotX(indices[last]) : slotX(last);
     ctx.font = textFont(options, 'tick', options.fontSize.tick);
     const half = ctx.measureText(MONTH_LABELS[indices[last]]).width / 2;
+    // 달 숫자와 같은 기준선에 (drawXAxis 와 같은 자리 계산)
+    const at = xTickLabelAt(ctx, options, plotY + plotH, 'out');
     ctx.font = unitFont;
     ctx.textAlign = 'left';
-    ctx.fillText('(월)', lastCx + half, plotY + plotH + tickLabelGap(t));
+    if (at) ctx.textBaseline = at.baseline;
+    ctx.fillText('(월)', lastCx + half, at ? at.y : plotY + plotH + tickLabelGap(t));
   } else {
     ctx.font = unitFont;
     ctx.textAlign = 'center';

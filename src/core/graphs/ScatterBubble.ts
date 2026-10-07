@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
@@ -199,7 +200,14 @@ function renderNormal(
     }
     if (i % xStride === 0) {
       const text = formatTick(v);
-      ctx.fillText(text, x, plotY + plotH + 10);
+      const at = xTickLabelAt(ctx, options, plotY + plotH, dir.x);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(text, x, at.y);
+        ctx.textBaseline = 'top';
+      } else {
+        ctx.fillText(text, x, plotY + plotH + 10);
+      }
       lastXLabelRight = Math.max(lastXLabelRight, x + ctx.measureText(text).width / 2);
     }
   });
@@ -223,7 +231,16 @@ function renderNormal(
       ctx.lineTo(plotX - a, y);
       ctx.stroke();
     }
-    if (i % yStride === 0) ctx.fillText(formatTick(v), plotX - 10, y);
+    if (i % yStride === 0) {
+      const at = yTickLabelAt(ctx, options, plotX, 'left', dir.y, y, plotY + plotH);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(formatTick(v), at.x, at.y);
+        ctx.textBaseline = 'middle';
+      } else {
+        ctx.fillText(formatTick(v), plotX - 10, y);
+      }
+    }
   });
 
   // 축 라벨

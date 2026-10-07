@@ -14,7 +14,7 @@ import {
   defaultLineLeader,
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
-import { drawYAxis } from '../canvas/axes';
+import { drawYAxis, xTickLabelAt } from '../canvas/axes';
 import {
   drawTitle,
   drawSourceAndFootnote,
@@ -118,9 +118,14 @@ export function renderLineGraph(
       if (useLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
       b = Math.max(b, legendReserve);
       const notes = options.footnotes.filter((f) => f.trim()).length;
+      // 출처·각주 한 줄 높이 — exam 은 글자가 커서 1.7.0 상수(30·22)로는 가로축 숫자를 덮는다
+      const srcLine = byStyle(options, { classic: 30, exam: textSize(options, 'source', options.fontSize.dataLabel) + 8 });
+      const noteLine = byStyle(options, { classic: 22, exam: textSize(options, 'footnote', options.fontSize.dataLabel * 0.9) + 4 });
       // 출처를 각주와 같은 줄에 두면(sourceInline) 줄이 하나 줄어든다
-      if (options.source && !(options.sourceInline && notes > 0)) b += 30;
-      b += notes * 22;
+      if (options.source && !((options.sourceInline ?? t.sourceInline) && notes > 0)) b += srcLine;
+      b += notes * noteLine;
+      // 각주 묶음은 마지막 줄 글자 높이만큼 더 올라간다 (drawSourceAndFootnote) — exam 만 그 몫을 센다
+      if (notes > 0) b += byStyle(options, { classic: 0, exam: noteLine });
       return b;
     })(),
     left: 130,
@@ -237,8 +242,12 @@ export function renderLineGraph(
     }
     ctx.restore();
   }
-  // 가로 이름이 눈금 아래로 비켜설 거리 — 바깥 눈금일 때만 (classic 은 'none' 이라 그대로)
-  const xLabelY = plotY + plotH + (xTick === 'out' ? t.line.tickLen : 0) + 10;
+  // 가로 이름이 눈금 아래로 비켜설 거리 — 바깥 눈금일 때만 (classic 은 'none' 이라 그대로).
+  // exam 은 잉크 위를 시험지 간격에 맞춘다 (axes.ts xTickLabelAt)
+  ctx.font = textFont(options, 'tick', tickSize);
+  const xAt = xTickLabelAt(ctx, options, plotY + plotH, xTick);
+  const xLabelY = xAt ? xAt.y : plotY + plotH + (xTick === 'out' ? t.line.tickLen : 0) + 10;
+  const xLabelBaseline: CanvasTextBaseline = xAt ? xAt.baseline : 'top';
 
   // 0 기준선 (편차 그래프)
   if (data.zeroBaseline && axis.min < 0 && axis.max > 0) {
@@ -420,7 +429,7 @@ export function renderLineGraph(
   ctx.fillStyle = '#000';
   ctx.font = textFont(options, 'tick', tickSize);
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
+  ctx.textBaseline = xLabelBaseline;
   data.xLabels.forEach((label, i) => {
     if (!labelShown(i)) return;
     ctx.fillText(label, toX(i), xLabelY);

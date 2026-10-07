@@ -7,9 +7,10 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawFloatingLabel } from '../canvas/fit';
+import { EDGE, drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
+import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
 
 // 계열별 점선 (classic) — 굵기는 t.line.series
 const LINE_DASHES: number[][] = [
@@ -104,11 +105,28 @@ export function renderHythergraph(
     ? measureLegendWidth(ctx, legendLabels, lfSize, options)
     : 0;
 
+  // 모든 계열의 데이터로 축 범위 계산
+  const allTemps = data.series.flatMap((s) => s.months.map((m) => m.temp));
+  const allPrecips = data.series.flatMap((s) => s.months.map((m) => m.precip));
+  const xAuto = autoRange(allTemps);
+  const yAuto = autoRange(allPrecips);
+  const xMin = data.xRange.auto ? xAuto.min : data.xRange.min;
+  const xMax = data.xRange.auto ? xAuto.max : data.xRange.max;
+  const yMin = data.yRange.auto ? yAuto.min : data.yRange.min;
+  const yMax = data.yRange.auto ? yAuto.max : data.yRange.max;
+  const xStep = data.xRange.auto ? xAuto.step : (xMax - xMin) / 5;
+  const yStep = data.yRange.auto ? yAuto.step : (yMax - yMin) / 5;
+
+  // 세로축 숫자 열 — exam 은 숫자를 축에서 더 띄우고 글자도 커서 80 으로는 모자란다
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));
+  const yTicksW = Math.max(...[yMin, yMax, yMin + yStep].map((v) => ctx.measureText(formatTick(v)).width));
+  const padLeft = byStyle(options, { classic: 80, exam: Math.max(80, yTicksW + t.line.axis / 2 + (t.tickText?.yGap ?? 0) + EDGE) });
+
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다.
   // 아이콘 너비·간격은 아래 범례 그리기와 같은 값을 써야 한다.
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? 65 + layoutBottomLegend(ctx, legendLabels, data.series.map(() => t.legend.lineIcon),
-        lfSize, w - 80 - (80 + legendW), options, { iconGap: look.iconGap }).boxH + 2
+        lfSize, w - padLeft - (80 + legendW), options, { iconGap: look.iconGap }).boxH + 2
     : 0;
 
   const padding: Padding = {
@@ -122,25 +140,13 @@ export function renderHythergraph(
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
     })(),
-    left: 80,
+    left: padLeft,
   };
 
   const plotX = padding.left;
   const plotY = padding.top;
   const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
-
-  // 모든 계열의 데이터로 축 범위 계산
-  const allTemps = data.series.flatMap((s) => s.months.map((m) => m.temp));
-  const allPrecips = data.series.flatMap((s) => s.months.map((m) => m.precip));
-  const xAuto = autoRange(allTemps);
-  const yAuto = autoRange(allPrecips);
-  const xMin = data.xRange.auto ? xAuto.min : data.xRange.min;
-  const xMax = data.xRange.auto ? xAuto.max : data.xRange.max;
-  const yMin = data.yRange.auto ? yAuto.min : data.yRange.min;
-  const yMax = data.yRange.auto ? yAuto.max : data.yRange.max;
-  const xStep = data.xRange.auto ? xAuto.step : (xMax - xMin) / 5;
-  const yStep = data.yRange.auto ? yAuto.step : (yMax - yMin) / 5;
 
   const toX = (v: number) => plotX + ((v - xMin) / (xMax - xMin)) * plotW;
   const toY = (v: number) => plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
@@ -200,7 +206,14 @@ export function renderHythergraph(
     }
     const isLast = v + xStep > xMax + xStep * 0.01;
     if (!(isLast && data.xUnit)) {
-      ctx.fillText(formatTick(v), x, plotY + plotH + (dir.x === 'out' ? L : 0) + 4);
+      const at = xTickLabelAt(ctx, options, plotY + plotH, dir.x);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(formatTick(v), x, at.y);
+        ctx.textBaseline = 'top';
+      } else {
+        ctx.fillText(formatTick(v), x, plotY + plotH + (dir.x === 'out' ? L : 0) + 4);
+      }
     }
   }
 
@@ -218,7 +231,14 @@ export function renderHythergraph(
     }
     const isLast = v + yStep > yMax + yStep * 0.01;
     if (!(isLast && data.yUnit)) {
-      ctx.fillText(formatTick(v), plotX - (dir.y === 'out' ? L : 0) - 4, y);
+      const at = yTickLabelAt(ctx, options, plotX, 'left', dir.y, y, plotY + plotH);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(formatTick(v), at.x, at.y);
+        ctx.textBaseline = 'middle';
+      } else {
+        ctx.fillText(formatTick(v), plotX - (dir.y === 'out' ? L : 0) - 4, y);
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { type Padding, type FontOptions, textFont, textSize } from './renderer';
-import { styleOf, tickLabelGap, type TickDir } from './style';
+import { styleOf, tickLabelGap, type StyleTokens, type TickDir } from './style';
 import type { GraphOptions } from '../types/common';
 import { labelStride, widestLabel } from './labels';
 import { EDGE, nudgeInside, shrinkToWidth } from './fit';
@@ -122,8 +122,16 @@ export function drawYAxis({
 
     // 숫자 — 서로 붙으면 몇 개 걸러 그린다 (눈금선은 그대로)
     if (i % stride === 0) {
-      const tx = side === 'left' ? x - tickGap : x + tickGap;
-      ctx.fillText(signed ? signedTick(val) : formatTick(val), tx, y);
+      const text = signed ? signedTick(val) : formatTick(val);
+      const at = yTickLabelAt(ctx, fonts, x, side, tickDir, y, plot.y + plot.h);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(text, at.x, at.y);
+        ctx.textBaseline = 'middle';
+      } else {
+        const tx = side === 'left' ? x - tickGap : x + tickGap;
+        ctx.fillText(text, tx, y);
+      }
     }
   }
 
@@ -193,9 +201,67 @@ export function drawXAxis({
     }
 
     // 라벨
-    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + tickLabelGap(t, tickDir));
+    if (shown % stride === 0) {
+      const at = xTickLabelAt(ctx, fonts, y, tickDir);
+      if (at) {
+        ctx.textBaseline = at.baseline;
+        ctx.fillText(labels[i], cx, at.y);
+        ctx.textBaseline = 'top';
+      } else {
+        ctx.fillText(labels[i], cx, y + tickLabelGap(t, tickDir));
+      }
+    }
     shown++;
   }
+}
+
+/** 지금 글꼴의 숫자 잉크 높이 (기준선 위) */
+function digitAscent(ctx: CanvasRenderingContext2D): number {
+  const keep = ctx.textBaseline;
+  ctx.textBaseline = 'alphabetic';
+  const a = ctx.measureText('0').actualBoundingBoxAscent;
+  ctx.textBaseline = keep;
+  return a;
+}
+
+/** 눈금 선이 축 바깥으로 뻗은 길이 */
+function outReach(t: StyleTokens, dir: TickDir): number {
+  return dir === 'out' ? t.line.tickLen : dir === 'cross' ? t.line.tickLen / 2 : 0;
+}
+
+/**
+ * 가로축 숫자 자리 — **잉크 위**를 축 아래 `tickText.xGap`(바깥 눈금이면 그 끝 + `pastTick`)에
+ * 맞춘다. 글자 상자 위(`'top'`)로 재면 글꼴마다 잉크가 떠서 시험지보다 축에 붙거나 멀어진다.
+ * 양식에 `tickText` 가 없으면(classic) null — 부르는 쪽이 1.7.0 자리를 쓴다.
+ * 글꼴을 먼저 걸어 두고 부른다.
+ */
+export function xTickLabelAt(
+  ctx: CanvasRenderingContext2D, fonts: FontOptions, axisY: number, dir: TickDir,
+): { y: number; baseline: CanvasTextBaseline } | null {
+  const t = styleOf(fonts);
+  const tt = t.tickText;
+  if (!tt) return null;
+  const inkTop = axisY + t.line.axis / 2 + Math.max(tt.xGap, outReach(t, dir) + tt.pastTick);
+  return { y: inkTop + digitAscent(ctx), baseline: 'alphabetic' };
+}
+
+/**
+ * 세로축 숫자 자리 — 잉크 가운데를 눈금에 맞추고, 축에서 `tickText.yGap` 띄운다.
+ * `bottomY`(가로축)를 주면 맨 아래 숫자가 가로축 숫자와 `pastTick` 이상 떨어지게
+ * 올린다 — 시험지 「0」 이 「1990」 위에 얹히지 않는 자리 (2027_09 korgeo-q8).
+ * classic 은 null. 글꼴을 먼저 걸어 두고 부른다.
+ */
+export function yTickLabelAt(
+  ctx: CanvasRenderingContext2D, fonts: FontOptions, axisX: number, side: 'left' | 'right',
+  dir: TickDir, tickY: number, bottomY?: number,
+): { x: number; y: number; baseline: CanvasTextBaseline } | null {
+  const t = styleOf(fonts);
+  const tt = t.tickText;
+  if (!tt) return null;
+  const off = t.line.axis / 2 + Math.max(tt.yGap, outReach(t, dir) + tt.pastTick);
+  let y = tickY + digitAscent(ctx) / 2;
+  if (bottomY != null) y = Math.min(y, bottomY + t.line.axis / 2 + tt.xGap - tt.pastTick);
+  return { x: side === 'left' ? axisX - off : axisX + off, y, baseline: 'alphabetic' };
 }
 
 function formatTick(val: number): string {

@@ -522,7 +522,20 @@ export function renderEconPlane(
     ctx.stroke();
     drawArrowHead(ctx, sx, sy, ex, ey);
 
-    if (a.label) {
+    if (a.label && a.offset !== 0 && byStyle(options, { classic: false, exam: true })) {
+      // exam: 이름이 classic 보다 커서 나침반 자리(점 이름 E 쪽)에 닿는다 — 화살표를 선에서
+      // 띄운 쪽(offset)으로 화살표에 수직으로 비켜, 글자 상자가 화살표에서 LABEL_GAP 떨어지게 둔다
+      const sign = Math.sign(a.offset);
+      const nx = -uy * sign;
+      const ny = ux * sign;
+      const px = labelPx(a.label);
+      ctx.font = labelFont(a.label)(px);
+      const half = Math.abs(nx) * richWidth(ctx, a.label, px, labelFont(a.label)) / 2 + Math.abs(ny) * px * 0.45;
+      const d = LABEL_GAP + half;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      drawFloatingRich(ctx, a.label, (sx + ex) / 2 + nx * d, (sy + ey) / 2 + ny * d, w, h, px, labelFont(a.label));
+    } else if (a.label) {
       const at = anchorOf(a.labelPos, LABEL_GAP + 4);
       ctx.textAlign = at.align;
       ctx.textBaseline = at.baseline;

@@ -19,7 +19,8 @@ import {
   type EconPlaneData, type EconAxis, type EconLabelPos, type EconSeries,
   type GraphOptions,
 } from '../types/index';
-import { clearCanvas, getFont, type Padding } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize, type Padding } from '../canvas/renderer';
+import { byStyle, labelPlace, type TextPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
 import { drawFloatingRich, fillRich, nudgeRichInside, richWidth } from '../canvas/subscript';
@@ -27,16 +28,6 @@ import { drawInsideLegend, type LegendItem } from '../canvas/legend';
 
 /** 축이 자료 칸 바깥으로 내미는 길이(px). 화살촉이 이 끝에 붙는다 */
 const ARROW_EXT = 26;
-/** 축선 굵기 */
-const AXIS_W = 2.5;
-/** 직선(수요·공급 따위) 굵기 */
-const LINE_W = 3;
-/** 유도선·격자 굵기 */
-const GUIDE_W = 1.5;
-/** 화살표 굵기 */
-const ARROW_W = 2.5;
-/** 점 반지름 */
-const DOT_R = 6;
 /** 화살촉 길이 */
 const HEAD_LEN = 14;
 /** 화살촉 반너비 */
@@ -46,19 +37,38 @@ const LABEL_GAP = 13;
 /** 세로축 이름이 여러 줄일 때의 줄 간격 배율 */
 const NAME_LINE_H = 1.15;
 
-const DASH_PATTERN: Record<'dashed' | 'dotted', number[]> = {
-  dashed: [7, 5],
-  dotted: [1.5, 4],
-};
-
 /**
- * 굵은 선(직선·계열)의 파선 무늬.
+ * 선 굵기·점 크기·점선 무늬.
  *
- * 유도선의 `[7, 5]` 보다 성기다 — 굵기가 두 배(3px 대 1.5px)라 같은 무늬로
- * 그으면 파선이 아니라 이 빠진 실선으로 보인다. 2027학년도 6월 3번의 `D_2` 에서
- * 잰 값이다.
+ * axis 축선 · line 직선(수요·공급 따위) · guide 유도선·격자 · arrow 화살표 ·
+ * dotR 점 반지름 · markerR/markerStroke 계열 기호 · breakW 생략 기호 ·
+ * legendLine 범례 선 견본.
+ *
+ * `thickDash`(굵은 선 = 직선·계열의 파선)는 유도선의 `dash.dashed` 보다 성기다 —
+ * classic 은 굵기가 두 배(3px 대 1.5px)라 같은 무늬로 그으면 파선이 아니라 이
+ * 빠진 실선으로 보인다. 2027학년도 6월 3번의 `D_2` 에서 잰 값이다.
  */
-const THICK_DASH = [12, 8];
+const LOOK = {
+  classic: {
+    axis: 2.5, line: 3, guide: 1.5, arrow: 2.5, dotR: 6,
+    markerR: 6, markerStroke: 2, breakW: 1.6, legendLine: 2.5,
+    thickDash: [12, 8],
+    dash: { dashed: [7, 5], dotted: [1.5, 4] } as Record<'dashed' | 'dotted', number[]>,
+  },
+  exam: {
+    axis: 1.9,        // 0.39pt (§3 #35)
+    line: 4.0,        // 0.83pt (#34)
+    guide: 1.45,      // 0.30pt (#36)
+    arrow: 1.9,       // ≈ 축 굵기를 따름
+    dotR: 10,         // 지름 4.1pt (#37)
+    markerR: 6.8,     // 계열 기호 — 꺾은선 (#32)
+    markerStroke: 1.75,
+    breakW: 1.9,      // ≈
+    legendLine: 4.0,
+    thickDash: [15, 6.8], // ≈ 꺾은선 점선 3.1/1.4pt
+    dash: { dashed: [7.6, 4.7], dotted: [1.5, 4] } as Record<'dashed' | 'dotted', number[]>,
+  },
+};
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -138,15 +148,17 @@ function drawSeriesMarker(
   s: EconSeries,
   cx: number,
   cy: number,
+  r: number,
+  strokeW: number,
 ) {
   ctx.beginPath();
-  if (s.marker === 'square') ctx.rect(cx - DOT_R, cy - DOT_R, DOT_R * 2, DOT_R * 2);
-  else ctx.arc(cx, cy, DOT_R, 0, Math.PI * 2);
+  if (s.marker === 'square') ctx.rect(cx - r, cy - r, r * 2, r * 2);
+  else ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = s.hollow ? '#fff' : '#000';
   ctx.fill();
   if (s.hollow) {
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = strokeW;
     ctx.setLineDash([]);
     ctx.stroke();
   }
@@ -198,7 +210,7 @@ function drawArrowHead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2
  *
  * @param vertical 세로축이면 참. 물결의 방향이 축과 직각이 되게 돌린다.
  */
-function drawBreakMark(ctx: CanvasRenderingContext2D, x: number, y: number, vertical: boolean) {
+function drawBreakMark(ctx: CanvasRenderingContext2D, x: number, y: number, vertical: boolean, lineW: number) {
   const half = 8;
   const gap = 7;
   ctx.save();
@@ -210,7 +222,7 @@ function drawBreakMark(ctx: CanvasRenderingContext2D, x: number, y: number, vert
   ctx.fillRect(-half - 2, -gap, (half + 2) * 2, gap * 2);
 
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = lineW;
   for (const dy of [-gap * 0.5, gap * 0.5]) {
     ctx.beginPath();
     ctx.moveTo(-half, dy + 2.5);
@@ -232,8 +244,18 @@ export function renderEconPlane(
 
   const fs = options.fontSize;
   const four = data.quadrants === 'all';
-  const nameFont = (size: number) => getFont(size, options);
-  const tickFont = getFont(fs.tick, options);
+  const look = byStyle(options, LOOK);
+  // 1.7.0 은 이 그림의 글자를 전부 보통 굵기로 그렸다 — legacy 로 지킨다
+  const N = { weight: 'normal' } as const;
+  const fontOf = (place: TextPlace) => (size: number) => textFont(options, place, size, N);
+  const axisFont = fontOf('axisName');
+  const tickFontOf = fontOf('tick');
+  /** 선·점·화살표 이름 — S₁·D·E 는 기호, 공급·수요 는 지명 자리 */
+  const labelFont = (s: string) => fontOf(labelPlace(s) === 'region' ? 'region' : 'symbol');
+  const tickPx = textSize(options, 'tick', fs.tick);
+  const axisPx = textSize(options, 'axisName', fs.axisLabel);
+  const labelPx = (s: string) => textSize(options, labelPlace(s) === 'region' ? 'region' : 'symbol', fs.axisLabel);
+  const tickFont = tickFontOf(tickPx);
   const series = seriesOf(data);
 
   // ── 여백 — 글자를 먼저 재고 자리를 비운다 ─────────────────────────
@@ -242,20 +264,20 @@ export function renderEconPlane(
   // 한 칸이 더 얹혀 왼쪽 여백이 넓어지고, 첨자를 지운 `'P1'` 을 재면 좁아진다.
   ctx.font = tickFont;
   const yTickW = data.yAxis.ticks.length > 0
-    ? Math.max(...data.yAxis.ticks.map((_, i) => richWidth(ctx, tickText(data.yAxis, i), fs.tick, nameFont)))
+    ? Math.max(...data.yAxis.ticks.map((_, i) => richWidth(ctx, tickText(data.yAxis, i), tickPx, tickFontOf)))
     : 0;
 
-  ctx.font = nameFont(fs.axisLabel);
+  ctx.font = axisFont(axisPx);
   // 줄을 나누는 것은 **세로축 이름뿐이다.** 실물에서 두 줄로 앉는 것이 언제나
   // 세로축이고(「가격」·「(만 원)」, 「GDP」·「(억 달러)」), 가로축 이름은 화살촉
   // 오른쪽 한 줄에 눕는다.
   const yNameLines = splitLines(data.yAxis.label);
-  const xNameW = data.xAxis.label ? richWidth(ctx, data.xAxis.label, fs.axisLabel, nameFont) : 0;
+  const xNameW = data.xAxis.label ? richWidth(ctx, data.xAxis.label, axisPx, axisFont) : 0;
   const yNameW = data.yAxis.label
-    ? Math.max(...yNameLines.map((l) => (l ? richWidth(ctx, l, fs.axisLabel, nameFont) : 0)))
+    ? Math.max(...yNameLines.map((l) => (l ? richWidth(ctx, l, axisPx, axisFont) : 0)))
     : 0;
   const lineLabelW = data.lines.length > 0
-    ? Math.max(...data.lines.map((l) => (l.label ? richWidth(ctx, l.label, fs.axisLabel, nameFont) : 0)))
+    ? Math.max(...data.lines.map((l) => (l.label ? richWidth(ctx, l.label, labelPx(l.label), labelFont(l.label)) : 0)))
     : 0;
 
   const notes = options.footnotes.filter((f) => f.trim()).length;
@@ -271,10 +293,10 @@ export function renderEconPlane(
 
   // 세로축 이름이 두 줄이면 그만큼 위를 더 비운다. 한 줄이면 0 이 더해진다 —
   // 1.4.0 의 여백이 그대로 남아야 한다.
-  const yNameExtra = (yNameLines.length - 1) * fs.axisLabel * NAME_LINE_H;
+  const yNameExtra = (yNameLines.length - 1) * axisPx * NAME_LINE_H;
 
   const padding: Padding = {
-    top: (options.title ? fs.title + 40 : 18) + fs.axisLabel + yNameExtra + 10 + ARROW_EXT,
+    top: (options.title ? fs.title + 40 : 18) + axisPx + yNameExtra + 10 + ARROW_EXT,
     // 세로축 이름은 축 **왼쪽 위**에 오른쪽 맞춤으로 선다(네 사분면이면 가운데).
     // 자리가 모자라면 글꼴을 줄이고 밀어 넣지만, 흔한 길이는 여기서 비워 둔다.
     // 34% 를 넘겨 비우지는 않는다 — 이름 하나 때문에 그림이 사라지면 안 된다.
@@ -285,7 +307,7 @@ export function renderEconPlane(
       w * 0.45,
       Math.max(56, lineLabelW + 16, ARROW_EXT + 12 + xNameW + 6),
     ),
-    bottom: fs.tick + 24 + bottomText,
+    bottom: tickPx + 24 + bottomText,
   };
 
   const plotX = padding.left;
@@ -300,7 +322,7 @@ export function renderEconPlane(
   const axX = four ? clamp(toX(0), plotX, plotX + plotW) : plotX;
   const axY = four ? clamp(toY(0), plotY, plotY + plotH) : plotY + plotH;
 
-  const dash = DASH_PATTERN[data.dash] ?? DASH_PATTERN.dashed;
+  const dash = look.dash[data.dash] ?? look.dash.dashed;
 
   // ── 격자 ─────────────────────────────────────────────────────────
   // 눈금 자리마다 점선을 깐다. 끝은 «반대 축의 마지막 눈금» 이다 — 시험지 격자는
@@ -310,7 +332,7 @@ export function renderEconPlane(
     const yEnd = data.yAxis.ticks.length > 0 ? toY(Math.max(...data.yAxis.ticks)) : plotY;
     ctx.save();
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = GUIDE_W;
+    ctx.lineWidth = look.guide;
     ctx.setLineDash(dash);
     for (const v of data.xAxis.ticks) {
       if (v === 0) continue;
@@ -334,7 +356,7 @@ export function renderEconPlane(
   // ── 유도선 ───────────────────────────────────────────────────────
   ctx.save();
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = GUIDE_W;
+  ctx.lineWidth = look.guide;
   ctx.setLineDash(dash);
   for (const p of data.points) {
     if (p.guide === 'none') continue;
@@ -377,7 +399,7 @@ export function renderEconPlane(
   ctx.save();
   ctx.strokeStyle = '#000';
   ctx.fillStyle = '#000';
-  ctx.lineWidth = AXIS_W;
+  ctx.lineWidth = look.axis;
   ctx.lineCap = 'butt';
 
   const xLeft = four ? plotX - ARROW_EXT : axX;
@@ -406,14 +428,14 @@ export function renderEconPlane(
     const first = data.xAxis.ticks.find((v) => v !== 0);
     const x = at != null ? toX(at)
       : first == null ? axX + plotW * 0.12 : (axX + toX(first)) / 2;
-    drawBreakMark(ctx, x, axY, false);
+    drawBreakMark(ctx, x, axY, false, look.breakW);
   }
   if (data.yAxis.broken) {
     const at = clampAxis(data.yAxis.brokenAt, data.yAxis);
     const first = data.yAxis.ticks.find((v) => v !== 0);
     const y = at != null ? toY(at)
       : first == null ? axY - plotH * 0.12 : (axY + toY(first)) / 2;
-    drawBreakMark(ctx, axX, y, true);
+    drawBreakMark(ctx, axX, y, true, look.breakW);
   }
   ctx.restore();
 
@@ -423,10 +445,10 @@ export function renderEconPlane(
   // 끝이 부풀어 사이가 메워지고 실선처럼 보인다.
   ctx.save();
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = LINE_W;
+  ctx.lineWidth = look.line;
   for (const line of data.lines) {
     ctx.lineCap = line.dashed ? 'butt' : 'round';
-    ctx.setLineDash(line.dashed ? THICK_DASH : []);
+    ctx.setLineDash(line.dashed ? look.thickDash : []);
     ctx.beginPath();
     ctx.moveTo(toX(line.from.x), toY(line.from.y));
     ctx.lineTo(toX(line.to.x), toY(line.to.y));
@@ -437,11 +459,11 @@ export function renderEconPlane(
   // ── 계열 — 꼭짓점을 이은 꺾은선 ──────────────────────────────────
   ctx.save();
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = LINE_W;
+  ctx.lineWidth = look.line;
   for (const s of drawOrder(series)) {
     if (s.points.length < 2) continue;
     ctx.lineCap = s.dashed ? 'butt' : 'round';
-    ctx.setLineDash(s.dashed ? THICK_DASH : []);
+    ctx.setLineDash(s.dashed ? look.thickDash : []);
     ctx.beginPath();
     s.points.forEach((p, i) => {
       if (i === 0) ctx.moveTo(toX(p.x), toY(p.y));
@@ -462,8 +484,8 @@ export function renderEconPlane(
     const lx = toX(end.x) + 12 + (line.labelDx ?? 0);
     // 가로축에 닿아 끝나는 선(수요 곡선이 그렇다)은 이름을 축 위로 올린다.
     const raw = toY(end.y) + (line.labelDy ?? 0);
-    const ly = Math.min(raw, axY - 6 - fs.axisLabel * 0.5);
-    drawFloatingRich(ctx, line.label, lx, ly, w, h, fs.axisLabel, nameFont);
+    const ly = Math.min(raw, axY - 6 - labelPx(line.label) * 0.5);
+    drawFloatingRich(ctx, line.label, lx, ly, w, h, labelPx(line.label), labelFont(line.label));
   }
   ctx.restore();
 
@@ -471,7 +493,7 @@ export function renderEconPlane(
   ctx.save();
   ctx.strokeStyle = '#000';
   ctx.fillStyle = '#000';
-  ctx.lineWidth = ARROW_W;
+  ctx.lineWidth = look.arrow;
   for (const a of data.arrows) {
     const x1 = toX(a.from.x);
     const y1 = toY(a.from.y);
@@ -500,7 +522,7 @@ export function renderEconPlane(
       const at = anchorOf(a.labelPos, LABEL_GAP + 4);
       ctx.textAlign = at.align;
       ctx.textBaseline = at.baseline;
-      drawFloatingRich(ctx, a.label, (sx + ex) / 2 + at.dx, (sy + ey) / 2 + at.dy, w, h, fs.axisLabel, nameFont);
+      drawFloatingRich(ctx, a.label, (sx + ex) / 2 + at.dx, (sy + ey) / 2 + at.dy, w, h, labelPx(a.label), labelFont(a.label));
     }
   }
   ctx.restore();
@@ -513,21 +535,21 @@ export function renderEconPlane(
     const py = toY(p.y);
     if (p.dot) {
       ctx.beginPath();
-      ctx.arc(px, py, DOT_R, 0, Math.PI * 2);
+      ctx.arc(px, py, look.dotR, 0, Math.PI * 2);
       ctx.fill();
     }
     if (!p.label) continue;
-    const at = anchorOf(p.labelPos, DOT_R + LABEL_GAP);
+    const at = anchorOf(p.labelPos, look.dotR + LABEL_GAP);
     ctx.textAlign = at.align;
     ctx.textBaseline = at.baseline;
-    drawFloatingRich(ctx, p.label, px + at.dx, py + at.dy, w, h, fs.axisLabel, nameFont);
+    drawFloatingRich(ctx, p.label, px + at.dx, py + at.dy, w, h, labelPx(p.label), labelFont(p.label));
   }
   ctx.restore();
 
   // ── 계열 기호 — 선 위에 얹는다 ───────────────────────────────────
   ctx.save();
   for (const s of drawOrder(series)) {
-    for (const p of s.points) drawSeriesMarker(ctx, s, toX(p.x), toY(p.y));
+    for (const p of s.points) drawSeriesMarker(ctx, s, toX(p.x), toY(p.y), look.markerR, look.markerStroke);
   }
   ctx.restore();
 
@@ -538,16 +560,16 @@ export function renderEconPlane(
   // 1사분면 숫자는 축 바깥이라 뒤로 지나갈 것이 없으므로 손대지 않는다.
   const tickInk = (text: string, x: number, y: number) => {
     if (four) {
-      const tw = richWidth(ctx, text, fs.tick, nameFont);
+      const tw = richWidth(ctx, text, tickPx, tickFontOf);
       const left = ctx.textAlign === 'right' ? tw : ctx.textAlign === 'center' ? tw / 2 : 0;
-      const up = ctx.textBaseline === 'top' ? 0 : fs.tick * 0.5;
+      const up = ctx.textBaseline === 'top' ? 0 : tickPx * 0.5;
       const rx = clamp(x - left - 3, 0, w);
       const ry = clamp(y - up - 2, 0, h);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(rx, ry, Math.min(tw + 6, w - rx), Math.min(fs.tick + 4, h - ry));
+      ctx.fillRect(rx, ry, Math.min(tw + 6, w - rx), Math.min(tickPx + 4, h - ry));
       ctx.fillStyle = '#000';
     }
-    fillRich(ctx, text, x, y, fs.tick, nameFont);
+    fillRich(ctx, text, x, y, tickPx, tickFontOf);
   };
 
   ctx.save();
@@ -558,7 +580,7 @@ export function renderEconPlane(
   data.xAxis.ticks.forEach((v, i) => {
     if (v === 0) return;
     const text = tickText(data.xAxis, i);
-    const at = nudgeRichInside(ctx, text, toX(v), axY + 10, w, h, fs.tick, nameFont);
+    const at = nudgeRichInside(ctx, text, toX(v), axY + 10, w, h, tickPx, tickFontOf);
     tickInk(text, at.x, at.y);
   });
   // 네 사분면에서는 세로축 숫자가 축 **오른쪽**에 붙는다 (2027학년도 6월 16번).
@@ -567,7 +589,7 @@ export function renderEconPlane(
   data.yAxis.ticks.forEach((v, i) => {
     if (v === 0) return;
     const text = tickText(data.yAxis, i);
-    const at = nudgeRichInside(ctx, text, axX + (four ? 10 : -10), toY(v), w, h, fs.tick, nameFont);
+    const at = nudgeRichInside(ctx, text, axX + (four ? 10 : -10), toY(v), w, h, tickPx, tickFontOf);
     tickInk(text, at.x, at.y);
   });
   // 원점의 0 — 눈금 값에 0 이 있어도 여기서 한 번만 그린다
@@ -583,7 +605,7 @@ export function renderEconPlane(
   if (data.xAxis.label) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    drawFloatingRich(ctx, data.xAxis.label, xRight + 10, axY + fs.tick * 0.6, w, h, fs.axisLabel, nameFont);
+    drawFloatingRich(ctx, data.xAxis.label, xRight + 10, axY + tickPx * 0.6, w, h, axisPx, axisFont);
   }
   if (data.yAxis.label) {
     // 1사분면이면 축 왼쪽에 오른쪽 맞춤, 네 사분면이면 화살촉 위 가운데 맞춤이다.
@@ -591,17 +613,17 @@ export function renderEconPlane(
     ctx.textBaseline = 'bottom';
     const baseY = yTop - (four ? 8 : -4);
     if (yNameLines.length === 1) {
-      drawFloatingRich(ctx, data.yAxis.label, axX + (four ? 0 : -8), baseY, w, h, fs.axisLabel, nameFont);
+      drawFloatingRich(ctx, data.yAxis.label, axX + (four ? 0 : -8), baseY, w, h, axisPx, axisFont);
     } else {
       // 여러 줄이면 마지막 줄을 한 줄일 때의 자리에 두고 위로 쌓는다.
       // 줄마다 폭이 다르므로 오른쪽 맞춤 대신 **묶음 가운데 맞춤**이다 —
       // 실물이 「GDP」를 「(억 달러)」 위에 가운데로 앉힌다.
-      const lh = fs.axisLabel * NAME_LINE_H;
+      const lh = axisPx * NAME_LINE_H;
       const cx = four ? axX : axX - 8 - yNameW / 2;
       ctx.textAlign = 'center';
       yNameLines.forEach((lineText, i) => {
         const ly = baseY - (yNameLines.length - 1 - i) * lh;
-        drawFloatingRich(ctx, lineText, cx, ly, w, h, fs.axisLabel, nameFont);
+        drawFloatingRich(ctx, lineText, cx, ly, w, h, axisPx, axisFont);
       });
     }
   }
@@ -618,8 +640,8 @@ export function renderEconPlane(
       fillStyle: '#000',
       strokeStyle: '#000',
       label: s.label,
-      dash: s.dashed ? THICK_DASH : [],
-      lineWidth: 2.5,
+      dash: s.dashed ? look.thickDash : [],
+      lineWidth: look.legendLine,
       marker: s.marker,
       hollow: s.hollow,
     }));
@@ -629,13 +651,13 @@ export function renderEconPlane(
       corner: data.legend,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: fs.axisLabel * 0.8,
-      font: nameFont(fs.axisLabel * 0.8),
+      fontSize: textSize(options, 'legend', fs.axisLabel * 0.8),
+      font: textFont(options, 'legend', textSize(options, 'legend', fs.axisLabel * 0.8), { weight: 'normal', role: options.fontFamily ?? 'serif' }),
       fonts: options,
       // 기호가 상자에 덮이지 않게 꼭짓점 둘레를 피할 자리로 넘긴다
       avoid: series.flatMap((s) => s.points.map((p) => ({
-        x0: toX(p.x) - DOT_R, y0: toY(p.y) - DOT_R,
-        x1: toX(p.x) + DOT_R, y1: toY(p.y) + DOT_R,
+        x0: toX(p.x) - look.markerR, y0: toY(p.y) - look.markerR,
+        x1: toX(p.x) + look.markerR, y1: toY(p.y) + look.markerR,
       }))),
     });
   }

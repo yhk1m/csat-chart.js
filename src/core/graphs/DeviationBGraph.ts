@@ -104,6 +104,15 @@ export function renderDeviationBGraph(
   ctx.lineTo(plotX + plotW, plotY + plotH);
   ctx.stroke();
 
+  // 시험지는 위까지 닫는다
+  if (look.frame) {
+    ctx.lineWidth = t.line.axis;
+    ctx.beginPath();
+    ctx.moveTo(plotX, plotY);
+    ctx.lineTo(plotX + plotW, plotY);
+    ctx.stroke();
+  }
+
   // 기준선 (0선)
   const zeroYPrecip = plotY + plotH - ((0 - precipAxis.min) / (precipAxis.max - precipAxis.min)) * plotH;
   ctx.strokeStyle = '#000';
@@ -117,6 +126,23 @@ export function renderDeviationBGraph(
   // 지역이 둘·셋뿐이면 칸의 절반도 90px 을 넘는다 — AbsBarGraph 와 같은 80px 상한을 둔다
   const barWidth = Math.min(slotW * 0.5, 80);
 
+  // 시험지는 범주 경계 눈금이 0 선을 가로지른다
+  if (look.crossTicks) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = t.line.tick;
+    for (let c = 1; c < n; c++) {
+      const bx = plotX + slotW * c;
+      ctx.beginPath();
+      ctx.moveTo(bx, zeroYPrecip - look.crossLen / 2);
+      ctx.lineTo(bx, zeroYPrecip + look.crossLen / 2);
+      ctx.stroke();
+    }
+  }
+  // 범주 이름 — 시험지는 0 선 바로 아래 (음수 막대가 있으면 막대를 덮지 않게 축 아래로)
+  const labelY = look.labelAtZero && precipDiffs.every((v) => v >= 0)
+    ? zeroYPrecip + look.crossLen / 2 + 4
+    : plotY + plotH + 12;
+
   // X축 라벨 (크게)
   ctx.fillStyle = '#000';
   ctx.font = textFont(options, 'symbol', regionFs);
@@ -127,7 +153,7 @@ export function renderDeviationBGraph(
   const regionFont = (size: number) => textFont(options, 'symbol', size);
   for (let i = 0; i < n; i++) {
     const cx = plotX + slotW * i + slotW / 2;
-    drawFloatingLabel(ctx, regions[i].label, cx, plotY + plotH + 12, w, h,
+    drawFloatingLabel(ctx, regions[i].label, cx, labelY, w, h,
       regionFs, regionFont);
   }
 

@@ -14,11 +14,12 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 const LOOK = {
-  classic: { zeroW: 1.5, zeroDash: [] as number[] },
-  exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9] }, // 0 선 일점쇄선 0.30pt (실측 §3 #45)
+  classic: { zeroW: 1.5, zeroDash: [] as number[], catGrid: false, minorTickLen: 0, signed: false },
+  // 0 선 일점쇄선 0.30pt (실측 §3 #45), 범주 경계 세로 점선·안쪽 보조 눈금 3.5pt·부호 붙은 눈금 (§2 category-dot)
+  exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9], catGrid: true, minorTickLen: 17, signed: true },
 };
 
 /** 기호 하나를 (cx, cy)에 그린다 */
@@ -124,6 +125,9 @@ export function renderCategoryDotGraph(
   ctx.lineTo(plotX, plotY);
   ctx.stroke();
 
+  const catArea = plotW / n;
+  const valToY = (v: number) => plotY + plotH - ((v - axis.min) / (axis.max - axis.min)) * plotH;
+
   // Y축 눈금 + 격자
   drawYAxis({
     ctx, padding, width: w, height: h,
@@ -134,7 +138,34 @@ export function renderCategoryDotGraph(
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
+    tickDir: tickDirOf(options, { x: 'none', y: 'in' }).y,
+    signed: look.signed,
   });
+
+  // 시험지는 범주 경계마다 세로 점선
+  if (look.catGrid) {
+    ctx.save();
+    ctx.strokeStyle = t.line.gridColor;
+    ctx.lineWidth = t.line.grid;
+    ctx.setLineDash(t.line.gridDash);
+    for (let c = 1; c < n; c++) {
+      const x = plotX + catArea * c;
+      ctx.beginPath(); ctx.moveTo(x, plotY); ctx.lineTo(x, plotY + plotH); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // 눈금 사이 안쪽 보조 눈금
+  if (look.minorTickLen > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = t.line.tick;
+    ctx.setLineDash([]);
+    for (let v = axis.min + axis.step / 2; v < axis.max; v += axis.step) {
+      const y = valToY(v);
+      ctx.beginPath(); ctx.moveTo(plotX, y); ctx.lineTo(plotX + look.minorTickLen, y); ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // 점 (플롯 영역 클리핑)
   //
@@ -147,8 +178,6 @@ export function renderCategoryDotGraph(
   ctx.rect(plotX - clipPad, plotY - clipPad, plotW + clipPad * 2, plotH + clipPad * 2);
   ctx.clip();
 
-  const catArea = plotW / n;
-  const valToY = (v: number) => plotY + plotH - ((v - axis.min) / (axis.max - axis.min)) * plotH;
   // 계열이 여럿이면 범주 안에서 좌우로 벌려 겹치지 않게 한다
   const seriesGap = sCount > 1 ? Math.min(catArea * 0.6, sCount * 24) / sCount : 0;
 

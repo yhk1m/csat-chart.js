@@ -5,7 +5,7 @@ import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 const LOOK = {
   // 남 203·여 흰색·테두리 #000 0.39pt (§3 #43), 눈금 안쪽 가로 2.3pt·세로 2.4pt 를 5세마다 (#44, §2 pyramid), 막대 사이 틈 없음
@@ -78,6 +78,8 @@ export function renderPyramidGraph(
   const look = byStyle(options, LOOK);
   const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
   const tickFs = textSize(options, 'tick', options.fontSize.tick);
+  // 남·여를 눈금 숫자 아래에 둘 때 그 한 줄 (classic 은 위에 두므로 0)
+  const sexLine = look.sexBelow ? textSize(options, 'legend', options.fontSize.axisLabel) + 8 : 0;
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
@@ -100,6 +102,8 @@ export function renderPyramidGraph(
     right: 80 + legendW,
     bottom: (() => {
       let b = 90;
+      // 남·여를 눈금 숫자 아래에 두면 그 한 줄만큼 더 비운다
+      b += sexLine;
       if (showLegend && legendPos === 'bottom') b += 60;
       b = Math.max(b, legendReserve);
       if (options.source) b += 30;
@@ -144,6 +148,9 @@ export function renderPyramidGraph(
 
   const centerX = plotX + plotW / 2;
   const halfW = plotW / 2;
+  // 시험지는 두 축 모두 안쪽 눈금 (§2 pyramid)
+  const dir = tickDirOf(options, { x: 'in', y: 'in' });
+  const xs = dir.x === 'in' ? -1 : 1;
   const barH = plotH / n;
   const barGap = barH * look.barGapRatio;
   const actualBarH = barH - barGap - look.barGapPx;
@@ -246,15 +253,16 @@ export function renderPyramidGraph(
     ctx.textAlign = 'right';
     const ageStep = 20;
     const topAge = n * 5; // 구간 × 5세 (17구간이면 85, 18구간이면 90)
-    for (let age = 0; age <= topAge; age += ageStep) {
+    // 눈금은 ageTickEvery(시험지 5세)마다, 숫자는 ageStep(20세)마다
+    for (let age = 0; age <= topAge; age += look.ageTickEvery) {
       const y = plotY + plotH - (age / topAge) * plotH;
       ctx.lineWidth = look.tick;
       ctx.strokeStyle = '#000';
       ctx.beginPath();
-      ctx.moveTo(plotX - look.ageTickLen, y);
-      ctx.lineTo(plotX, y);
+      if (dir.y === 'in') { ctx.moveTo(plotX, y); ctx.lineTo(plotX + look.ageTickLen, y); }
+      else { ctx.moveTo(plotX - look.ageTickLen, y); ctx.lineTo(plotX, y); }
       ctx.stroke();
-      ctx.fillText(String(age), plotX - 10, y);
+      if (age % ageStep === 0) ctx.fillText(String(age), plotX - 10, y);
     }
     if (data.ageUnit) {
       // 나이 단위는 축 위 여백에 떠 있다 — 캔버스를 벗어나면 안으로 민다
@@ -314,7 +322,7 @@ export function renderPyramidGraph(
     ctx.lineWidth = look.tick;
     ctx.beginPath();
     ctx.moveTo(lx, plotY + plotH);
-    ctx.lineTo(lx, plotY + plotH + look.tickLen);
+    ctx.lineTo(lx, plotY + plotH + xs * look.tickLen);
     ctx.stroke();
     if (showNumber) {
       ctx.textAlign = 'center';
@@ -327,7 +335,7 @@ export function renderPyramidGraph(
     ctx.lineWidth = look.tick;
     ctx.beginPath();
     ctx.moveTo(rx, plotY + plotH);
-    ctx.lineTo(rx, plotY + plotH + look.tickLen);
+    ctx.lineTo(rx, plotY + plotH + xs * look.tickLen);
     ctx.stroke();
     if (rv > 0 && showNumber) {
       ctx.textAlign = 'center';
@@ -337,16 +345,18 @@ export function renderPyramidGraph(
 
   // 축 라벨 (좌: 남, 우: 여)
   ctx.font = textFont(options, 'region', textSize(options, 'legend', options.fontSize.axisLabel));
-  ctx.textBaseline = 'bottom';
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
-  ctx.fillText(data.maleLabel, plotX + halfW / 2, plotY - 16);
-  ctx.fillText(data.femaleLabel, centerX + halfW / 2, plotY - 16);
+  // 시험지는 남·여를 눈금 숫자 아래에 둔다
+  const sexY = look.sexBelow ? plotY + plotH + 10 + tickFs + 8 : plotY - 16;
+  ctx.textBaseline = look.sexBelow ? 'top' : 'bottom';
+  ctx.fillText(data.maleLabel, plotX + halfW / 2, sexY);
+  ctx.fillText(data.femaleLabel, centerX + halfW / 2, sexY);
 
   // 단위 라벨 — 축 오른쪽 바깥.
   // 기본은 X축 숫자 **아랫줄**, `axisLabelInline` 이면 숫자와 **같은 줄**(시험지 배치).
   ctx.save();
-  if (data.axisLabelInline) {
+  if (data.axisLabelInline ?? look.unitInline) {
     // 마지막 눈금 숫자는 축 끝에 가운데 정렬이라 절반이 플롯 밖으로 나온다.
     // 그만큼 더 밀어야 숫자와 붙지 않는다. 글자 크기도 숫자와 같게 맞춘다 —
     // 크기가 다르면 같은 줄에 놓아도 글줄이 어긋나 보인다.
@@ -403,6 +413,7 @@ export function renderPyramidGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
+      bottomOffset: 50 + sexLine,
     });
   }
 

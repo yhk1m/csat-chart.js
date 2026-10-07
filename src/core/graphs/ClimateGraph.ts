@@ -4,12 +4,12 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { drawYAxis, drawXAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
   // 강수 막대 229 + 테두리 0.34pt, 기온 ■ (§2 climate). deviation-a 표본에 격자 없음(≈)
-  classic: { barFill: '#AAAAAA', barStrokeColor: '#444', legendFill: '#AAA', legendStroke: '#666', barStroke: 1, markerR: 5, marker: 'circle', grid: true },
-  exam: { barFill: '#e5e5e5', barStrokeColor: '#000', legendFill: '#e5e5e5', legendStroke: '#000', barStroke: 1.65, markerR: 6.8, marker: 'square', grid: false },
+  classic: { barFill: '#AAAAAA', barStrokeColor: '#444', legendFill: '#AAA', legendStroke: '#666', barStroke: 1, markerR: 5, marker: 'circle', grid: true, unitAdjacent: false },
+  exam: { barFill: '#e5e5e5', barStrokeColor: '#000', legendFill: '#e5e5e5', legendStroke: '#000', barStroke: 1.65, markerR: 6.8, marker: 'square', grid: false, unitAdjacent: true },
 };
 
 const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -219,10 +219,22 @@ export function renderClimateGraph(
 
   // (월) 라벨
   ctx.fillStyle = '#000';
-  ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
+  const unitFont = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
+  if (look.unitAdjacent) {
+    // 시험지는 마지막 달 숫자 바로 뒤에 붙인다 (deviation-a 와 같은 꼴)
+    const last = indices.length - 1;
+    const lastCx = data.monthInterval === 12 ? slotX(indices[last]) : slotX(last);
+    ctx.font = textFont(options, 'tick', options.fontSize.tick);
+    const half = ctx.measureText(MONTH_LABELS[indices[last]]).width / 2;
+    ctx.font = unitFont;
+    ctx.textAlign = 'left';
+    ctx.fillText('(월)', lastCx + half, plotY + plotH + tickLabelGap(t));
+  } else {
+    ctx.font = unitFont;
+    ctx.textAlign = 'center';
+    ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
+  }
 
   // 범례
 

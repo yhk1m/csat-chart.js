@@ -46,11 +46,13 @@ export function renderDeviationAGraph(
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
+  // 시험지는 플롯 안 오른쪽 아래 범례가 기본
+  const insideLegend = data.insideLegend ?? look.insideLegend;
   const legendLabels = [
     options.legendLabel1 || data.precipLabel,
     options.legendLabel2 || data.tempLabel,
   ];
-  const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
+  const legendW = (showLegend && legendPos === 'right' && !insideLegend)
     ? measureLegendWidth(ctx, legendLabels, legendFs, options)
     : 0;
 
@@ -66,7 +68,7 @@ export function renderDeviationAGraph(
   const padRight = 130 + legendW + (data.precipAxisName ? nameW : 0);
   const padLeft = 130 + (data.tempAxisName ? nameW : 0);
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
-  const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
+  const legendReserve = (showLegend && legendPos === 'bottom' && !insideLegend)
     ? measureBottomLegend(ctx, legendLabels, legendFs,
         w - padLeft - padRight, options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
     : 0;
@@ -77,7 +79,7 @@ export function renderDeviationAGraph(
     bottom: (() => {
       let b = 60;
       // 플롯 안에 범례를 그릴 때는 아래에 자리를 비워 둘 이유가 없다
-      if (showLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
+      if (showLegend && legendPos === 'bottom' && !insideLegend) b += 60;
       b = Math.max(b, legendReserve);
       if (options.source) b += 30;
       b += options.footnotes.filter(f => f.trim()).length * 22;
@@ -141,7 +143,7 @@ export function renderDeviationAGraph(
   ctx.stroke();
 
   // 위쪽까지 이어 사각 테두리로 감싼다 (좌·우·아래 선은 이미 그려졌다)
-  if (data.showFrame) {
+  if (data.showFrame ?? look.frame) {
     ctx.beginPath();
     ctx.moveTo(plotX, plotY);
     ctx.lineTo(plotX + plotW, plotY);
@@ -152,9 +154,22 @@ export function renderDeviationAGraph(
   ctx.font = textFont(options, 'tick', tickFs);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+  // 시험지는 달 경계마다 바깥 눈금 (§2 deviation-a)
+  const monthY = plotY + plotH + (look.xTicks ? t.line.tickLen + 6 : 12);
+  if (look.xTicks) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = t.line.tick;
+    for (let s = 0; s <= totalSlots; s++) {
+      const bx = plotX + slotW * s;
+      ctx.beginPath();
+      ctx.moveTo(bx, plotY + plotH);
+      ctx.lineTo(bx, plotY + plotH + t.line.tickLen);
+      ctx.stroke();
+    }
+  }
   for (let s = 0; s < totalSlots; s++) {
     const cx = plotX + slotW * s + slotW / 2;
-    ctx.fillText(MONTH_LABELS[indices[s]], cx, plotY + plotH + 12);
+    ctx.fillText(MONTH_LABELS[indices[s]], cx, monthY);
   }
 
   // 기준선 (0선)
@@ -231,14 +246,25 @@ export function renderDeviationAGraph(
 
   // (월) 라벨
   ctx.fillStyle = '#000';
-  ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
+  const unitFont = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
+  if (look.unitAdjacent) {
+    // 시험지는 마지막 달 숫자 바로 뒤에 붙인다
+    const lastCx = plotX + slotW * (totalSlots - 1) + slotW / 2;
+    ctx.font = textFont(options, 'tick', tickFs);
+    const half = ctx.measureText(MONTH_LABELS[indices[totalSlots - 1]]).width / 2;
+    ctx.font = unitFont;
+    ctx.textAlign = 'left';
+    ctx.fillText('(월)', lastCx + half, monthY);
+  } else {
+    ctx.font = unitFont;
+    ctx.textAlign = 'center';
+    ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
+  }
 
   // 범례
 
-  if (showLegend && data.insideLegend) {
+  if (showLegend && insideLegend) {
     // 시험지는 기온(선)을 위, 강수량(막대)을 아래로 적는다 — 바깥 범례와 순서가 반대다
     drawInsideLegend({
       ctx,
@@ -256,7 +282,7 @@ export function renderDeviationAGraph(
           label: legendLabels[0],
         },
       ],
-      corner: data.insideLegend,
+      corner: insideLegend,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: inLegFs,

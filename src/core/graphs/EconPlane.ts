@@ -424,6 +424,14 @@ export function renderEconPlane(
   drawArrowHead(ctx, axX, yBottom, axX, yTop);
   if (four) drawArrowHead(ctx, axX, yTop, axX, yBottom);
 
+  // 세로축 생략 기호 자리 — 그리기와 범례 피하기가 함께 쓴다
+  const yBreakY = (() => {
+    const at = clampAxis(data.yAxis.brokenAt, data.yAxis);
+    const first = data.yAxis.ticks.find((v) => v !== 0);
+    return at != null ? toY(at)
+      : first == null ? axY - plotH * 0.12 : (axY + toY(first)) / 2;
+  })();
+
   // 생략 기호는 원점과 첫 눈금의 한가운데에 놓는다 (2026학년도 9월 7번 실측).
   // `brokenAt` 을 적으면 그 «값» 자리로 옮긴다 — 실물 한 장에서 잰 자리가 모든
   // 그림에 맞지는 않기 때문이다.
@@ -435,11 +443,7 @@ export function renderEconPlane(
     drawBreakMark(ctx, x, axY, false, look.breakW);
   }
   if (data.yAxis.broken) {
-    const at = clampAxis(data.yAxis.brokenAt, data.yAxis);
-    const first = data.yAxis.ticks.find((v) => v !== 0);
-    const y = at != null ? toY(at)
-      : first == null ? axY - plotH * 0.12 : (axY + toY(first)) / 2;
-    drawBreakMark(ctx, axX, y, true, look.breakW);
+    drawBreakMark(ctx, axX, yBreakY, true, look.breakW);
   }
   ctx.restore();
 
@@ -604,7 +608,13 @@ export function renderEconPlane(
   data.xAxis.ticks.forEach((v, i) => {
     if (v === 0) return;
     const text = tickText(data.xAxis, i);
-    const at = nudgeRichInside(ctx, text, toX(v), axY + 10, w, h, tickPx, tickFontOf);
+    let tx = toX(v);
+    // exam(네 사분면): 원점 가까운 숫자(−1)가 세로축선에 걸린다 — 축선에서 비켜 놓는다
+    if (four && byStyle(options, { classic: false, exam: true })) {
+      const half = richWidth(ctx, text, tickPx, tickFontOf) / 2 + 4;
+      if (Math.abs(tx - axX) < half) tx = tx < axX ? axX - half : axX + half;
+    }
+    const at = nudgeRichInside(ctx, text, tx, axY + 10, w, h, tickPx, tickFontOf);
     tickInk(text, at.x, at.y);
   });
   // 네 사분면에서는 세로축 숫자가 축 **오른쪽**에 붙는다 (2027학년도 6월 16번).
@@ -690,10 +700,16 @@ export function renderEconPlane(
       font: textFont(options, 'legend', textSize(options, 'legend', fs.axisLabel * 0.8), { weight: 'normal', role: options.fontFamily ?? 'serif' }),
       fonts: options,
       // 기호가 상자에 덮이지 않게 꼭짓점 둘레를 피할 자리로 넘긴다
-      avoid: series.flatMap((s) => s.points.map((p) => ({
-        x0: toX(p.x) - look.markerR, y0: toY(p.y) - look.markerR,
-        x1: toX(p.x) + look.markerR, y1: toY(p.y) + look.markerR,
-      }))),
+      avoid: [
+        ...series.flatMap((s) => s.points.map((p) => ({
+          x0: toX(p.x) - look.markerR, y0: toY(p.y) - look.markerR,
+          x1: toX(p.x) + look.markerR, y1: toY(p.y) + look.markerR,
+        }))),
+        // exam: 세로축 생략 기호(≈)도 피한다 — 큰 상자가 그 위에 얹혀 축이 끊겨 보였다
+        ...(data.yAxis.broken && byStyle(options, { classic: false, exam: true })
+          ? [{ x0: axX - 12, y0: yBreakY - 12, x1: axX + 12, y1: yBreakY + 12 }]
+          : []),
+      ],
     });
   }
 

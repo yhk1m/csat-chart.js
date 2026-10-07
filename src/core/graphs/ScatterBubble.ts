@@ -631,9 +631,11 @@ function drawPoints(
       const lp = labelPlace(pt.label);
       const lpx = textSize(options, lp, fs.dataLabel);
       ctx.font = textFont(options, lp, lpx);
+      // exam 은 글자가 커서 4px 틈이면 «D(» 처럼 원에 닿는다 — 1.9pt 띄운다
+      const labelGap = byStyle(options, { classic: 4, exam: 9 });
       const offset = data.showBubble && pt.size > 0
-        ? (pt.size / maxSize) * data.bubbleScale + 4
-        : look.dotR + 4;
+        ? (pt.size / maxSize) * data.bubbleScale + labelGap
+        : look.dotR + labelGap;
 
       if (bounds) {
         placer.place(ctx, pt.label, cx, cy, {

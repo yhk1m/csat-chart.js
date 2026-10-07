@@ -1,5 +1,6 @@
 // © 2026 김용현
 // Canvas 패턴 생성 유틸리티
+import type { StyleTokens } from './style';
 
 export type PatternType =
   | 'diagonal'
@@ -34,23 +35,25 @@ function createTileCanvas(ctx: CanvasRenderingContext2D, size: number): HTMLCanv
 
 function makeTile(
   ctx: CanvasRenderingContext2D,
+  size: number,
   draw: (pctx: CanvasRenderingContext2D, s: number) => void
 ): HTMLCanvasElement {
-  const c = createTileCanvas(ctx, TILE);
+  const c = createTileCanvas(ctx, size);
   const p = c.getContext('2d')!;
   // 기본 흰색 배경
   p.fillStyle = '#fff';
-  p.fillRect(0, 0, TILE, TILE);
-  draw(p, TILE);
+  p.fillRect(0, 0, size, size);
+  draw(p, size);
   return c;
 }
 
-function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): HTMLCanvasElement {
+function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType, t: StyleTokens): HTMLCanvasElement {
   switch (type) {
     case 'diagonal':
-      return makeTile(ctx, (p, s) => {
+      // 시험지 빗금은 선 사이 수직 간격 2.2pt·선 0.42pt (실측 §1.3) — 양식이 정한다
+      return makeTile(ctx, t.hatch.tile, (p, s) => {
         p.strokeStyle = '#000';
-        p.lineWidth = 1.5;
+        p.lineWidth = t.hatch.width;
         p.beginPath();
         // 사선 (/) 패턴 — 타일 이음새 처리
         p.moveTo(0, s);
@@ -63,7 +66,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'grid':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
         p.lineWidth = 1.2;
         p.beginPath();
@@ -75,7 +78,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'diagonalGrid':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
         p.lineWidth = 1.2;
         p.beginPath();
@@ -87,7 +90,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'dot':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.fillStyle = '#000';
         p.beginPath();
         p.arc(s / 2, s / 2, 1.8, 0, Math.PI * 2);
@@ -95,7 +98,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'dotReverse':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.fillStyle = '#333';
         p.fillRect(0, 0, s, s);
         p.fillStyle = '#fff';
@@ -105,7 +108,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'vertical':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
         p.lineWidth = 1.5;
         p.beginPath();
@@ -115,7 +118,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
       });
 
     case 'horizontal':
-      return makeTile(ctx, (p, s) => {
+      return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
         p.lineWidth = 1.5;
         p.beginPath();
@@ -127,45 +130,47 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType): 
 }
 
 // ── 누적 차트 채움 시스템 ─────────────────────────────
-
-// 항목 1~3: 단색 그레이스케일, 항목 4: 흰색, 항목 5+: 패턴
-const SOLID_FILLS = ['#333', '#999', '#666', '#fff'];
+//
+// 순서는 양식 토큰(`fills`)이 정한다. classic: 단색 회색 셋 → 흰색 → 패턴 일곱.
+// exam: 연회색 217 → 진회색 127 → 빗금 → 흰색 → 회색 다섯 단계 → 패턴 (실측 §1.3).
 
 const PATTERN_ORDER: PatternType[] = [
-  'diagonal',
-  'grid',
-  'diagonalGrid',
-  'dot',
-  'dotReverse',
-  'vertical',
-  'horizontal',
+  'diagonal', 'grid', 'diagonalGrid', 'dot', 'dotReverse', 'vertical', 'horizontal',
 ];
 
-// 컨텍스트별 패턴 캐시
-const cache = new WeakMap<CanvasRenderingContext2D, Map<PatternType, CanvasPattern>>();
+// 컨텍스트별 패턴 캐시 — 같은 이름이라도 양식마다 타일이 다르다
+const cache = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasPattern>>();
 
-function getCached(ctx: CanvasRenderingContext2D, type: PatternType): CanvasPattern {
+function getCached(ctx: CanvasRenderingContext2D, type: PatternType, t: StyleTokens): CanvasPattern {
   let m = cache.get(ctx);
   if (!m) {
     m = new Map();
     cache.set(ctx, m);
   }
-  let pat = m.get(type);
+  const key = `${t.name}:${type}`;
+  let pat = m.get(key);
   if (!pat) {
-    pat = ctx.createPattern(createPatternCanvas(ctx, type), 'repeat')!;
-    m.set(type, pat);
+    pat = ctx.createPattern(createPatternCanvas(ctx, type, t), 'repeat')!;
+    m.set(key, pat);
   }
   return pat;
+}
+
+/** index 번째 계열의 채움 지정값(문자열) — 토큰 순서를 다 쓰면 fillsCycleFrom 부터 되풀이 */
+export function stackedFillValue(index: number, t: StyleTokens): string {
+  const { fills, fillsCycleFrom } = t;
+  if (index < fills.length) return fills[index];
+  const span = fills.length - fillsCycleFrom;
+  return fills[fillsCycleFrom + ((index - fills.length) % span)];
 }
 
 /** 누적 차트의 index번째 항목 채움값 반환 */
 export function getStackedFill(
   ctx: CanvasRenderingContext2D,
-  index: number
+  index: number,
+  t: StyleTokens,
 ): string | CanvasPattern {
-  if (index < SOLID_FILLS.length) return SOLID_FILLS[index];
-  const pi = (index - SOLID_FILLS.length) % PATTERN_ORDER.length;
-  return getCached(ctx, PATTERN_ORDER[pi]);
+  return resolveFill(ctx, stackedFillValue(index, t), t);
 }
 
 /** 채움 지정값에서 패턴을 가리키는 접두사 — 예: `'pattern:diagonal'` */
@@ -180,11 +185,12 @@ export const PATTERN_FILL_PREFIX = 'pattern:';
  */
 export function resolveFill(
   ctx: CanvasRenderingContext2D,
-  value: string
+  value: string,
+  t: StyleTokens,
 ): string | CanvasPattern {
   if (!value.startsWith(PATTERN_FILL_PREFIX)) return value;
   const type = value.slice(PATTERN_FILL_PREFIX.length) as PatternType;
-  return PATTERN_ORDER.includes(type) ? getCached(ctx, type) : value;
+  return PATTERN_ORDER.includes(type) ? getCached(ctx, type, t) : value;
 }
 
 /** 그 채움이 밝아서 테두리를 그려야 하는가 (흰색·빗금 등) */
@@ -203,13 +209,6 @@ export function isLightFillValue(value: string): boolean {
 }
 
 /** 밝은 채움인지 (흰색/패턴) — 테두리·라벨색 결정용 */
-export function isLightFill(index: number): boolean {
-  return index >= 3 && !isDarkPattern(index);
-}
-
-/** 어두운 패턴인지 (dotReverse 등) */
-function isDarkPattern(index: number): boolean {
-  if (index < SOLID_FILLS.length) return false;
-  const pi = (index - SOLID_FILLS.length) % PATTERN_ORDER.length;
-  return PATTERN_ORDER[pi] === 'dotReverse';
+export function isLightFill(index: number, t: StyleTokens): boolean {
+  return isLightFillValue(stackedFillValue(index, t));
 }

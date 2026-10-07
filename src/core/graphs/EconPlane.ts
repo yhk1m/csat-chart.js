@@ -631,6 +631,7 @@ export function renderEconPlane(
       canvasW: w, canvasH: h,
       fontSize: fs.axisLabel * 0.8,
       font: nameFont(fs.axisLabel * 0.8),
+      fonts: options,
       // 기호가 상자에 덮이지 않게 꼭짓점 둘레를 피할 자리로 넘긴다
       avoid: series.flatMap((s) => s.points.map((p) => ({
         x0: toX(p.x) - DOT_R, y0: toY(p.y) - DOT_R,

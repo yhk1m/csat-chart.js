@@ -240,6 +240,7 @@ export function renderDeviationAGraph(
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
       font: getFont(options.fontSize.dataLabel * 0.9, options, 'bold'),
+      fonts: options,
       avoid: inkRects,
     });
   } else if (showLegend) {

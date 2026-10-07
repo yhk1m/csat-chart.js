@@ -1,7 +1,8 @@
 // © 2026 김용현
 // 공통 범례 렌더링
 import { type LegendPosition, type InsideLegendCorner } from '../types/index';
-import { sansFont, type FontOptions } from './renderer';
+import { textFont, type FontOptions } from './renderer';
+import { styleOf } from './style';
 
 export interface LegendItem {
   type: 'rect' | 'circle' | 'line';
@@ -41,6 +42,8 @@ export interface InsideLegendParams {
   fontSize: number;
   /** 글꼴 문자열 — 그래프 글꼴을 그대로 쓰라고 호출부가 넘긴다 */
   font: string;
+  /** 글꼴·양식 옵션. `options` 를 그대로 넘긴다 — 상자 선·견본 비율을 양식에서 읽는다 */
+  fonts: FontOptions;
   /** 이 사각형들과 겹치는 모서리는 피한다 (막대·점 등이 가려지면 안 된다) */
   avoid?: { x0: number; y0: number; x1: number; y1: number }[];
 }
@@ -67,7 +70,7 @@ function withFontSize(font: string, size: number): string {
  * 막대나 점이 가려지면 안 되기 때문이다.
  */
 export function drawInsideLegend({
-  ctx, items, corner, plotX, plotY, plotW, plotH, canvasW, canvasH, fontSize, font, avoid = [],
+  ctx, items, corner, plotX, plotY, plotW, plotH, canvasW, canvasH, fontSize, font, fonts, avoid = [],
 }: InsideLegendParams): void {
   if (items.length === 0) return;
 
@@ -81,7 +84,7 @@ export function drawInsideLegend({
   const sizeOf = (fs: number) => {
     // 줄이지 않은 경우엔 받은 글꼴 문자열을 그대로 쓴다 (같은 값을 다시 조립하지 않는다)
     ctx.font = fs === fontSize ? font : withFontSize(font, fs);
-    const swatch = fs * 0.95;
+    const swatch = fs * styleOf(fonts).legend.insideSwatchRatio;
     const maxIconW = Math.max(...items.map((i) => (i.type === 'line' ? swatch * 2 : swatch)));
     const maxLabelW = Math.max(...items.map((i) => ctx.measureText(i.label).width));
     return { swatch, maxIconW, boxW: padX * 2 + maxIconW + 8 + maxLabelW, rowH: fs * 1.5 };
@@ -116,7 +119,7 @@ export function drawInsideLegend({
   ctx.fillStyle = '#fff';
   ctx.fillRect(spot.x, spot.y, boxW, boxH);
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = styleOf(fonts).legend.insideBoxLine;
   ctx.setLineDash([]);
   ctx.strokeRect(spot.x, spot.y, boxW, boxH);
 
@@ -173,8 +176,6 @@ function drawInsideIcon(
   ctx.strokeRect(x, cy - size / 2, size, size);
 }
 
-const LINE_ICON_SIZE = 36;
-
 interface LegendParams {
   ctx: CanvasRenderingContext2D;
   items: LegendItem[];
@@ -202,8 +203,6 @@ interface LegendParams {
   rightGap?: number;
 }
 
-const ICON_GAP = 10;
-const BOX_PADDING = 12;
 const ITEM_SPACING = 30;
 /** 두 줄 이상일 때 줄 사이 간격 */
 const ROW_GAP = 6;
@@ -224,10 +223,11 @@ export function measureLegendWidth(
   iconType: 'rect' | 'circle' | 'line' = 'rect'
 ): number {
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${sansFont(fonts)}`;
-  const iconSize = iconType === 'line' ? LINE_ICON_SIZE : 16;
-  const iconGap = 10;
-  const padding = 12;
+  ctx.font = textFont(fonts, 'legend', fontSize);
+  const lg = styleOf(fonts).legend;
+  const iconSize = iconType === 'line' ? lg.lineIcon : lg.swatch;
+  const iconGap = lg.iconGap;
+  const padding = lg.pad;
   const maxW = Math.max(...labels.map((l) => iconSize + iconGap + ctx.measureText(l).width));
   ctx.restore();
   return maxW + padding * 2 + 30; // 박스 + 간격
@@ -271,11 +271,11 @@ export function layoutBottomLegend(
   fonts: FontOptions,
   opts: { iconGap?: number; padding?: number; spacing?: number; font?: string } = {},
 ): BottomLegendLayout {
-  const iconGap = opts.iconGap ?? ICON_GAP;
-  const padding = opts.padding ?? BOX_PADDING;
+  const lg = styleOf(fonts).legend;
+  const iconGap = opts.iconGap ?? lg.iconGap;
+  const padding = opts.padding ?? lg.pad;
   const spacing = opts.spacing ?? ITEM_SPACING;
-  const legendFont = sansFont(fonts);
-  const fontOf = (fs: number) => (opts.font ? withFontSize(opts.font, fs) : `bold ${fs}px ${legendFont}`);
+  const fontOf = (fs: number) => (opts.font ? withFontSize(opts.font, fs) : textFont(fonts, 'legend', fs));
   const inner = Math.max(1, boxW - padding * 2);
 
   ctx.save();
@@ -334,7 +334,8 @@ export function measureBottomLegend(
   bottomOffset = 50,
 ): number {
   if (labels.length === 0) return 0;
-  const sizeOf = (t: 'rect' | 'circle' | 'line') => (t === 'line' ? LINE_ICON_SIZE : 16);
+  const lg = styleOf(fonts).legend;
+  const sizeOf = (k: 'rect' | 'circle' | 'line') => (k === 'line' ? lg.lineIcon : lg.swatch);
   const iconWidths = labels.map((_, i) =>
     sizeOf(Array.isArray(iconType) ? (iconType[i] ?? 'rect') : iconType));
   const { boxH } = layoutBottomLegend(ctx, labels, iconWidths, fontSize, plotW, fonts);
@@ -351,14 +352,14 @@ export function drawLegend({
 }: LegendParams): number {
   if (items.length === 0) return 0;
 
-  const legendFont = sansFont(fonts);
+  const lg = styleOf(fonts).legend;
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${legendFont}`;
+  ctx.font = textFont(fonts, 'legend', fontSize);
 
-  const iconGap = ICON_GAP;
-  const padding = BOX_PADDING;
+  const iconGap = lg.iconGap;
+  const padding = lg.pad;
   const lineHeight = fontSize + 8;
-  const iconWidthOf = (item: LegendItem) => (item.type === 'line' ? LINE_ICON_SIZE : 16);
+  const iconWidthOf = (item: LegendItem) => (item.type === 'line' ? lg.lineIcon : lg.swatch);
 
   // 각 아이템 텍스트 너비 측정
   const itemWidths = items.map((item) => iconWidthOf(item) + iconGap + ctx.measureText(item.label).width);
@@ -375,8 +376,8 @@ export function drawLegend({
     const boxY = Math.max(0, Math.min(plotY + plotH + bottomOffset, canvasH - boxH - 1));
 
     // 박스
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = lg.boxColor;
+    ctx.lineWidth = lg.boxLine;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, boxW, boxH, 0);
@@ -393,7 +394,7 @@ export function drawLegend({
         const item = items[index];
         const iSize = iconWidthOf(item);
         drawIcon(ctx, item, cx, cy, iSize);
-        ctx.font = `bold ${layout.fontSize}px ${legendFont}`;
+        ctx.font = textFont(fonts, 'legend', layout.fontSize);
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
@@ -414,8 +415,8 @@ export function drawLegend({
     const boxY = Math.max(0, Math.min(plotY + plotH - boxH, canvasH - boxH - 1));
 
     // 박스
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = lg.boxColor;
+    ctx.lineWidth = lg.boxLine;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, boxW, boxH, 0);
@@ -428,7 +429,7 @@ export function drawLegend({
       const ix = boxX + padding;
       const iSize = iconWidthOf(item);
       drawIcon(ctx, item, ix, cy, iSize);
-      ctx.font = `bold ${fontSize}px ${legendFont}`;
+      ctx.font = textFont(fonts, 'legend', fontSize);
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';

@@ -4,6 +4,7 @@ import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
+import { styleOf, type StyleTokens } from '../canvas/style';
 
 export function renderStackedGraph(
   ctx: CanvasRenderingContext2D,
@@ -28,6 +29,7 @@ function renderStackedBar(
   data: StackedGraphData,
   options: GraphOptions
 ) {
+  const t = styleOf(options);
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
@@ -127,16 +129,16 @@ function renderStackedBar(
         const barH = ratio * plotH;
         const y = plotY + plotH - cumY - barH;
 
-        ctx.fillStyle = fillOf(ctx, data, s);
+        ctx.fillStyle = fillOf(ctx, data, s, t);
         ctx.fillRect(cx - barW / 2, y, barW, barH);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 0.8;
         ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
         if (data.labelInSegment) {
-          drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s));
+          drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s, t));
         } else if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-          ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
+          ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
           ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -209,14 +211,14 @@ function renderStackedBar(
         const bw = ratio * plotW;
         const x = plotX + cumX;
 
-        ctx.fillStyle = fillOf(ctx, data, s);
+        ctx.fillStyle = fillOf(ctx, data, s, t);
         ctx.fillRect(x, cy - barH / 2, bw, barH);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 0.8;
         ctx.strokeRect(x, cy - barH / 2, bw, barH);
 
         if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-          ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
+          ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
           ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -241,8 +243,8 @@ function renderStackedBar(
   if (showLegend) {
     const items = data.seriesLabels.map((label, i) => ({
       type: 'rect' as const,
-      fillStyle: fillOf(ctx, data, i),
-      bordered: lightAt(data, i),
+      fillStyle: fillOf(ctx, data, i, t),
+      bordered: lightAt(data, i, t),
       label,
     }));
     drawLegend({
@@ -264,6 +266,7 @@ function renderPieChart(
   data: StackedGraphData,
   options: GraphOptions
 ) {
+  const t = styleOf(options);
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
@@ -331,7 +334,7 @@ function renderPieChart(
       const ratio = total > 0 ? val / total : 0;
       const endAngle = startAngle + ratio * Math.PI * 2;
 
-      ctx.fillStyle = fillOf(ctx, data, s);
+      ctx.fillStyle = fillOf(ctx, data, s, t);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, maxR, startAngle, endAngle);
@@ -346,7 +349,7 @@ function renderPieChart(
         const midAngle = (startAngle + endAngle) / 2;
         const lx = cx + Math.cos(midAngle) * maxR * 0.65;
         const ly = cy + Math.sin(midAngle) * maxR * 0.65;
-        ctx.fillStyle = lightAt(data, s) ? '#000' : '#fff';
+        ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
         ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -378,8 +381,8 @@ function renderPieChart(
   if (showLegend) {
     const items = data.seriesLabels.map((label, i) => ({
       type: 'rect' as const,
-      fillStyle: fillOf(ctx, data, i),
-      bordered: lightAt(data, i),
+      fillStyle: fillOf(ctx, data, i, t),
+      bordered: lightAt(data, i, t),
       label,
     }));
     if (legendPos === 'right') {
@@ -432,16 +435,17 @@ function stackOrder(cat: StackedCategory, sCount: number): number[] {
 function fillOf(
   ctx: CanvasRenderingContext2D,
   data: StackedGraphData,
-  i: number
+  i: number,
+  t: StyleTokens,
 ): string | CanvasPattern {
   const v = data.seriesFills?.[i];
-  return v === undefined || v === null ? getStackedFill(ctx, i) : resolveFill(ctx, v);
+  return v === undefined || v === null ? getStackedFill(ctx, i, t) : resolveFill(ctx, v, t);
 }
 
 /** 그 채움 위에 검은 글자를 써도 읽히는가 */
-function lightAt(data: StackedGraphData, i: number): boolean {
+function lightAt(data: StackedGraphData, i: number, t: StyleTokens): boolean {
   const v = data.seriesFills?.[i];
-  return v === undefined || v === null ? isLightFill(i) : isLightFillValue(v);
+  return v === undefined || v === null ? isLightFill(i, t) : isLightFillValue(v);
 }
 
 /**

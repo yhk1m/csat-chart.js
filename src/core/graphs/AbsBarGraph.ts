@@ -5,6 +5,7 @@ import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
+import { styleOf } from '../canvas/style';
 
 export function renderAbsBarGraph(
   ctx: CanvasRenderingContext2D,
@@ -14,6 +15,7 @@ export function renderAbsBarGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
@@ -101,7 +103,7 @@ export function renderAbsBarGraph(
   /** 계열 채움 — seriesFills 를 줬으면 그 값(색 또는 패턴), 아니면 기본 팔레트 */
   const fillOf = (i: number): string | CanvasPattern => {
     const v = data.seriesFills?.[i];
-    return v === undefined || v === null ? getStackedFill(ctx, i) : resolveFill(ctx, v);
+    return v === undefined || v === null ? getStackedFill(ctx, i, t) : resolveFill(ctx, v, t);
   };
 
   // 플롯 안 범례가 막대를 덮지 않도록, 그린 막대 자리를 모아 둔다
@@ -165,7 +167,7 @@ export function renderAbsBarGraph(
           ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-            ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
+            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -194,7 +196,7 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, by, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-            ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
+            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
@@ -329,7 +331,7 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, cy - barH / 2, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-            ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
+            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -358,7 +360,7 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, by, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-            ctx.fillStyle = isLightFill(s) ? '#000' : '#fff';
+            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
@@ -409,6 +411,7 @@ export function renderAbsBarGraph(
       canvasW: w, canvasH: h,
       fontSize: options.fontSize.dataLabel * 0.9,
       font: getFont(options.fontSize.dataLabel * 0.9, options, 'bold'),
+      fonts: options,
       avoid: barRects,
     });
   } else if (showLegend) {
@@ -416,7 +419,7 @@ export function renderAbsBarGraph(
       type: 'rect' as const,
       // 막대와 같은 채움을 쓴다 — seriesFills 를 준 경우 범례도 그 색이어야 한다
       fillStyle: fillOf(i),
-      bordered: data.seriesFills?.[i] ? isLightFillValue(data.seriesFills[i]) : isLightFill(i),
+      bordered: data.seriesFills?.[i] ? isLightFillValue(data.seriesFills[i]) : isLightFill(i, t),
       label,
     }));
     drawLegend({

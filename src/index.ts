@@ -136,6 +136,8 @@ export type {
   GraphOptions,
   FontRole,
   FontStack,
+  StyleName,
+  TickDirection,
   LegendPosition,
   InsideLegendCorner,
   AbsBarCategory,

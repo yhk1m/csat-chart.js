@@ -5,6 +5,8 @@
 시험지 관습을 그대로 따릅니다. 지리 열여섯 종으로 시작했고, 1.4.0 에서 경제
 좌표평면이 더해져 열일곱 종입니다. **런타임 의존성이 없습니다.**
 
+기본 그림은 평가원 시험지 양식(2.0.0)입니다. 1.x 의 그림은 `options.style: 'classic'`.
+
 - npm: https://www.npmjs.com/package/csat-chart.js
 - 데모: https://yhk1m.github.io/csat-chart.js/
 - AI 참고 문서: [docs/ai-reference.md](docs/ai-reference.md) — 이 라이브러리를 모르는 AI 어시스턴트에게 붙여넣는 용도
@@ -13,7 +15,7 @@
 ## 시작하기
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@1/dist/csat-chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@2/dist/csat-chart.umd.min.js"></script>
 <canvas id="c" width="800" height="600"></canvas>
 <script>
   CsatChart.ensureFonts().then(function () {
@@ -26,8 +28,8 @@
 </script>
 ```
 
-`@1` 은 1.x 안에서 가장 새 판을 가리킵니다 — 고친 것이 자동으로 따라오고, 판이
-2 로 올라가도 갑자기 바뀌지 않습니다. 한 판에 못 박으려면 `@1.2.0` 처럼 적으세요.
+`@2` 는 2.x 안에서 가장 새 판을 가리킵니다 — 고친 것이 자동으로 따라오고, 판이
+3 으로 올라가도 갑자기 바뀌지 않습니다. 한 판에 못 박으려면 `@2.0.0` 처럼 적으세요.
 
 `ensureFonts()` 를 부르지 않으면 대체 글꼴로 그려져 시험지 양식이 재현되지 않습니다.
 던지지 않습니다 — 글꼴을 못 받아도, 제한 시간(기본 5초)을 넘겨도 조용히 `false` 로
@@ -98,7 +100,7 @@
 처럼 `Graph` 가 안 붙는 것도 있습니다. 데이터 모양이 어긋나면 한국어 메시지로
 알려줍니다 — [오류 가려내기](#오류-가려내기) 참고.
 
-### 꺾은선 — 시험지 관습 네 가지
+### 꺾은선 — 시험지 관습 다섯 가지
 
 `line` 은 수능 꺾은선의 관습을 옵션으로 둡니다 (1.6.0). 전부 선택이라 안 적으면
 예전과 같이 그립니다.
@@ -109,6 +111,7 @@
 | `series[].stroke` · `series[].lineWidth` | `'#999'` · `3.5` | 계열을 색이 아니라 **굵기와 회색**으로 가릅니다 |
 | `labelPlacement: 'leader'` + `series[].leader` | `{ at: 2, dx: 40, dy: -45 }` | 이름을 선 근처에 쓰고 짧은 **유도선**으로 가리킵니다. `at` 은 가리킬 점 번호, `dx`·`dy` 는 그 점에서 라벨까지의 거리 |
 | `xGrid` · `gridColor` · `gridWidth` | `true` · `'#555'` · `1` | 세로 점선 격자와 격자 색·굵기. 시험지는 가로·세로 모두 진하고 1px 쯤인 점선입니다 (`gridWidth` 는 1.6.1) |
+| `frame` | `'closed'` | `'open'` 이면 위·오른쪽 틀선 없이 왼쪽·아래만 긋습니다(L 자). 첫·끝 점은 축 끝에서 4.0pt 안쪽에 둡니다 (2.0.0) |
 
 ## 경제 좌표평면
 
@@ -211,19 +214,21 @@ new CsatChart('c', { type: 'econ-plane', data: {
 
 ## 옵션
 
-`options` 는 다음 14개 필드를 받습니다. 필요한 것만 적으면 나머지는 기본값을 씁니다.
+`options` 는 다음 16개 필드를 받습니다. 필요한 것만 적으면 나머지는 기본값을 씁니다.
 
 | 필드 | 기본값 | 하는 일 |
 |---|---|---|
 | `title` | `''` | 제목 |
+| `style` | `'exam'` | 그림 양식. `'classic'` 은 1.7.0 그대로 |
+| `tickDirection` | 없음(종류별) | 눈금 방향 `'in'`·`'out'` — 모든 축 |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline` 이면 각주와 같은 줄)에 오른쪽 정렬로 적힙니다 |
-| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). **지금은 `stacked`·`econ-plane` 에서만 동작합니다** |
-| `sourceInline` | 없음(꺼짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙입니다(시험지 관습). **지금은 `scatter`·`econ-plane`·`line` 에서만 동작합니다** |
+| `sourceLeft` | 없음 | 출처 줄 왼쪽에 함께 적을 글(예: 자료 연도 `(2024)`). **지금은 `absbar`·`stacked`·`econ-plane` 에서만 동작합니다** |
+| `sourceInline` | 양식을 따름(exam 은 켜짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙입니다(시험지 관습). 줄에 안 들어가면 아래 줄로 내립니다. exam 은 모든 종류에서 켜지고, 옵션 값(`true`·`false`)은 **`scatter`·`econ-plane`·`line` 에서만 읽습니다** |
 | `footnotes` | `['']` | 각주 목록. 앞에 `* ` 를 자동으로 붙이므로 직접 적지 않습니다. 빈 문자열은 무시됩니다 |
 | `fontFamily` | `'serif'` | `'serif'`(명조)·`'sans'`(고딕)·`'custom'` 중 하나 |
 | `customFont` | `''` | `fontFamily` 가 `'custom'` 일 때 **축 쪽에만** 쓸 글꼴 이름 |
-| `fontStack` | `{}` | 글꼴 자리를 통째로 갈아 끼웁니다 — `{ serif, sans }`. 아래 [내 글꼴로 그리기](#내-글꼴로-그리기) 참고 |
-| `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | 제목·축 이름·눈금·데이터 값 글자 크기(px). 각주·출처는 `dataLabel` 을 따릅니다 |
+| `fontStack` | `{}` | 글꼴 자리를 통째로 갈아 끼웁니다 — `{ serif, sans, numeral }`. 아래 [내 글꼴로 그리기](#내-글꼴로-그리기) 참고 |
+| `fontSize` | `{ title: 40, axisLabel: 39, tick: 35, dataLabel: 40 }` (classic 은 `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }`) | 제목·축 이름·눈금·데이터 값 글자 크기(px). 각주·출처는 exam 에서 `tick`, classic 에서 `dataLabel` 을 따릅니다 |
 | `showDataLabels` | `false` | 막대·점에 값을 함께 표시할지 |
 | `showLegend` | `true` | 범례를 보여줄지 |
 | `legendPosition` | `'bottom'` | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나 |
@@ -297,6 +302,29 @@ new CsatChart('c', {
 써도 됩니다 — `fontFamily: 'sans'` + `fontStack.sans` 면 축까지 그 고딕으로 그립니다.
 `customFont` 은 예전 그대로 동작하지만 축 쪽만 바꾸므로, 그림 전체를 바꾸려면
 `fontStack` 을 쓰세요.
+
+### 시험지 글꼴
+
+`style: 'exam'`(기본)은 컴퓨터에 깔린 시험지 글꼴을 먼저 찾습니다. 순서는 이렇습니다.
+
+| 자리 | 글꼴 순서 (`EXAM_*_STACK`) |
+|---|---|
+| 명조 | `'신명 중명조', '신명-중명조', '신명중명조', 'HY신명조', 'HYSinMyeongJo-Medium', 'Noto Serif KR', serif` |
+| 고딕 | `'HY중고딕', 'HYGothic-Medium', '돋움', 'Dotum', 'Noto Sans KR', sans-serif` |
+| 숫자 | `'Garamond', 'Times New Roman'` — 그 뒤는 명조 순서 |
+
+숫자 글꼴은 명조·고딕 순서 **앞에도** 붙습니다. 시험지는 고딕 글줄(출처·각주·범례·단위)
+에서도 숫자와 괄호만은 세리프이기 때문입니다 — 숫자 글꼴에는 한글이 없으므로 한 글줄
+안에서 숫자는 숫자 글꼴로, 한글은 뒤의 고딕으로 넘어갑니다. 숫자는 숫자 높이를, 괄호는
+한글 높이를 맞춰 따로 찍습니다. 숫자 글꼴만 바꾸려면:
+
+```js
+options: { fontStack: { numeral: "'Times New Roman'" } }
+```
+
+HY신명조·HY중고딕은 한컴오피스(그리고 MS 오피스 한국어판)가 깝니다. 그런 오피스가 없는
+컴퓨터에서는 Noto(`ensureFonts()` 가 받는 글꼴)로 그려집니다. 신명 글꼴은 상용이라
+라이브러리가 싣지 않습니다 — 깔린 컴퓨터라면 이름으로 잡힙니다.
 
 ## 그림이 이상할 때
 
@@ -533,21 +561,20 @@ render○○(ctx, width, height, data, options): void
 ```bash
 npm install
 npm run verify          # 타입 → 린트 → 빌드 → 테스트 순
-UPDATE_GOLDEN=1 npx vitest run test/core/golden.test.ts   # 기준 갱신
+UPDATE_GOLDEN=exam npx vitest run test/core/golden.test.ts   # exam 기준 갱신
 ```
 
-골든 이미지는 시스템 글꼴 대체 결과에 의존하므로 기계마다 다를 수 있습니다.
-CI 에서는 `SKIP_GOLDEN=1` 로 건너뜁니다.
+렌더러는 양식 토큰(`src/core/canvas/style.ts`)만 읽습니다 — 굵기·선 굵기·점선·회색을
+렌더러에 숫자로 쓰지 마세요(`test/core/style-audit.test.ts` 가 막습니다). 양식에 따라
+갈리는 새 값은 `classicStyle`·`examStyle` 에, 한 종류에서만 갈리는 값은 그 렌더러의
+`LOOK` 표에 둡니다. classic 의 값은 1.7.0 과 바이트까지 같아야 합니다.
 
-`src/core/**` 는 이 저장소의 ESLint 대상에서도 제외됩니다(`eslint.config.mjs` 참고) —
-이 층을 지키는 수단이 린트가 아니라 골든 이미지이기 때문입니다. 1.0.0 은 원본
-렌더러를 한 글자도 고치지 않고 옮긴 판이었고 골든 이미지 31장이 그 증거였습니다.
-지금은 필요하면 고칩니다 — 대신 렌더 결과가 달라진 내역은 CHANGELOG 에 남깁니다.
-그리고 CI 는 `SKIP_GOLDEN=1` 로 골든 이미지 비교 자체를
-건너뛰므로, 렌더 결과가 기준 이미지와 실제로 같은지는 CI 가 확인하지 않습니다 —
-CI 가 렌더러에 대해 돌리는 자동 검사는 「캔버스가 비어 있지 않다」 하나뿐입니다.
-렌더러를 바꾸는 PR 을 보낸다면, 위 명령으로 로컬에서 골든 이미지 비교까지
-통과하는지 직접 확인한 결과를 함께 적어 주면 리뷰가 빨라집니다.
+기준 이미지는 두 벌입니다 — `test/core/__snapshots__/*.png`(classic, 바뀌면 안 됨)와
+`test/core/__snapshots__/exam/*.png`. exam 만 다시 쓸 때는
+`UPDATE_GOLDEN=exam npx vitest run test/core/golden.test.ts`. 골든은 시스템 글꼴 대체 결과에
+의존해 기계마다 다를 수 있어 CI 는 `SKIP_GOLDEN=1` 로 건너뜁니다 — 렌더러를 바꾸는 PR 이면
+로컬에서 골든 비교까지 통과한 결과를 함께 적어 주세요. `src/core/**` 는 지금도 ESLint
+대상에서 빠져 있습니다(`eslint.config.mjs`).
 
 ## 라이선스
 

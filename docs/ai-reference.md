@@ -18,7 +18,7 @@ npm에 발행되어 있으므로 jsdelivr·unpkg가 그대로 서빙한다. 응�
 로컬 빌드와의 해시 일치를 확인했다.
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@1/dist/csat-chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/csat-chart.js@2/dist/csat-chart.umd.min.js"></script>
 <canvas id="c" width="800" height="600"></canvas>
 <script>
   CsatChart.ensureFonts().then(function () {
@@ -31,8 +31,8 @@ npm에 발행되어 있으므로 jsdelivr·unpkg가 그대로 서빙한다. 응�
 </script>
 ```
 
-`@1`은 1.x 안에서 가장 새 판을 가리킨다 — 고친 것이 따라오고, 판이 2로 올라가도
-남의 프로그램이 갑자기 바뀌지 않는다. 한 판에 못 박으려면 `@1.2.0`처럼 적는다.
+`@2`는 2.x 안에서 가장 새 판을 가리킨다 — 고친 것이 따라오고, 판이 3으로 올라가도
+남의 프로그램이 갑자기 바뀌지 않는다. 한 판에 못 박으려면 `@2.0.0`처럼 적는다.
 
 `https://yhk1m.github.io/csat-chart.js/lib/csat-chart.umd.min.js`도 여전히 산다.
 그쪽은 `master`의 최신 빌드를 버전 고정 없이 서빙하므로, 아직 발행하지 않은
@@ -290,7 +290,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 
 각 타입 데이터 인터페이스에는 위에 없는 **선택적(optional) 필드**도 있다 —
 시험지의 세부 배치를 재현하는 고급 옵션들이다(예: `absbar.zeroBaseline`,
-`scatter.examFrame`, `pyramid.sexFills`). 검증기는 이 필드들을 요구하지
+`scatter.examFrame`, `pyramid.sexFills`, `line.frame` — `'open'`이면 L 자 틀). 검증기는 이 필드들을 요구하지
 않으므로 빠뜨려도 오류가 나지 않고, 완전한 목록은 `dist/csat-chart.d.ts`의
 타입 선언에 있다. 이 문서는 **항상 있는** 필드만 표로 만들었다 — 없어도
 그림이 나오는 필드까지 외워서 쓸 필요는 없다.
@@ -345,21 +345,23 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 
 ## 5. `options`
 
-`new CsatChart(target, { type, data, options })`의 `options`는 아래 14개
+`new CsatChart(target, { type, data, options })`의 `options`는 아래 16개
 필드를 받는다(값은 실제 `createDefaultGraphOptions()` 반환값에서 확인). 준
 것만 덮이고 나머지는 기본값을 쓴다.
 
 | 필드 | 기본값 | 하는 일 |
 |---|---|---|
 | `title` | `''` | 제목 |
+| `style` | `'exam'` | 그림 양식. `'exam'`(2.0.0 기본, 평가원 시험지 실측 양식)·`'classic'`(1.7.0 그림 그대로, 바이트까지 같다) |
+| `tickDirection` | `undefined`(종류별) | 눈금 방향 `'in'`·`'out'` — 모든 축에 한 번에. 미지정이면 종류별 기본(막대 범주 경계 안쪽, 꺾은선·피라미드 안쪽, 편차 A 바깥, 산점 없음) |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline`이면 각주와 같은 줄)에 오른쪽 정렬 |
-| `sourceLeft` | `undefined` | 출처 줄 왼쪽에 함께 적을 글(예: 연도). **`stacked`에서만 동작한다** — 다른 15종은 이 값을 아예 읽지 않는다 |
-| `sourceInline` | `undefined` | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. **`scatter`·`econ-plane`·`line`에서만 동작한다** — 다른 14종은 읽지 않는다 |
+| `sourceLeft` | `undefined` | 출처 줄 왼쪽에 함께 적을 글(예: 연도). **`absbar`·`stacked`·`econ-plane`에서만 동작한다** — 다른 14종은 이 값을 아예 읽지 않는다 |
+| `sourceInline` | `undefined`(양식을 따름 — exam 은 켜짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. 안 들어가면 아래 줄로. exam 은 17종 모두 켜지고, 옵션 값은 **`scatter`·`econ-plane`·`line`에서만 읽는다** |
 | `footnotes` | `['']` | 각주 목록. `* `를 자동으로 붙인다. 빈 문자열은 무시 |
 | `fontFamily` | `'serif'` | `'serif'`(명조) / `'sans'`(고딕) / `'custom'` |
 | `customFont` | `''` | `fontFamily`가 `'custom'`일 때 쓸 글꼴 이름. **축 쪽만 바꾼다** — 제목·범례는 못 건드린다 |
-| `fontStack` | `{}` | 글꼴 «자리»를 통째로 갈아 끼운다. `{ serif?, sans? }`. 아래 5.1 참고 |
-| `fontSize` | `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | px 단위. 각주·출처는 `dataLabel`을 따름. 한 항목만 줘도 나머지는 유지됨 |
+| `fontStack` | `{}` | 글꼴 «자리»를 통째로 갈아 끼운다. `{ serif?, sans?, numeral? }`. 아래 5.1 참고 |
+| `fontSize` | exam `{ title: 40, axisLabel: 39, tick: 35, dataLabel: 40 }` · classic `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | px 단위. 각주·출처는 exam 에서 `tick`, classic 에서 `dataLabel`을 따름. 한 항목만 줘도 나머지는 유지됨. `update({ options: { style } })`는 그 양식의 기본 크기로 바꾸되 직접 준 값은 남긴다 |
 | `showDataLabels` | `false` | 막대·점 위에 값을 표시할지 (모든 렌더러가 지원하는 것은 아님) |
 | `showLegend` | `true` | 범례 표시 여부 |
 | `legendPosition` | `'bottom'` | `'bottom'` / `'right'` |
@@ -391,8 +393,17 @@ options: {
 값은 글꼴 «이름»이 아니라 **CSS 글꼴 목록**이다. 총칭 글꼴(`serif`·`sans-serif`)을
 뒤에 붙여, 그 이름이 없는 컴퓨터에서도 명조/고딕 계열로 떨어지게 한다.
 
-- 두 키 모두 선택이다. 적지 않은 자리는 기본값(`'Noto Serif KR', 'NanumMyeongjo',
-  serif` / `'Noto Sans KR', sans-serif`) 그대로다.
+- 세 키 모두 선택이다. 적지 않은 자리는 양식의 기본값 그대로다. classic 은
+  `'Noto Serif KR', 'NanumMyeongjo', serif` / `'Noto Sans KR', sans-serif`. exam 은
+  명조 `'신명 중명조', …, 'HY신명조', 'HYSinMyeongJo-Medium', 'Noto Serif KR', serif`,
+  고딕 `'HY중고딕', 'HYGothic-Medium', '돋움', 'Dotum', 'Noto Sans KR', sans-serif`,
+  숫자 `'Garamond', 'Times New Roman'`(그 뒤는 명조). HY 글꼴은 한컴오피스·MS 오피스
+  한국어판이 깐다 — 없는 컴퓨터는 Noto 로 그린다.
+- `numeral`(2.0.0)은 숫자 자리(눈금 숫자·연도·자료값·라틴 기호 `A`·`S₁`)의 글꼴이다.
+  **한글이 없는 글꼴**을 준다. exam 은 이 목록을 명조·고딕 앞에도 붙여, 고딕 글줄
+  (출처·각주·범례)의 숫자·괄호도 세리프로 찍는다. 숫자는 숫자 높이를, 괄호는 한글
+  높이를 맞춰 따로 찍는다. 예: `fontStack: { numeral: "'Times New Roman'" }`.
+  `serif`·`sans`를 직접 준 자리에는 숫자 글꼴을 붙이지 않는다 — 준 그대로 쓴다.
 - `update()`에서 **얕게 덮이지 않는다.** `fontSize`와 같다 — 한 자리만 다시 줘도
   나머지 자리는 남는다. 지우려면 그 키에 `undefined`나 `''`를 준다.
 - `fontFamily`와 층이 다르다. `fontFamily`는 축이 **어느 자리**를 쓸지 고르고,
@@ -463,9 +474,9 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 
 ## 7. 알려진 한계 — 고치려 하지 말 것
 
-- **`sourceLeft`는 `stacked`와 `econ-plane`에서만, `sourceInline`은 `scatter`·
-  `econ-plane`·`line`에서만 동작한다.** 나머지에 이 옵션을 줘도 조용히 무시된다(예외
-  없음) — 버그가 아니라 이식 원본의 범위다.
+- **`sourceLeft`는 `absbar`·`stacked`·`econ-plane`에서만, `sourceInline` 옵션 값은
+  `scatter`·`econ-plane`·`line`에서만 읽는다.** 나머지에 이 옵션을 줘도 조용히 무시된다
+  (예외 없음). exam 은 옵션과 상관없이 모든 종류에서 출처를 각주 줄 끝에 붙인다.
 - **`econ-plane`의 «가로축» 이름은 한 줄이다.** 세로축은 1.5.0부터 리터럴
   `
 `으로 두 줄이 되지만(`'GDP

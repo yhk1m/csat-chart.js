@@ -305,6 +305,11 @@ export function byStyle<T>(o: { style?: StyleName }, table: Record<StyleName, T>
   return table[styleOf(o).name];
 }
 
+/** 축에서 눈금 숫자까지 — 눈금 길이 + 6px 띄움 */
+export function tickLabelGap(t: StyleTokens): number {
+  return t.line.tickLen + 6;
+}
+
 /**
  * 유도선. `t.leader` 가 유일한 출처다 — 1.7.0 이 종류마다 달리 쓰던 값(`classic`)만
  * 그 종류가 넘겨 classic 에서 덮어쓴다. exam 은 언제나 `t.leader` 그대로다.

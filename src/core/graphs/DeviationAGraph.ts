@@ -5,7 +5,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize, type FontOpti
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
   // 막대 229 + 테두리 0.34pt, 0 선 0.34pt, ■ 지름 2.8pt (§3 #46·#32, §2 deviation-a)
@@ -339,7 +339,7 @@ function drawDeviationYAxis(
     }
     ctx.stroke();
 
-    const tx = side === 'left' ? x - (t.line.tickLen + 6) : x + (t.line.tickLen + 6);
+    const tx = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
     const valStr = Number.isInteger(val) ? val.toString() : val.toFixed(1);
     ctx.fillText(valStr, tx, y);
     maxTickW = Math.max(maxTickW, ctx.measureText(valStr).width);
@@ -354,7 +354,7 @@ function drawDeviationYAxis(
     ctx.textBaseline = 'bottom';
     ctx.textAlign = side === 'left' ? 'right' : 'left';
     ctx.font = makeFont(shrinkToWidth(ctx, [label], textSize(o, 'unit', o.fontSize.axisLabel), width - EDGE * 2, makeFont));
-    const labelX = side === 'left' ? x - (t.line.tickLen + 6) : x + (t.line.tickLen + 6);
+    const labelX = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
     const at = nudgeInside(ctx, label, labelX, plotY - 16, width, height);
     ctx.fillText(label, at.x, at.y);
     ctx.restore();

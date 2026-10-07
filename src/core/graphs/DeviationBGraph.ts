@@ -5,7 +5,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
   // 막대 흰색·127, 테두리 0.30pt, 0 선, 범주 경계 눈금이 0 선을 가로지른다 3.2pt (§2 deviation-b)
@@ -241,7 +241,7 @@ function drawDevBYAxis(
     }
     ctx.stroke();
 
-    const tx = side === 'left' ? x - (t.line.tickLen + 6) : x + (t.line.tickLen + 6);
+    const tx = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
     const valStr = Number.isInteger(val) ? val.toString() : val.toFixed(1);
     ctx.fillText(valStr, tx, y);
   }
@@ -250,7 +250,7 @@ function drawDevBYAxis(
   ctx.font = textFont(o, 'unit', textSize(o, 'unit', o.fontSize.axisLabel));
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'bottom';
-  const labelX = side === 'left' ? x - (t.line.tickLen + 6) : x + (t.line.tickLen + 6);
+  const labelX = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
   ctx.textAlign = side === 'left' ? 'right' : 'left';
   ctx.fillText(label, labelX, plotY - 16);
   ctx.restore();

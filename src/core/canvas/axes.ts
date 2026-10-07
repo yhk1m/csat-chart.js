@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { type Padding, type FontOptions, textFont, textSize } from './renderer';
-import { styleOf } from './style';
+import { styleOf, tickLabelGap } from './style';
 import type { GraphOptions } from '../types/common';
 import { labelStride, widestLabel } from './labels';
 import { EDGE, nudgeInside, shrinkToWidth } from './fit';
@@ -52,7 +52,7 @@ export function drawYAxis({
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
   const tickLen = t.line.tickLen;
-  const tickGap = tickLen + 6;
+  const tickGap = tickLabelGap(t);
   const x = side === 'left' ? plot.x : plot.x + plot.w;
 
   ctx.strokeStyle = '#000';
@@ -176,7 +176,7 @@ export function drawXAxis({
     ctx.stroke();
 
     // 라벨
-    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + t.line.tickLen + 6);
+    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + tickLabelGap(t));
     shown++;
   }
 }

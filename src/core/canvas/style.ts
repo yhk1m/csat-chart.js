@@ -71,6 +71,11 @@ export interface StyleTokens {
   text: Record<TextPlace, TextToken>;
   /** 글꼴 순서 — numeral 이 비어 있지 않으면 명조·고딕 기본 순서 앞에 붙는다 */
   stack: { serif: string; sans: string; numeral: string };
+  /**
+   * numeral 자리 숫자 높이 / 글자 크기의 목표. 그려지는 글꼴의 숫자 높이를 재서
+   * 이 비율이 되게 px 를 키운다(renderer.ts `numeralSize`). null 이면 맞추지 않는다.
+   */
+  digitHeight: number | null;
   ink: { source: string; footnote: string };
   line: {
     /** 축·바깥 틀 */
@@ -151,6 +156,7 @@ export const classicStyle: StyleTokens = {
   honorsLegacy: true,
   fontSize: { title: 36, axisLabel: 28, tick: 26, dataLabel: 22 },
   stack: { serif: DEFAULT_SERIF_STACK, sans: DEFAULT_SANS_STACK, numeral: '' },
+  digitHeight: null,
   text: {
     tick: axisClassic(),
     unit: axisClassic(),
@@ -226,6 +232,9 @@ export const examStyle: StyleTokens = {
   // 그대로 넘기면 사용자가 옵션을 고칠 때 토큰이 함께 바뀐다.
   fontSize: { title: 40, axisLabel: 39, tick: 35, dataLabel: 40 },
   stack: { serif: EXAM_SERIF_STACK, sans: EXAM_SANS_STACK, numeral: EXAM_NUMERAL_STACK },
+  // 본문 «한양신명조» 숫자 높이 0.758 em — Garamond 0.650·Times New Roman 0.685 라
+  // 같은 px 면 10–14% 작다 (실측 명세 «숫자 글꼴 대조»)
+  digitHeight: 0.758,
   text: {
     tick: examText('numeral', true, same),
     unit: examText('sans', true, (fs) => fs.tick),

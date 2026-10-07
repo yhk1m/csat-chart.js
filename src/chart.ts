@@ -5,6 +5,7 @@ import { CsatChartError, assertChartData, assertChartType, assertConfigShape } f
 import { ensureFonts, type EnsureFontsOptions } from './fonts';
 import { installRoundRectPolyfill } from './roundrect';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
+import { resetDigitCache } from './core/canvas/renderer';
 import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
 /**
@@ -234,7 +235,10 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     if (!fonts?.ready) return;
     void Promise.resolve(fonts.ready)
       .then(() => {
-        if (!this.destroyed) this.draw();
+        if (this.destroyed) return;
+        // 대체 글꼴로 잰 숫자 높이를 버린다 — 도착한 글꼴로 다시 잰다
+        resetDigitCache();
+        this.draw();
       })
       .catch(() => {
         // 글꼴 때문에 그림이 멈추면 안 된다.

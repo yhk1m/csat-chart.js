@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, textFont, textSize } from '../canvas/rendere
 import { drawTitle, drawSourceAndFootnote, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
-import { styleOf, byStyle, type StyleTokens } from '../canvas/style';
+import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
 
 const LOOK = {
   classic: { tick: 1, tickLen: 5, catTicks: false, unitAdjacent: false },
@@ -81,6 +81,9 @@ function renderStackedBar(
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
 
+  // 시험지: 세로 막대는 값 눈금 없이 격자가 대신하고, 범주 경계에 안쪽 눈금 (실측 §2 stacked)
+  const dir = tickDirOf(options, isVertical ? { x: 'in', y: 'none' } : { x: 'none', y: 'in' });
+
   // 축선
   ctx.strokeStyle = '#000';
   ctx.lineWidth = t.line.axis;
@@ -103,11 +106,14 @@ function renderStackedBar(
     ctx.textBaseline = 'middle';
     for (let v = 0; v <= 100; v += stepV) {
       const y = plotY + plotH - (v / 100) * plotH;
-      ctx.lineWidth = look.tick;
-      ctx.beginPath();
-      ctx.moveTo(plotX - look.tickLen, y);
-      ctx.lineTo(plotX, y);
-      ctx.stroke();
+      if (dir.y !== 'none') {
+        const sgn = dir.y === 'in' ? 1 : -1;
+        ctx.lineWidth = look.tick;
+        ctx.beginPath();
+        ctx.moveTo(plotX + sgn * look.tickLen, y);
+        ctx.lineTo(plotX, y);
+        ctx.stroke();
+      }
       ctx.fillText(String(v), plotX - 10, y);
 
       if (v > 0 && v < 100) {
@@ -154,11 +160,10 @@ function renderStackedBar(
         if (data.labelInSegment) {
           drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s, t));
         } else if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-          ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
           ctx.font = textFont(options, 'value', valueFs);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(String(val), cx, y + barH / 2);
+          inkText(ctx, String(val), cx, y + barH / 2, undefined, lightAt(data, s, t), t);
         }
         cumY += barH;
       }
@@ -169,6 +174,20 @@ function renderStackedBar(
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12);
+    }
+
+    // 경계 눈금 (세로) — 범주 사이 경계에서 위로
+    if (look.catTicks && dir.x !== 'none') {
+      const sgn = dir.x === 'in' ? -1 : 1;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = t.line.tick;
+      for (let c = 1; c < n; c++) {
+        const bx = plotX + barArea * c;
+        ctx.beginPath();
+        ctx.moveTo(bx, plotY + plotH);
+        ctx.lineTo(bx, plotY + plotH + sgn * t.line.tickLen);
+        ctx.stroke();
+      }
     }
   } else {
     // 가로 누적 막대 — 사각 테두리
@@ -188,11 +207,15 @@ function renderStackedBar(
     ctx.textBaseline = 'top';
     for (let v = 0; v <= 100; v += stepH) {
       const x = plotX + (v / 100) * plotW;
-      ctx.lineWidth = look.tick;
-      ctx.beginPath();
-      ctx.moveTo(x, plotY + plotH);
-      ctx.lineTo(x, plotY + plotH + look.tickLen);
-      ctx.stroke();
+      // 값 눈금 (가로) — classic 은 바깥 그대로
+      if (dir.x !== 'none') {
+        const sgn = dir.x === 'in' ? -1 : 1;
+        ctx.lineWidth = look.tick;
+        ctx.beginPath();
+        ctx.moveTo(x, plotY + plotH);
+        ctx.lineTo(x, plotY + plotH + sgn * look.tickLen);
+        ctx.stroke();
+      }
       ctx.fillText(String(v), x, plotY + plotH + 10);
 
       if (v > 0 && v < 100) {
@@ -208,11 +231,20 @@ function renderStackedBar(
       }
     }
 
-    // 단위 (축 맨 오른쪽)
-    ctx.font = textFont(options, 'unit', unitFs);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(data.unit, plotX + plotW + 30, plotY + plotH + 10);
+    // 단위 (축 맨 오른쪽) — 시험지는 마지막 눈금에 붙인다: 100(%) (실측 §2 stacked)
+    if (look.unitAdjacent) {
+      ctx.font = textFont(options, 'tick', tickFs);
+      const half = ctx.measureText('100').width / 2;
+      ctx.font = textFont(options, 'unit', unitFs);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(data.unit, plotX + plotW + half + 2, plotY + plotH + 10);
+    } else {
+      ctx.font = textFont(options, 'unit', unitFs);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(data.unit, plotX + plotW + 30, plotY + plotH + 10);
+    }
 
     // 막대 — 세로와 같은 규칙(칸의 30%, 최대 84px)
     const barArea = plotH / n;
@@ -234,11 +266,10 @@ function renderStackedBar(
         ctx.strokeRect(x, cy - barH / 2, bw, barH);
 
         if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-          ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
           ctx.font = textFont(options, 'value', valueFs);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(String(val), x + bw / 2, cy);
+          inkText(ctx, String(val), x + bw / 2, cy, undefined, lightAt(data, s, t), t);
         }
         cumX += bw;
       }
@@ -249,6 +280,20 @@ function renderStackedBar(
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(data.categories[c].label, plotX - 10, cy);
+    }
+
+    // 경계 눈금 (가로) — 범주 사이 경계에서 오른쪽(안쪽)으로
+    if (look.catTicks && dir.y !== 'none') {
+      const sgn = dir.y === 'in' ? 1 : -1;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = t.line.tick;
+      for (let c = 1; c < n; c++) {
+        const by = plotY + barArea * c;
+        ctx.beginPath();
+        ctx.moveTo(plotX, by);
+        ctx.lineTo(plotX + sgn * t.line.tickLen, by);
+        ctx.stroke();
+      }
     }
   }
 

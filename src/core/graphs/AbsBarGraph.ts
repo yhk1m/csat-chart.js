@@ -2,10 +2,10 @@
 import { type AbsBarGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
-import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel, inkText } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
-import { styleOf, byStyle, type TextPlace } from '../canvas/style';
+import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
 
 const LOOK = {
   // 눈금 0.39pt·2.5pt (§3 #24), 0 기준선 0.34–0.39pt, 범주 경계 눈금 (#25)
@@ -32,6 +32,8 @@ export function renderAbsBarGraph(
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
+  // 단위를 마지막 눈금 숫자에 붙이는가 — 시험지는 15(%) 꼴 (실측 §1.4)
+  const unitAdjacent = data.unitAdjacent ?? look.unitAdjacent;
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
 
@@ -49,7 +51,7 @@ export function renderAbsBarGraph(
   let groupLabelW = 0;
   let catLabelW = 0;
   let unitW = 0;
-  if (hasGroups || data.unitAdjacent || data.insideLegend) {
+  if (hasGroups || unitAdjacent || data.insideLegend) {
     ctx.save();
     if (hasGroups) {
       ctx.font = textFont(options, 'symbol', groupFs);
@@ -64,7 +66,7 @@ export function renderAbsBarGraph(
 
   const padRight = isVertical
     ? 60 + legendW
-    : (data.unitAdjacent ? 40 + unitW : 160 + legendW);
+    : (unitAdjacent ? 40 + unitW : 160 + legendW);
   const padLeft = isVertical
     ? 130
     : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100);
@@ -130,6 +132,9 @@ export function renderAbsBarGraph(
     if (data.insideLegend) barRects.push({ x0: x, y0: y, x1: x + bw, y1: y + bh });
   };
 
+  // 시험지: 세로 막대는 세로축 눈금 없이 격자가 대신하고, 범주 경계에 안쪽 눈금 (실측 §2 absbar)
+  const dir = tickDirOf(options, isVertical ? { x: 'in', y: 'none' } : { x: 'none', y: 'in' });
+
   ctx.strokeStyle = '#000';
   ctx.lineWidth = t.line.axis;
 
@@ -153,6 +158,7 @@ export function renderAbsBarGraph(
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
       drawGrid: true,
+      tickDir: dir.y,
     });
 
     // 막대 (플롯 영역 클리핑)
@@ -185,11 +191,10 @@ export function renderAbsBarGraph(
           ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(String(val), cx, y + barH / 2);
+            inkText(ctx, String(val), cx, y + barH / 2, undefined, isLightFill(s, t), t);
           }
           cumVal += val;
         }
@@ -214,7 +219,8 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, by, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
-            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
+            // 막대 밖 글자 — 1.7.0 의 «어두운 계열 값이 흰 바탕에 흰 글자» 결함은 classic 바이트를 위해 남긴다
+            ctx.fillStyle = byStyle(options, { classic: isLightFill(s, t) ? '#000' : '#fff', exam: '#000' });
             ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
@@ -234,6 +240,20 @@ export function renderAbsBarGraph(
       ctx.moveTo(plotX, baseY);
       ctx.lineTo(plotX + plotW, baseY);
       ctx.stroke();
+    }
+
+    // 경계 눈금 (세로) — 범주 사이 경계에서 위로
+    if (look.catTicks && dir.x !== 'none') {
+      const sgn = dir.x === 'in' ? -1 : 1;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = t.line.tick;
+      for (let c = 1; c < n; c++) {
+        const bx = plotX + catArea * c;
+        ctx.beginPath();
+        ctx.moveTo(bx, plotY + plotH);
+        ctx.lineTo(bx, plotY + plotH + sgn * t.line.tickLen);
+        ctx.stroke();
+      }
     }
 
     // X축 라벨 (클리핑 밖에서).
@@ -277,12 +297,16 @@ export function renderAbsBarGraph(
     for (let i = 0; i < ticks.length; i++) {
       const v = ticks[i];
       const x = plotX + ((v - axis.min) / (axis.max - axis.min)) * plotW;
-      ctx.lineWidth = look.tick;
-      ctx.strokeStyle = '#000';
-      ctx.beginPath();
-      ctx.moveTo(x, plotY + plotH);
-      ctx.lineTo(x, plotY + plotH + look.tickLen);
-      ctx.stroke();
+      // 값 눈금 (가로) — classic 은 바깥 그대로
+      if (dir.x !== 'none') {
+        const sgn = dir.x === 'in' ? -1 : 1;
+        ctx.lineWidth = look.tick;
+        ctx.strokeStyle = '#000';
+        ctx.beginPath();
+        ctx.moveTo(x, plotY + plotH);
+        ctx.lineTo(x, plotY + plotH + sgn * look.tickLen);
+        ctx.stroke();
+      }
       ctx.fillText(formatTick(v), x, plotY + plotH + 10);
       if (i === ticks.length - 1) lastTickHalfW = ctx.measureText(formatTick(v)).width / 2;
 
@@ -304,7 +328,7 @@ export function renderAbsBarGraph(
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    const unitX = data.unitAdjacent
+    const unitX = unitAdjacent
       ? plotX + plotW + lastTickHalfW + 2
       : plotX + plotW + 30;
     ctx.fillText(data.unit, unitX, plotY + plotH + 10);
@@ -349,11 +373,10 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, cy - barH / 2, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
             ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(String(val), bx + bw / 2, cy);
+            inkText(ctx, String(val), bx + bw / 2, cy, undefined, isLightFill(s, t), t);
           }
           cumVal += val;
         }
@@ -378,7 +401,7 @@ export function renderAbsBarGraph(
           ctx.strokeRect(bx, by, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
-            ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
+            ctx.fillStyle = byStyle(options, { classic: isLightFill(s, t) ? '#000' : '#fff', exam: '#000' });
             ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
@@ -388,6 +411,20 @@ export function renderAbsBarGraph(
       }
     }
     ctx.restore(); // 클리핑 해제
+
+    // 경계 눈금 (가로) — 범주 사이 경계에서 오른쪽(안쪽)으로
+    if (look.catTicks && dir.y !== 'none') {
+      const sgn = dir.y === 'in' ? 1 : -1;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = t.line.tick;
+      for (let c = 1; c < n; c++) {
+        const by = plotY + catArea * c;
+        ctx.beginPath();
+        ctx.moveTo(plotX, by);
+        ctx.lineTo(plotX + sgn * t.line.tickLen, by);
+        ctx.stroke();
+      }
+    }
 
     // Y축 라벨 (클리핑 밖에서)
     const catLabelX = hasGroups ? plotX - 12 : plotX - 10;

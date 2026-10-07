@@ -126,6 +126,7 @@ export function renderClimateGraph(
       fonts: options,
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
+      extraGap: t.categoryGap,
     });
   } else {
     const filteredLabels = indices.map((i) => MONTH_LABELS[i]);
@@ -135,6 +136,7 @@ export function renderClimateGraph(
       fonts: options,
       tickFontSize: options.fontSize.tick,
       labelFontSize: options.fontSize.axisLabel,
+      extraGap: t.categoryGap,
     });
   }
 
@@ -236,7 +238,7 @@ export function renderClimateGraph(
     ctx.font = unitFont;
     ctx.textAlign = 'left';
     if (at) ctx.textBaseline = at.baseline;
-    ctx.fillText('(월)', lastCx + half, at ? at.y : plotY + plotH + tickLabelGap(t));
+    ctx.fillText('(월)', lastCx + half, (at ? at.y : plotY + plotH + tickLabelGap(t)) + t.categoryGap);
   } else {
     ctx.font = unitFont;
     ctx.textAlign = 'center';

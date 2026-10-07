@@ -148,9 +148,9 @@ export function renderDeviationBGraph(
     }
   }
   // 범주 이름 — 시험지는 0 선 바로 아래 (음수 막대가 있으면 막대를 덮지 않게 축 아래로)
-  const labelY = look.labelAtZero && precipDiffs.every((v) => v >= 0)
+  const labelY = (look.labelAtZero && precipDiffs.every((v) => v >= 0)
     ? zeroYPrecip + look.crossLen / 2 + 4
-    : plotY + plotH + 12;
+    : plotY + plotH + 12) + t.categoryGap;
 
   // X축 라벨 (크게)
   ctx.fillStyle = '#000';

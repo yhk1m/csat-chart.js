@@ -159,7 +159,7 @@ export function renderDeviationAGraph(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   // 시험지는 달 경계마다 바깥 눈금 (§2 deviation-a)
-  const monthY = plotY + plotH + (look.xTicks ? t.line.tickLen + 6 : 12);
+  const monthY = plotY + plotH + (look.xTicks ? t.line.tickLen + 6 : 12) + t.categoryGap;
   if (look.xTicks) {
     ctx.strokeStyle = '#000';
     ctx.lineWidth = t.line.tick;

@@ -38,6 +38,8 @@ interface XAxisParams extends AxisOptions {
   indices?: number[];
   /** 눈금 표시 방향 — 미지정이면 바깥(1.7.0) */
   tickDir?: TickDir;
+  /** 라벨을 이만큼 더 내린다 — 달 숫자처럼 범주 이름 구실을 하는 라벨 (`StyleTokens.categoryGap`) */
+  extraGap?: number;
 }
 
 const plotArea = (p: Padding, w: number, h: number) => ({
@@ -176,6 +178,7 @@ export function drawXAxis({
   labels, indices,
   fonts, tickFontSize,
   tickDir = 'out',
+  extraGap = 0,
 }: XAxisParams) {
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
@@ -219,10 +222,10 @@ export function drawXAxis({
       const at = xTickLabelAt(ctx, fonts, y, tickDir);
       if (at) {
         ctx.textBaseline = at.baseline;
-        ctx.fillText(labels[i], cx, at.y);
+        ctx.fillText(labels[i], cx, at.y + extraGap);
         ctx.textBaseline = 'top';
       } else {
-        ctx.fillText(labels[i], cx, y + tickLabelGap(t, tickDir));
+        ctx.fillText(labels[i], cx, y + tickLabelGap(t, tickDir) + extraGap);
       }
     }
     shown++;

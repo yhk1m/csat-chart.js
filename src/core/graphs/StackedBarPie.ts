@@ -196,7 +196,7 @@ function renderStackedBar(
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       // 양 끝 칸의 긴 이름은 캔버스를 넘는다 — 아래 여백에 떠 있으니 안으로 민다
-      const at = nudgeInside(ctx, data.categories[c].label, cx, plotY + plotH + 12, w, h);
+      const at = nudgeInside(ctx, data.categories[c].label, cx, plotY + plotH + 12 + t.categoryGap, w, h);
       ctx.fillText(data.categories[c].label, at.x, at.y);
     }
 

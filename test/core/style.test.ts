@@ -176,3 +176,10 @@ describe('글꼴 순서', () => {
     }
   });
 });
+
+describe('범주 이름 간격', () => {
+  it('시험지는 가로축 아래 범주 이름을 2px 더 내린다 — classic 은 1.7.0 그대로', () => {
+    expect(examStyle.categoryGap).toBe(2);
+    expect(classicStyle.categoryGap).toBe(0);
+  });
+});

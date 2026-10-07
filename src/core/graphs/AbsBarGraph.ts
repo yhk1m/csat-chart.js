@@ -265,7 +265,7 @@ export function renderAbsBarGraph(
 
     // X축 라벨 (클리핑 밖에서).
     // 편차 그래프는 라벨이 플롯 아래가 아니라 0선 바로 아래에 붙는다.
-    const labelY = data.categoryLabelAtBaseline ? baseY + 6 : plotY + plotH + 12;
+    const labelY = (data.categoryLabelAtBaseline ? baseY + 6 : plotY + plotH + 12) + t.categoryGap;
     ctx.fillStyle = '#000';
     ctx.font = textFont(options, catPlace, catFs);
     ctx.textAlign = 'center';
@@ -281,7 +281,7 @@ export function renderAbsBarGraph(
       let y = labelY;
       if (dodgeNegative) {
         const low = Math.min(0, ...data.categories[c].values.slice(0, sCount).map((v) => v || 0));
-        if (low < 0) y = Math.min(valToY(low), plotY + plotH) + 6;
+        if (low < 0) y = Math.min(valToY(low), plotY + plotH) + 6 + t.categoryGap;
       }
       ctx.fillText(data.categories[c].label, cx, y);
     }

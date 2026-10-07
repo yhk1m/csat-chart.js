@@ -165,6 +165,11 @@ export interface StyleTokens {
    * null 이면 1.7.0 처럼 눈금 숫자 열에 오른쪽 끝을 맞춘다.
    */
   unitAt: { fromAxis: number; pastTicks: number } | null;
+  /**
+   * 가로축 아래 범주 이름((가)·A·달 숫자)을 1.7.0 자리보다 더 내리는 px.
+   * 저자 검토(2026-10-08): 시험지 양식에서 (가) 가 축에 너무 붙어 보였다.
+   */
+  categoryGap: number;
 }
 
 const same = (_fs: FontSizes, classicPx: number) => classicPx;
@@ -242,6 +247,7 @@ export const classicStyle: StyleTokens = {
   tickText: null,
   separateParens: false,
   unitAt: null,
+  categoryGap: 0,
 };
 
 /** 시험지 글자 — 굵은 글자는 표본 어디에도 없다(실측 §1.1) */
@@ -333,6 +339,7 @@ export const examStyle: StyleTokens = {
   // 표본 8장(absbar·line·scatter·stacked)의 단위 왼쪽 끝: 축에서 −10.2 … −25.9pt, 가운데값 −14.9pt.
   // 단위는 언제나 눈금 숫자 열보다 왼쪽에서 시작한다(1.8–12.8pt) — 숫자가 넓으면 그만큼 더 왼쪽
   unitAt: { fromAxis: 72.3, pastTicks: 8.7 }, // 14.9pt · 1.8pt
+  categoryGap: 2,
 };
 
 const STYLES: Record<StyleName, StyleTokens> = { classic: classicStyle, exam: examStyle };

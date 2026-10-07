@@ -229,7 +229,7 @@ export function renderCategoryDotGraph(
   ctx.textBaseline = 'top';
   for (let c = 0; c < n; c++) {
     const cx = plotX + catArea * c + catArea / 2;
-    ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12);
+    ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12 + t.categoryGap);
   }
 
   if (options.title) {

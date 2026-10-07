@@ -86,6 +86,8 @@ export function drawYAxis({
   }
 
   const stride = labelStride(plot.h / Math.max(1, ticks.length - 1), tickFontSize * 1.1);
+  /** 눈금 숫자 열의 왼쪽 끝 (왼쪽 축) — 단위 자리를 정한다 */
+  let tickLeft = x;
 
   for (let i = 0; i < ticks.length; i++) {
     const val = ticks[i];
@@ -124,14 +126,15 @@ export function drawYAxis({
     if (i % stride === 0) {
       const text = signed ? signedTick(val) : formatTick(val);
       const at = yTickLabelAt(ctx, fonts, x, side, tickDir, y, plot.y + plot.h);
+      const tx = at ? at.x : side === 'left' ? x - tickGap : x + tickGap;
       if (at) {
         ctx.textBaseline = at.baseline;
         ctx.fillText(text, at.x, at.y);
         ctx.textBaseline = 'middle';
       } else {
-        const tx = side === 'left' ? x - tickGap : x + tickGap;
         ctx.fillText(text, tx, y);
       }
+      if (side === 'left') tickLeft = Math.min(tickLeft, tx - ctx.measureText(text).width);
     }
   }
 
@@ -150,11 +153,22 @@ export function drawYAxis({
     // 캔버스보다 넓은 이름은 밀어서 될 일이 아니다 — 글꼴부터 줄인다
     const unitSize = textSize(fonts, 'unit', labelFontSize);
     ctx.font = makeFont(shrinkToWidth(ctx, [label], unitSize, width - EDGE * 2, makeFont));
-    const labelX = side === 'left' ? x - tickGap : x + tickGap;
+    const examLeft = side === 'left' ? yUnitLeft(fonts, x, tickLeft) : null;
+    if (examLeft !== null) ctx.textAlign = 'left';
+    const labelX = examLeft ?? (side === 'left' ? x - tickGap : x + tickGap);
     const at = nudgeInside(ctx, label, labelX, plot.y - tickFontSize * 0.5 - 8, width, height);
     ctx.fillText(label, at.x, at.y);
     ctx.restore();
   }
+}
+
+/**
+ * exam 세로축(왼쪽) 단위의 왼쪽 끝 x. `tickLeft` 는 눈금 숫자 열의 왼쪽 끝.
+ * classic 이면 null — 1.7.0 자리(숫자 열에 오른쪽 맞춤)를 그대로 쓴다.
+ */
+export function yUnitLeft(fonts: FontOptions, axisX: number, tickLeft: number): number | null {
+  const u = styleOf(fonts).unitAt;
+  return u ? Math.min(axisX - u.fromAxis, tickLeft - u.pastTicks) : null;
 }
 
 export function drawXAxis({

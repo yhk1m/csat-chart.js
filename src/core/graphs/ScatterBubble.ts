@@ -2,7 +2,7 @@
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
-import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
+import { xTickLabelAt, yTickLabelAt, yUnitLeft } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
@@ -236,6 +236,8 @@ function renderNormal(
   // 축 이름이 눈금 숫자를 밟지 않도록, 가장 넓은 숫자만큼 밀어낼 거리를 재 둔다
   // (여백을 정할 때 이미 잰 값이다 — 같은 것을 두 번 세지 않는다)
   const yTickTextW = yName.tickW;
+  /** 눈금 숫자 열의 왼쪽 끝 — exam 세로축 단위 자리 */
+  let yTickLeft = plotX;
   yTicks.forEach((v, i) => {
     const y = toCanvasY(v);
     const [a, b] = tickSeg(t, dir.y);
@@ -255,6 +257,7 @@ function renderNormal(
       } else {
         ctx.fillText(formatTick(v), plotX - 10, y);
       }
+      yTickLeft = Math.min(yTickLeft, (at ? at.x : plotX - 10) - ctx.measureText(formatTick(v)).width);
     }
   });
 
@@ -288,9 +291,10 @@ function renderNormal(
 
   // Y축 단위 (상단 끝) — 플롯 위 여백에 떠 있다
   if (data.yUnit) {
-    ctx.textAlign = 'right';
+    const examLeft = yUnitLeft(options, plotX, yTickLeft);
+    ctx.textAlign = examLeft === null ? 'right' : 'left';
     ctx.textBaseline = 'bottom';
-    drawFloatingLabel(ctx, data.yUnit, plotX - 10, plotY - 16, w, h,
+    drawFloatingLabel(ctx, data.yUnit, examLeft ?? plotX - 10, plotY - 16, w, h,
       textSize(options, 'unit', fs.axisLabel), (size) => textFont(options, 'unit', size));
   }
 

@@ -2,6 +2,7 @@
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
+import { yUnitLeft } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, nudgeInside, textExtent } from '../canvas/fit';
@@ -144,8 +145,15 @@ function renderStackedBar(
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     {
+      // exam 은 시험지 자리(축에서 14.9pt 왼쪽, 숫자 열보다 왼쪽)에서 왼쪽 맞춤
+      ctx.save();
+      ctx.font = textFont(options, 'tick', tickFs);
+      const tickLeft = plotX - 10 - widestTick(ctx, stepV);
+      ctx.restore();
+      const examLeft = yUnitLeft(options, plotX, tickLeft);
+      if (examLeft !== null) ctx.textAlign = 'left';
       // 안에 있으면 그 자리 그대로 — 넓은 글꼴에서 괄호가 왼쪽으로 넘칠 때만 민다
-      const at = nudgeInside(ctx, data.unit, plotX - 10, plotY - 16, w, h);
+      const at = nudgeInside(ctx, data.unit, examLeft ?? plotX - 10, plotY - 16, w, h);
       ctx.fillText(data.unit, at.x, at.y);
     }
 
@@ -569,4 +577,11 @@ function drawSegmentLabel(
 
   // 패턴·연한 채움 위에는 흰 테두리를 둘러 글자를 띄운다
   inkText(ctx, text, cx, cy, maxW, light, styleOf(options), true);
+}
+
+/** 0–100 눈금 숫자 중 가장 넓은 것의 폭 (지금 ctx.font 로) */
+function widestTick(ctx: CanvasRenderingContext2D, step: number): number {
+  let wMax = 0;
+  for (let v = 0; v <= 100; v += step) wMax = Math.max(wMax, ctx.measureText(String(v)).width);
+  return wMax;
 }

@@ -160,6 +160,11 @@ export interface StyleTokens {
    * 의 괄호를 본문 명조 꼴로, 한글 높이의 1.04 배로 한글 가운데에 찍는다.
    */
   separateParens: boolean;
+  /**
+   * 세로축 단위 `(만 명)` 의 왼쪽 끝 = min(축 − fromAxis, 눈금 숫자 열 왼쪽 − pastTicks), 왼쪽 맞춤.
+   * null 이면 1.7.0 처럼 눈금 숫자 열에 오른쪽 끝을 맞춘다.
+   */
+  unitAt: { fromAxis: number; pastTicks: number } | null;
 }
 
 const same = (_fs: FontSizes, classicPx: number) => classicPx;
@@ -236,6 +241,7 @@ export const classicStyle: StyleTokens = {
   ticksByType: false,
   tickText: null,
   separateParens: false,
+  unitAt: null,
 };
 
 /** 시험지 글자 — 굵은 글자는 표본 어디에도 없다(실측 §1.1) */
@@ -324,6 +330,9 @@ export const examStyle: StyleTokens = {
   // (바깥 2.6pt 눈금 끝 + 1.2pt). 맨 아래 「0」 은 가운데에 두되 가로 숫자와 1.2pt 이상 떨어진다
   tickText: { yGap: 8.7, xGap: 15, pastTick: 5.8 }, // 1.8pt · 3.1pt · 1.2pt
   separateParens: true,
+  // 표본 8장(absbar·line·scatter·stacked)의 단위 왼쪽 끝: 축에서 −10.2 … −25.9pt, 가운데값 −14.9pt.
+  // 단위는 언제나 눈금 숫자 열보다 왼쪽에서 시작한다(1.8–12.8pt) — 숫자가 넓으면 그만큼 더 왼쪽
+  unitAt: { fromAxis: 72.3, pastTicks: 8.7 }, // 14.9pt · 1.8pt
 };
 
 const STYLES: Record<StyleName, StyleTokens> = { classic: classicStyle, exam: examStyle };

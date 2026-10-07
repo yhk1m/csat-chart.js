@@ -10,8 +10,13 @@
 // 감싼다. exam 이면 fillText·strokeText·measureText 가 이 파일의 fillMixed·measureMixed 로
 // 가고(폭을 재서 맞추고 가운데 두는 계산도 같은 폭을 본다), classic 이면 받은 ctx 그대로라
 // 1.7.0 그림이 한 픽셀도 달라지지 않는다.
+//
+// 숫자도 같은 길로 가른다 — 고딕·명조 자리(출처·각주·범례)의 `1991~2020년`·`(2023)` 의
+// 숫자는 글꼴 목록 앞의 숫자 글꼴로 그려지지만 크기는 그 자리 크기라, 숫자 높이를 맞춘
+// 숫자 자리(눈금·자료값)보다 낮다. exam 은 숫자 조각만 숫자 자리 크기(`numeralSize`)로
+// 찍고 alphabetic 기준선을 본 글줄과 맞춘다.
 import { styleOf } from './style';
-import { numeralScaleOf, parenStackOf, type FontOptions } from './renderer';
+import { numeralScaleOf, numeralSize, parenStackOf, fontStackOf, currentMeasurer, type FontOptions } from './renderer';
 
 /** 괄호 잉크 높이 / 한글 잉크 높이 — 시험지 `(천만 명)` 실측 53/51px */
 export const PAREN_HEIGHT = 1.04;
@@ -23,24 +28,52 @@ const REF_PAREN = '(';
 export interface Run {
   text: string;
   paren: boolean;
+  /** 숫자 조각 — `splitRuns(text, true)` 에서만 붙는다 */
+  digit?: true;
+}
+
+/** 숫자 조각 — 숫자 사이의 쉼표·점(`1,234.5`)까지 한 조각 */
+const DIGIT_RUN = /[0-9]+(?:[.,][0-9]+)*/y;
+
+/**
+ * 괄호 조각·(digits 면) 숫자 조각·나머지를 차례로 가른다. 이어진 괄호는 한 조각이다.
+ * `1991~2020년` → `1991` · `~` · `2020` · `년`.
+ */
+export function splitRuns(text: string, digits: boolean): Run[] {
+  const runs: Run[] = [];
+  let pos = 0; // UTF-16 위치
+  while (pos < text.length) {
+    if (digits) {
+      DIGIT_RUN.lastIndex = pos;
+      const m = DIGIT_RUN.exec(text);
+      if (m) {
+        runs.push({ text: m[0], paren: false, digit: true });
+        pos += m[0].length;
+        continue;
+      }
+    }
+    const ch = String.fromCodePoint(text.codePointAt(pos)!);
+    const paren = ch === '(' || ch === ')';
+    const last = runs[runs.length - 1];
+    if (last && !last.digit && last.paren === paren) last.text += ch;
+    else runs.push({ text: ch, paren });
+    pos += ch.length;
+  }
+  return runs;
 }
 
 /** `2020(년)` → `2020` · `(` · `년` · `)`. 이어진 괄호는 한 조각이다. */
 export function splitParenRuns(text: string): Run[] {
-  const runs: Run[] = [];
-  for (const ch of text) {
-    const paren = ch === '(' || ch === ')';
-    const last = runs[runs.length - 1];
-    if (last && last.paren === paren) last.text += ch;
-    else runs.push({ text: ch, paren });
-  }
-  return runs;
+  return splitRuns(text, false);
 }
 
 /** 한글이 든 글줄은 괄호를 그려지는 한글에 맞춘다 — 숫자 자리 배율(refScale)은 한글 없는 「(2024)」 에만 */
 const HANGUL = /[가-힣]/;
 
 const hasParen = (text: string) => text.includes('(') || text.includes(')');
+const hasDigit = (text: string) => /[0-9]/.test(text);
+/** 갈라 찍을 것이 있는가 — 숫자 조각 글꼴(digitFont)이 없으면 괄호만 본다 */
+const needsSplit = (text: string, digitFont?: string | null) => hasParen(text) || (!!digitFont && hasDigit(text));
 
 interface ParenFit {
   /** 괄호 조각의 글꼴 문자열 */
@@ -52,9 +85,37 @@ interface ParenFit {
 /** `${ctx.font}|${baseline}|${stack}` → 괄호 글꼴·옮김 */
 const fitCache = new Map<string, ParenFit>();
 
+/** `${ctx.font}|${baseline}|${digitFont}` → 숫자 조각 세로 옮김 */
+const digitDyCache = new Map<string, number>();
+
 /** 잰 값을 버린다 — 글꼴이 새로 도착했을 때 (renderer.ts `resetDigitCache` 가 함께 부른다) */
 export function resetParenCache(): void {
   fitCache.clear();
+  digitDyCache.clear();
+}
+
+/** 지금 textBaseline 의 y 에서 alphabetic 기준선까지 (+ 아래) — `0` 의 잉크로 잰다 */
+function baselineOf(ctx: CanvasRenderingContext2D, font: string): number {
+  const baseline = ctx.textBaseline;
+  ctx.font = font;
+  const here = ctx.measureText('0').actualBoundingBoxAscent;
+  ctx.textBaseline = 'alphabetic';
+  const alpha = ctx.measureText('0').actualBoundingBoxAscent;
+  ctx.textBaseline = baseline;
+  return typeof here === 'number' && typeof alpha === 'number' ? alpha - here : 0;
+}
+
+/** 숫자 조각을 본 글줄과 같은 alphabetic 기준선에 두는 세로 옮김 */
+function digitDy(ctx: CanvasRenderingContext2D, digitFont: string): number {
+  const main = ctx.font;
+  const key = `${main}|${ctx.textBaseline}|${digitFont}`;
+  let dy = digitDyCache.get(key);
+  if (dy === undefined) {
+    dy = ctx.textBaseline === 'alphabetic' ? 0 : baselineOf(ctx, main) - baselineOf(ctx, digitFont);
+    ctx.font = main;
+    digitDyCache.set(key, dy);
+  }
+  return dy;
 }
 
 function inkOf(ctx: CanvasRenderingContext2D, ch: string): { up: number; down: number } | null {
@@ -105,23 +166,34 @@ interface Placed extends Run {
   metrics: TextMetrics;
 }
 
+interface Layout {
+  runs: Placed[];
+  width: number;
+  /** 조각의 글꼴·세로 옮김 */
+  fontOf: (r: Run) => string;
+  dyOf: (r: Run) => number;
+}
+
 /** 조각마다 폭을 재서 왼쪽부터 놓는다. ctx.font 는 원래대로 돌려놓는다. */
-function layout(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1): { runs: Placed[]; width: number; fit: ParenFit } {
+function layout(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1, digitFont?: string | null): Layout {
   const main = ctx.font;
   const align = ctx.textAlign;
-  const fit = parenFit(ctx, stack, refScale);
+  const fit = hasParen(text) ? parenFit(ctx, stack, refScale) : { font: main, dy: 0 };
+  const ddy = digitFont ? digitDy(ctx, digitFont) : 0;
+  const fontOf = (r: Run) => (r.paren ? fit.font : r.digit && digitFont ? digitFont : main);
+  const dyOf = (r: Run) => (r.paren ? fit.dy : r.digit ? ddy : 0);
   ctx.textAlign = 'left';
   let x = 0;
   const runs: Placed[] = [];
-  for (const r of splitParenRuns(text)) {
-    ctx.font = r.paren ? fit.font : main;
+  for (const r of splitRuns(text, !!digitFont)) {
+    ctx.font = fontOf(r);
     const metrics = ctx.measureText(r.text);
     runs.push({ ...r, x, width: metrics.width, metrics });
     x += metrics.width;
   }
   ctx.font = main;
   ctx.textAlign = align;
-  return { runs, width: x, fit };
+  return { runs, width: x, fontOf, dyOf };
 }
 
 /** textAlign 이 가리키는 기준점 = 글줄 왼쪽 끝 + 이만큼 */
@@ -135,9 +207,16 @@ function alignOffset(align: CanvasTextAlign, width: number): number {
  * `measureText` 와 같은 꼴의 값 — 폭은 조각 폭의 합, 잉크는 조각 잉크를 모은 것
  * (괄호는 옮긴 자리로). 괄호가 없으면 ctx.measureText 그대로.
  */
-export function measureMixed(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1): TextMetrics {
-  if (!hasParen(text)) return ctx.measureText(text);
-  const { runs, width, fit } = layout(ctx, text, stack, refScale);
+export function measureMixed(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  stack: string,
+  refScale = 1,
+  /** 숫자 조각 글꼴 — 주면 숫자도 갈라 잰다 */
+  digitFont?: string | null,
+): TextMetrics {
+  if (!needsSplit(text, digitFont)) return ctx.measureText(text);
+  const { runs, width, dyOf } = layout(ctx, text, stack, refScale, digitFont);
   const a = alignOffset(ctx.textAlign, width);
   let left = Infinity;
   let right = -Infinity;
@@ -145,13 +224,13 @@ export function measureMixed(ctx: CanvasRenderingContext2D, text: string, stack:
   let down = -Infinity;
   for (const r of runs) {
     const m = r.metrics;
-    const dy = r.paren ? fit.dy : 0;
+    const dy = dyOf(r);
     left = Math.min(left, r.x - (m.actualBoundingBoxLeft ?? 0));
     right = Math.max(right, r.x + (m.actualBoundingBoxRight ?? r.width));
     up = Math.max(up, (m.actualBoundingBoxAscent ?? 0) - dy);
     down = Math.max(down, (m.actualBoundingBoxDescent ?? 0) + dy);
   }
-  const first = runs.find((r) => !r.paren)?.metrics ?? runs[0].metrics;
+  const first = runs.find((r) => !r.paren && !r.digit)?.metrics ?? runs[0].metrics;
   return {
     width,
     actualBoundingBoxLeft: a - left,
@@ -177,6 +256,8 @@ export function fillMixed(
   maxWidth?: number,
   stroke = false,
   refScale = 1,
+  /** 숫자 조각 글꼴 — 주면 숫자도 갈라 찍는다 */
+  digitFont?: string | null,
 ): void {
   const draw = (t: string, dx: number, dy: number, mw?: number) => {
     if (stroke) {
@@ -185,14 +266,13 @@ export function fillMixed(
     } else if (mw === undefined) ctx.fillText(t, dx, dy);
     else ctx.fillText(t, dx, dy, mw);
   };
-  if (!hasParen(text)) {
+  if (!needsSplit(text, digitFont)) {
     draw(text, x, y, maxWidth);
     return;
   }
-  const { runs, width, fit } = layout(ctx, text, stack, refScale);
+  const { runs, width, fontOf, dyOf } = layout(ctx, text, stack, refScale, digitFont);
   const squeeze = maxWidth !== undefined && maxWidth > 0 && width > maxWidth ? maxWidth / width : 1;
   const start = x - alignOffset(ctx.textAlign, width * squeeze);
-  const main = ctx.font;
   ctx.save();
   ctx.textAlign = 'left';
   if (squeeze < 1) {
@@ -201,8 +281,8 @@ export function fillMixed(
   }
   const x0 = squeeze < 1 ? 0 : start;
   for (const r of runs) {
-    ctx.font = r.paren ? fit.font : main;
-    draw(r.text, x0 + r.x, y + (r.paren ? fit.dy : 0));
+    ctx.font = fontOf(r);
+    draw(r.text, x0 + r.x, y + dyOf(r));
   }
   ctx.restore();
 }
@@ -222,21 +302,43 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
   // 캔버스가 고쳐 쓴 ctx.font → 그 배율. save/restore 로 글꼴이 돌아와도 맞는 값을 찾는다
   const scales = new Map<string, number>();
   const refScale = (t: string) => (HANGUL.test(t) ? 1 : scales.get(ctx.font) ?? 1);
+
+  // 숫자 조각 글꼴 — 고딕·명조 자리 글꼴(숫자 글꼴이 앞에 붙은 목록, 숫자 높이를 맞추지
+  // 않은 px)이면 숫자만 숫자 자리 크기로. 렌더러가 건 글꼴 문자열(캔버스가 고쳐 쓰기 전)로 본다.
+  const tok = styleOf(o);
+  const numeralList = o.fontStack?.numeral || tok.stack.numeral;
+  const numeralStack = fontStackOf(o, 'numeral');
+  const digitFonts = new Map<string, string | null>();
+  const digitFontOf = (raw: string): string | null => {
+    if (!tok.digitHeight || !numeralList || numeralScaleOf(raw) !== 1) return null;
+    const m = /^(.*?)(\d+(?:\.\d+)?)px\s+(.*)$/.exec(raw);
+    if (!m || !m[3].startsWith(numeralList)) return null;
+    const px = parseFloat(m[2]);
+    // 잴 ctx 는 감싸지 않은 원래 것 — 감싼 ctx 로 재면 글꼴 쓰기가 여기로 되돌아온다.
+    // 그리기 밖(잴 ctx 없음)이면 textFont 처럼 키우지 않는다
+    if (!currentMeasurer().ctx) return null;
+    const size = numeralSize(px, m[1].trim() || 'normal', numeralStack, tok.digitHeight, ctx);
+    return size !== px ? `${m[1]}${size}px ${numeralStack}` : null;
+  };
+  const digitFont = () => digitFonts.get(ctx.font) ?? null;
   return new Proxy(ctx, {
     get(target_, prop) {
       if (prop === 'fillText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, false, refScale(String(t)));
+        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, false, refScale(String(s)), digitFont());
       }
       if (prop === 'strokeText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, true, refScale(String(t)));
+        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, true, refScale(String(s)), digitFont());
       }
-      if (prop === 'measureText') return (t: string) => measureMixed(target_, String(t), stack, refScale(String(t)));
+      if (prop === 'measureText') return (s: string) => measureMixed(target_, String(s), stack, refScale(String(s)), digitFont());
       const v = Reflect.get(target_, prop, target_);
       return typeof v === 'function' ? v.bind(target_) : v;
     },
     set(target_, prop, value) {
       const ok = Reflect.set(target_, prop, value, target_);
-      if (prop === 'font' && typeof value === 'string') scales.set(target_.font, numeralScaleOf(value));
+      if (prop === 'font' && typeof value === 'string') {
+        scales.set(target_.font, numeralScaleOf(value));
+        digitFonts.set(target_.font, digitFontOf(value));
+      }
       return ok;
     },
   });

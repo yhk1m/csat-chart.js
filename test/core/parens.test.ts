@@ -2,9 +2,10 @@
 // 괄호를 따로 찍는 글줄 도우미 — 가짜 ctx 로 조각 나누기·폭·세로 자리를 본다.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  splitParenRuns, measureMixed, fillMixed, textCtx, resetParenCache, PAREN_HEIGHT,
+  splitParenRuns, splitRuns, measureMixed, fillMixed, textCtx, resetParenCache, PAREN_HEIGHT,
 } from '../../src/core/canvas/parens';
 import { createDefaultGraphOptions } from '../../src/core/index';
+import { setFontMeasurer, resetDigitCache, textFont, getFont, fontStackOf, numeralSize } from '../../src/core/canvas/renderer';
 
 const PAREN = "'PARENFONT'";
 
@@ -32,10 +33,12 @@ function fakeCtx(font = '35px MAIN') {
       const asc = isParen() ? 0.75 : 0.8;
       const desc = isParen() ? 0.2 : 0.1;
       const w = [...t].length * per * p;
+      // 'top' 기준선이면 em 위끝(= alphabetic 기준선 위 1em)이 y 다
+      const shift = st.textBaseline === 'top' ? p : 0;
       return {
         width: w,
         actualBoundingBoxLeft: 0, actualBoundingBoxRight: w,
-        actualBoundingBoxAscent: asc * p, actualBoundingBoxDescent: desc * p,
+        actualBoundingBoxAscent: asc * p - shift, actualBoundingBoxDescent: desc * p + shift,
         fontBoundingBoxAscent: p, fontBoundingBoxDescent: 0.2 * p,
       } as unknown as TextMetrics;
     },
@@ -51,7 +54,7 @@ function fakeCtx(font = '35px MAIN') {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
 }
 
-beforeEach(() => resetParenCache());
+beforeEach(() => { resetParenCache(); resetDigitCache(); setFontMeasurer(null); });
 
 describe('splitParenRuns', () => {
   it('괄호 조각과 나머지를 차례대로 가른다', () => {
@@ -170,5 +173,73 @@ describe('textCtx', () => {
     expect(c.measureText('(가)').width).toBeCloseTo(measureMixed(ctx, '(가)', PAREN).width, 6);
     expect(c.measureText('가가').width).toBe(35);
     expect(c.canvas).toBe(ctx.canvas);
+  });
+});
+
+describe('숫자 조각 — 고딕·명조 자리 글줄의 숫자를 숫자 자리 크기로', () => {
+  const DIGITS = "40px 'NUM', MAIN";
+
+  it('splitRuns(digits) 는 숫자(사이 쉼표·점 포함)를 따로 가른다', () => {
+    expect(splitRuns('1991~2020년', true)).toEqual([
+      { text: '1991', paren: false, digit: true }, { text: '~', paren: false },
+      { text: '2020', paren: false, digit: true }, { text: '년', paren: false },
+    ]);
+    expect(splitRuns('(1,234.5명)', true)).toEqual([
+      { text: '(', paren: true }, { text: '1,234.5', paren: false, digit: true },
+      { text: '명', paren: false }, { text: ')', paren: true },
+    ]);
+    expect(splitRuns('2020(년)', false)).toEqual(splitParenRuns('2020(년)'));
+  });
+
+  it('숫자 조각은 숫자 글꼴로 찍고 폭도 그 글꼴로 잰다', () => {
+    const { ctx, calls } = fakeCtx();
+    fillMixed(ctx, '1991~2020년', 0, 100, PAREN, undefined, false, 1, DIGITS);
+    expect(calls.map((c) => [c.text, c.font])).toEqual([
+      ['1991', DIGITS], ['~', '35px MAIN'], ['2020', DIGITS], ['년', '35px MAIN'],
+    ]);
+    expect(calls[1].x).toBeCloseTo(4 * 0.5 * 40, 6);
+    expect(measureMixed(ctx, '1991~2020년', PAREN, 1, DIGITS).width).toBeCloseTo(8 * 20 + 2 * 17.5, 6);
+    expect(ctx.font).toBe('35px MAIN');
+  });
+
+  it('alphabetic 기준선이면 숫자도 같은 y, top 이면 기준선이 맞게 옮긴다', () => {
+    const a = fakeCtx();
+    fillMixed(a.ctx, '2020년', 0, 100, PAREN, undefined, false, 1, DIGITS);
+    expect(a.calls[0].y).toBe(100);
+    const t = fakeCtx();
+    t.ctx.textBaseline = 'top';
+    fillMixed(t.ctx, '2020년', 0, 100, PAREN, undefined, false, 1, DIGITS);
+    // 본 글꼴 기준선 y+35, 숫자 글꼴 기준선 y+40 → 숫자를 5 위로
+    expect(t.calls[0].y).toBeCloseTo(95, 6);
+    expect(t.calls[1].y).toBe(100);
+  });
+
+  it('textCtx(exam): 고딕 자리 글꼴이면 숫자 조각을 numeralSize 로, 숫자 자리 글꼴이면 가르지 않는다', () => {
+    const { ctx, calls } = fakeCtx();
+    setFontMeasurer(ctx);
+    const o = { ...createDefaultGraphOptions('exam'), style: 'exam' as const, fontStack: { serif: PAREN, numeral: "'NUM'" } };
+    const c = textCtx(ctx, o);
+    c.font = getFont(35, o, 'normal', 'sans');
+    c.fillText('1991~2020년', 0, 0);
+    const numStack = fontStackOf(o, 'numeral');
+    const size = numeralSize(35, 'normal', numStack, 0.758, ctx);
+    expect(size).not.toBe(35);
+    expect(calls[0]).toMatchObject({ text: '1991', font: `normal ${size}px ${numStack}` });
+    expect(calls[1].font).toBe(getFont(35, o, 'normal', 'sans'));
+
+    calls.length = 0;
+    c.font = textFont(o, 'tick', 35);
+    c.fillText('2020', 0, 0);
+    expect(calls.map((k) => k.text)).toEqual(['2020']);
+  });
+
+  it('textCtx(exam): 고딕 자리를 직접 준 글꼴(숫자 글꼴이 안 붙음)이면 가르지 않는다', () => {
+    const { ctx, calls } = fakeCtx();
+    setFontMeasurer(ctx);
+    const o = { ...createDefaultGraphOptions('exam'), style: 'exam' as const, fontStack: { serif: PAREN, numeral: "'NUM'", sans: 'MYSANS' } };
+    const c = textCtx(ctx, o);
+    c.font = getFont(35, o, 'normal', 'sans');
+    c.fillText('2020년', 0, 0);
+    expect(calls.map((k) => k.text)).toEqual(['2020년']);
   });
 });

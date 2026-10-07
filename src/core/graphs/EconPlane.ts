@@ -559,7 +559,14 @@ export function renderEconPlane(
     const at = anchorOf(p.labelPos, look.dotR + LABEL_GAP);
     ctx.textAlign = at.align;
     ctx.textBaseline = at.baseline;
-    drawFloatingRich(ctx, p.label, px + at.dx, py + at.dy, w, h, labelPx(p.label), labelFont(p.label));
+    let lx = px + at.dx;
+    // exam: 글자가 커서 세로축 가까운 점의 왼쪽 이름이 축선을 건넌다 — 축 오른쪽으로 당긴다
+    if (at.align === 'right' && !four && px > axX && byStyle(options, { classic: false, exam: true })) {
+      ctx.font = labelFont(p.label)(labelPx(p.label));
+      const left = lx - richWidth(ctx, p.label, labelPx(p.label), labelFont(p.label));
+      if (left < axX + 4) lx += axX + 4 - left;
+    }
+    drawFloatingRich(ctx, p.label, lx, py + at.dy, w, h, labelPx(p.label), labelFont(p.label));
   }
   ctx.restore();
 

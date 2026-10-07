@@ -264,6 +264,8 @@ function axisTexts(
   data: CubeGraphData,
   cx: number, cy: number, scale: number,
   names: AxisNameLines,
+  /** exam 은 원점 둘레 낮음 셋과 깊이축 높음을 겹치지 않게 벌린다 (글자가 classic 보다 40% 크다) */
+  spread = false,
 ): AxisText[] {
   const ext = 1.25;
   const xEnd = project(ext, 0, 0, cx, cy, scale);
@@ -273,6 +275,34 @@ function axisTexts(
   const yHigh = project(0, 1, 0, cx, cy, scale);
   const zHigh = project(0, 0, 1, cx, cy, scale);
   const origin = project(0, 0, 0, cx, cy, scale);
+
+  if (spread) {
+    // 원점에서 세 모서리가 갈라진다 — 위(세로)·오른쪽(가로)·왼쪽 아래(깊이).
+    // 낮음이 서로 다르면 셋을 그 세 틈에 하나씩 둔다: 세로축 낮음은 세로 모서리 왼쪽 위,
+    // 가로축 낮음은 가로 모서리 아래 오른쪽, 깊이축 낮음은 깊이 모서리 왼쪽(모서리에서
+    // 글자 반 높이 ÷ tan35° 만큼 비켜). 깊이축 높음은 깊이 끝 꼭짓점 아래 오른쪽 —
+    // 그 왼쪽에는 축 이름이 온다.
+    // 낮음 셋이 같은 글이면 시험지처럼 원점 오른쪽 아래에 하나만 둔다(2026_06 korgeo q18 «(낮음)»).
+    const depthAt = project(0.3, 0, 0, cx, cy, scale);
+    const lows = [data.xAxis.lowLabel, data.yAxis.lowLabel, data.zAxis.lowLabel];
+    const shared = lows.every((l) => l === lows[0]);
+    const lowTexts: AxisText[] = shared
+      ? [{ lines: [lows[0]], x: origin[0] + 12 + data.xAxis.lowOffset.x, y: origin[1] + 8 + data.xAxis.lowOffset.y, align: 'left', baseline: 'top', kind: 'dir' }]
+      : [
+        { lines: [data.xAxis.lowLabel], x: origin[0] + 16 + data.xAxis.lowOffset.x, y: origin[1] + 10 + data.xAxis.lowOffset.y, align: 'left', baseline: 'top', kind: 'dir' },
+        { lines: [data.yAxis.lowLabel], x: origin[0] - 10 + data.yAxis.lowOffset.x, y: origin[1] - 6 + data.yAxis.lowOffset.y, align: 'right', baseline: 'bottom', kind: 'dir' },
+        { lines: [data.zAxis.lowLabel], x: depthAt[0] - 30 + data.zAxis.lowOffset.x, y: depthAt[1] + data.zAxis.lowOffset.y, align: 'right', baseline: 'middle', kind: 'dir' },
+      ];
+    return [
+      { lines: names.z, x: xEnd[0] - 6, y: xEnd[1] + 20, align: 'right', baseline: 'middle', kind: 'name' },
+      { lines: [data.zAxis.highLabel], x: zHighPos[0] + 14 + data.zAxis.highOffset.x, y: zHighPos[1] + 10 + data.zAxis.highOffset.y, align: 'left', baseline: 'top', kind: 'dir' },
+      { lines: names.y, x: yEnd[0], y: yEnd[1] - 10, align: 'center', baseline: 'bottom', kind: 'name' },
+      { lines: [data.yAxis.highLabel], x: yHigh[0] + 6 + data.yAxis.highOffset.x, y: yHigh[1] - 20 + data.yAxis.highOffset.y, align: 'left', baseline: 'middle', kind: 'dir' },
+      { lines: names.x, x: zEnd[0] + 6, y: zEnd[1], align: 'left', baseline: 'middle', kind: 'name' },
+      { lines: [data.xAxis.highLabel], x: zHigh[0] + data.xAxis.highOffset.x, y: zHigh[1] + 14 + data.xAxis.highOffset.y, align: 'center', baseline: 'top', kind: 'dir' },
+      ...lowTexts,
+    ];
+  }
 
   return [
     // 좌하 깊이 → Z축 이름
@@ -323,10 +353,11 @@ function fitCubeScale(
   const makeNameFont = (size: number) => textFont(options, 'axisName', size);
   const dirFont = textFont(options, 'axisName', textSize(options, 'axisName', fs.axisLabel * 0.9), { weight: 'normal' });
   let names: AxisNameLines = { x: [data.xAxis.name], y: [data.yAxis.name], z: [data.zAxis.name] };
+  const spread = byStyle(options, { classic: false, exam: true });
 
   const fits = (s: number) => {
     const [cx, cy] = centerAt(w, topPad, availH, s);
-    return axisTexts(data, cx, cy, s, names).every((t) => {
+    return axisTexts(data, cx, cy, s, names, spread).every((t) => {
       ctx.font = t.kind === 'name' ? makeNameFont(nameSize) : dirFont;
       ctx.textAlign = t.align;
       ctx.textBaseline = t.baseline;
@@ -349,7 +380,7 @@ function fitCubeScale(
     const room = (t: AxisText) => (t.align === 'left' ? w - EDGE - t.x
       : t.align === 'right' ? t.x - EDGE
         : 2 * Math.min(t.x - EDGE, w - EDGE - t.x));
-    const at = axisTexts(data, cx, cy, maxScale, names);
+    const at = axisTexts(data, cx, cy, maxScale, names, spread);
     names = {
       z: wrapToWidth(ctx, data.zAxis.name, Math.max(30, room(at[0]))),
       y: wrapToWidth(ctx, data.yAxis.name, Math.max(30, room(at[2]))),
@@ -413,7 +444,7 @@ function drawAxes(
   // 배율을 이미 맞췄으므로 여기서 미는 일은 거의 없다. 사용자가 준 오프셋이
   // 캔버스 밖을 가리키는 경우를 위한 마지막 안전장치다.
   ctx.fillStyle = '#000';
-  for (const t of axisTexts(data, cx, cy, scale, names)) {
+  for (const t of axisTexts(data, cx, cy, scale, names, byStyle(options, { classic: false, exam: true }))) {
     if (t.lines.every((l) => !l)) continue;
     ctx.font = t.kind === 'name' ? nameFont : dirFont;
     ctx.textAlign = t.align;

@@ -1,9 +1,16 @@
 // © 2026 김용현
 import { type ClimateGraphData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis, drawXAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { styleOf, byStyle } from '../canvas/style';
+
+const LOOK = {
+  // 강수 막대 229 + 테두리 0.34pt, 기온 ■ (§2 climate). deviation-a 표본에 격자 없음(≈)
+  classic: { barFill: '#AAAAAA', barStrokeColor: '#444', legendFill: '#AAA', legendStroke: '#666', barStroke: 1, markerR: 5, marker: 'circle', grid: true },
+  exam: { barFill: '#e5e5e5', barStrokeColor: '#000', legendFill: '#e5e5e5', legendStroke: '#000', barStroke: 1.65, markerR: 6.8, marker: 'square', grid: false },
+};
 
 const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -21,6 +28,9 @@ export function renderClimateGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
+  const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
@@ -29,12 +39,12 @@ export function renderClimateGraph(
     options.legendLabel2 || data.tempLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
+    ? measureLegendWidth(ctx, legendLabels, legendFs, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
+    ? measureBottomLegend(ctx, legendLabels, legendFs,
         w - 130 - (130 + legendW), options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
     : 0;
 
@@ -89,7 +99,7 @@ export function renderClimateGraph(
     fonts: options,
     tickFontSize: options.fontSize.tick,
     labelFontSize: options.fontSize.axisLabel,
-    drawGrid: true,
+    drawGrid: look.grid,
   });
 
   // Y축 (우: 강수량)
@@ -132,7 +142,7 @@ export function renderClimateGraph(
   // 슬롯 인덱스→X좌표 헬퍼
   const slotX = (slotIdx: number) => plotX + slotW * slotIdx + slotW / 2;
 
-  ctx.fillStyle = '#AAAAAA';
+  ctx.fillStyle = look.barFill;
   for (let s = 0; s < indices.length; s++) {
     const i = indices[s];
     const val = data.months[i].precip;
@@ -143,15 +153,15 @@ export function renderClimateGraph(
     const by = plotY + plotH - barH;
     ctx.fillRect(bx, by, barWidth, barH);
 
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = look.barStrokeColor;
+    ctx.lineWidth = look.barStroke;
     ctx.strokeRect(bx, by, barWidth, barH);
   }
 
   // 데이터 라벨 (강수량)
   if (options.showDataLabels) {
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+    ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (let s = 0; s < indices.length; s++) {
@@ -168,7 +178,7 @@ export function renderClimateGraph(
   // 기온 꺾은선 (12개월일 때만)
   if (data.monthInterval === 12) {
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = t.line.seriesStrong;
     ctx.beginPath();
     for (let i = 0; i < 12; i++) {
       const cx = slotX(i);
@@ -187,16 +197,20 @@ export function renderClimateGraph(
     const y =
       plotY + plotH - ((data.months[i].temp - tempAxis.min) / (tempAxis.max - tempAxis.min)) * plotH;
     ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.arc(cx, y, 5, 0, Math.PI * 2);
-    ctx.fill();
+    if (look.marker === 'square') {
+      ctx.fillRect(cx - look.markerR, y - look.markerR, look.markerR * 2, look.markerR * 2);
+    } else {
+      ctx.beginPath();
+      ctx.arc(cx, y, look.markerR, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     if (options.showDataLabels) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+      ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel));
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(String(data.months[i].temp), cx, y - 8);
+      ctx.fillText(String(data.months[i].temp), cx, y - look.markerR - 3);
     }
   }
 
@@ -205,7 +219,7 @@ export function renderClimateGraph(
 
   // (월) 라벨
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText('(월)', plotX + plotW + 30, plotY + plotH + 12);
@@ -216,13 +230,13 @@ export function renderClimateGraph(
     drawLegend({
       ctx, fonts: options,
       items: [
-        { type: 'rect', fillStyle: '#AAA', strokeStyle: '#666', label: legendLabels[0] },
+        { type: 'rect', fillStyle: look.legendFill, strokeStyle: look.legendStroke, label: legendLabels[0] },
         { type: data.monthInterval === 12 ? 'line' : 'circle', fillStyle: '#000', label: legendLabels[1] },
       ],
       position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85 + 5,
+      fontSize: legendFs,
       rightGap: 80,
     });
   }

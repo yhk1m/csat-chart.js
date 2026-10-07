@@ -1,10 +1,25 @@
 // © 2026 김용현
 import { type PyramidGraphData, type GraphOptions, AGE_GROUPS } from '../types/index';
-import { type Padding, clearCanvas, getFont, niceStep } from '../canvas/renderer';
+import { type Padding, clearCanvas, niceStep, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
+import { styleOf, byStyle } from '../canvas/style';
+
+const LOOK = {
+  // 남 203·여 흰색·테두리 #000 0.39pt (§3 #43), 눈금 안쪽 가로 2.3pt·세로 2.4pt 를 5세마다 (#44, §2 pyramid), 막대 사이 틈 없음
+  classic: {
+    tick: 1, tickLen: 5, ageTickLen: 6, ageTickEvery: 20, grid: '#aaa',
+    male: '#666', maleStroke: '#444', female: '#BBB', femaleStroke: '#888', barStroke: 0.5,
+    barGapRatio: 0.1, barGapPx: 2, sexBelow: false, unitInline: false,
+  },
+  exam: {
+    tick: 1.9, tickLen: 11.2, ageTickLen: 11.6, ageTickEvery: 5, grid: '#000',
+    male: '#cbcbcb', maleStroke: '#000', female: '#ffffff', femaleStroke: '#000', barStroke: 1.9,
+    barGapRatio: 0, barGapPx: 0, sexBelow: true, unitInline: true,
+  },
+};
 
 /** 눈금 숫자 서식 — 정수는 그대로, 아니면 소수 한 자리 */
 function fmtTick(v: number): string {
@@ -59,6 +74,10 @@ export function renderPyramidGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
+  const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
+  const tickFs = textSize(options, 'tick', options.fontSize.tick);
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
@@ -67,12 +86,12 @@ export function renderPyramidGraph(
     options.legendLabel2 || data.femaleLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5, options)
+    ? measureLegendWidth(ctx, legendLabels, legendFs, options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, legendLabels, options.fontSize.dataLabel * 0.85 + 5,
+    ? measureBottomLegend(ctx, legendLabels, legendFs,
         w - 60 - (80 + legendW), options)
     : 0;
 
@@ -126,13 +145,13 @@ export function renderPyramidGraph(
   const centerX = plotX + plotW / 2;
   const halfW = plotW / 2;
   const barH = plotH / n;
-  const barGap = barH * 0.1;
-  const actualBarH = barH - barGap - 2;
+  const barGap = barH * look.barGapRatio;
+  const actualBarH = barH - barGap - look.barGapPx;
 
   // 외곽선 + 연령 라벨 위치 세로선
   const side = data.ageLabelSide;
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
 
   // 좌측 세로선
   if (side === 'left') {
@@ -171,7 +190,7 @@ export function renderPyramidGraph(
   // 눈금 간격 — 격자선·눈금·숫자가 모두 이 값을 쓴다.
   // 숫자 폭을 재야 하므로 눈금 글꼴을 잠깐 걸어 둔다.
   ctx.save();
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', tickFs);
   const tickStep = pickTickStep(maxVal, halfW, ctx.measureText(fmtTick(maxVal)).width);
   ctx.restore();
 
@@ -179,9 +198,9 @@ export function renderPyramidGraph(
   for (let v = tickStep; v <= maxVal; v += tickStep) {
     const offset = (v / maxVal) * halfW;
     ctx.save();
-    ctx.strokeStyle = '#aaa';
-    ctx.lineWidth = 0.5;
-    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = look.grid;
+    ctx.lineWidth = t.line.barGrid;
+    ctx.setLineDash(t.line.barGridDash);
     // 좌측
     ctx.beginPath();
     ctx.moveTo(centerX - offset, plotY);
@@ -202,17 +221,17 @@ export function renderPyramidGraph(
     const femaleW = (displayAges[i].female / maxVal) * halfW;
 
     // 남성 (좌측) — 기본은 진한 회색, sexFills 를 주면 그 색
-    ctx.fillStyle = data.sexFills?.[0] ?? '#666';
+    ctx.fillStyle = data.sexFills?.[0] ?? look.male;
     ctx.fillRect(centerX - maleW, y, maleW, actualBarH);
-    ctx.strokeStyle = data.sexFills ? '#000' : '#444';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = data.sexFills ? '#000' : look.maleStroke;
+    ctx.lineWidth = look.barStroke;
     ctx.strokeRect(centerX - maleW, y, maleW, actualBarH);
 
     // 여성 (우측) — 기본은 연한 회색
-    ctx.fillStyle = data.sexFills?.[1] ?? '#BBB';
+    ctx.fillStyle = data.sexFills?.[1] ?? look.female;
     ctx.fillRect(centerX, y, femaleW, actualBarH);
-    ctx.strokeStyle = data.sexFills ? '#000' : '#888';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = data.sexFills ? '#000' : look.femaleStroke;
+    ctx.lineWidth = look.barStroke;
     ctx.strokeRect(centerX, y, femaleW, actualBarH);
   }
 
@@ -223,16 +242,16 @@ export function renderPyramidGraph(
   if (data.numericAgeAxis) {
     // 시험지 방식 — 연령대 이름 대신 나이 수치 눈금을 왼쪽에 둔다.
     // 구간이 5세 단위라 i 번째 막대의 아래 경계가 i*5 세다.
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'tick', tickFs);
     ctx.textAlign = 'right';
     const ageStep = 20;
     const topAge = n * 5; // 구간 × 5세 (17구간이면 85, 18구간이면 90)
     for (let age = 0; age <= topAge; age += ageStep) {
       const y = plotY + plotH - (age / topAge) * plotH;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = look.tick;
       ctx.strokeStyle = '#000';
       ctx.beginPath();
-      ctx.moveTo(plotX - 6, y);
+      ctx.moveTo(plotX - look.ageTickLen, y);
       ctx.lineTo(plotX, y);
       ctx.stroke();
       ctx.fillText(String(age), plotX - 10, y);
@@ -241,12 +260,12 @@ export function renderPyramidGraph(
       // 나이 단위는 축 위 여백에 떠 있다 — 캔버스를 벗어나면 안으로 민다
       ctx.textBaseline = 'bottom';
       drawFloatingLabel(ctx, data.ageUnit, plotX + 4, plotY - 8, w, h,
-        options.fontSize.tick, (size) => getFont(size, options, 'bold'));
-      ctx.font = getFont(options.fontSize.tick, options, 'bold');
+        textSize(options, 'unit', options.fontSize.tick), (size) => textFont(options, 'unit', size));
+      ctx.font = textFont(options, 'tick', tickFs);
       ctx.textBaseline = 'middle';
     }
   } else {
-    ctx.font = getFont(options.fontSize.tick * 0.75, options, 'bold');
+    ctx.font = textFont(options, 'tick', textSize(options, 'tick', options.fontSize.tick * 0.75));
     for (let i = 0; i < n; i++) {
       const y = plotY + plotH - (i + 1) * barH + barH / 2;
       if (side === 'center') {
@@ -263,7 +282,7 @@ export function renderPyramidGraph(
   }
 
   // X축 눈금 (좌우 대칭)
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', tickFs);
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#000';
 
@@ -292,10 +311,10 @@ export function renderPyramidGraph(
     // 좌측
     const lx = centerX - offset;
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tick;
     ctx.beginPath();
     ctx.moveTo(lx, plotY + plotH);
-    ctx.lineTo(lx, plotY + plotH + 5);
+    ctx.lineTo(lx, plotY + plotH + look.tickLen);
     ctx.stroke();
     if (showNumber) {
       ctx.textAlign = 'center';
@@ -305,10 +324,10 @@ export function renderPyramidGraph(
     // 우측
     const rx = centerX + offset;
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tick;
     ctx.beginPath();
     ctx.moveTo(rx, plotY + plotH);
-    ctx.lineTo(rx, plotY + plotH + 5);
+    ctx.lineTo(rx, plotY + plotH + look.tickLen);
     ctx.stroke();
     if (rv > 0 && showNumber) {
       ctx.textAlign = 'center';
@@ -317,7 +336,7 @@ export function renderPyramidGraph(
   }
 
   // 축 라벨 (좌: 남, 우: 여)
-  ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
+  ctx.font = textFont(options, 'region', textSize(options, 'legend', options.fontSize.axisLabel));
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
@@ -331,24 +350,24 @@ export function renderPyramidGraph(
     // 마지막 눈금 숫자는 축 끝에 가운데 정렬이라 절반이 플롯 밖으로 나온다.
     // 그만큼 더 밀어야 숫자와 붙지 않는다. 글자 크기도 숫자와 같게 맞춘다 —
     // 크기가 다르면 같은 줄에 놓아도 글줄이 어긋나 보인다.
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'tick', tickFs);
     const lastTickHalfW = ctx.measureText(fmtTick(maxVal)).width / 2;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + lastTickHalfW + 8, plotY + plotH + 10,
-      w, h, options.fontSize.tick, (size) => getFont(size, options, 'bold'));
+      w, h, textSize(options, 'unit', options.fontSize.tick), (size) => textFont(options, 'unit', size));
   } else {
-    ctx.font = getFont(options.fontSize.axisLabel * 0.85, options, 'bold');
-    const unitY = plotY + plotH + 10 + options.fontSize.tick + 22;
+    ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.axisLabel * 0.85));
+    const unitY = plotY + plotH + 10 + tickFs + 22;
     ctx.textAlign = 'left';
     drawFloatingLabel(ctx, data.axisLabel, plotX + plotW + 4, unitY, w, h,
-      options.fontSize.axisLabel * 0.85, (size) => getFont(size, options, 'bold'));
+      textSize(options, 'unit', options.fontSize.axisLabel * 0.85), (size) => textFont(options, 'unit', size));
   }
   ctx.restore();
 
   // 데이터 라벨
   if (options.showDataLabels) {
-    ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+    ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8));
     ctx.fillStyle = '#000';
     for (let i = 0; i < n; i++) {
       const y = plotY + plotH - (i + 1) * barH + barH / 2;
@@ -377,13 +396,13 @@ export function renderPyramidGraph(
     drawLegend({
       ctx, fonts: options,
       items: [
-        { type: 'rect', fillStyle: '#666', strokeStyle: '#444', label: legendLabels[0] },
-        { type: 'rect', fillStyle: '#BBB', strokeStyle: '#888', label: legendLabels[1] },
+        { type: 'rect', fillStyle: look.male, strokeStyle: look.maleStroke, label: legendLabels[0] },
+        { type: 'rect', fillStyle: look.female, strokeStyle: look.femaleStroke, label: legendLabels[1] },
       ],
       position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85 + 5,
+      fontSize: legendFs,
     });
   }
 

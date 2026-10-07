@@ -16,8 +16,9 @@ const CELL_H_RATIO = 1.7;
 const PAD_RATIO = 0.75;
 
 const LOOK = {
-  classic: { cellLine: 1.2 },
-  exam: { cellLine: 1.9 }, // 떨어진 상자 꼴(세계지리) 0.39pt — 이어진 계단표(한국지리 0.45pt)는 열린 질문
+  classic: { cellLine: 1.2, measurePerPlace: false },
+  // 이름(기호 명조·지명 고딕)과 값(숫자 글꼴)을 그리는 글꼴로 잰다
+  exam: { cellLine: 1.9, measurePerPlace: true }, // 떨어진 상자 꼴(세계지리) 0.39pt — 이어진 계단표(한국지리 0.45pt)는 열린 질문
 };
 
 export function renderMatrixTable(
@@ -37,11 +38,25 @@ export function renderMatrixTable(
 
   // 칸 크기는 가장 긴 글자에 맞춘다 — 모든 칸이 같아야 계단이 반듯하다
   const base = options.fontSize.tick;
-  ctx.font = textFont(options, 'value', base);
-  const widest = Math.max(
-    ...data.names.map((t) => ctx.measureText(t).width),
-    ...cellValues(data).map((v) => ctx.measureText(formatValue(v, data.groupThousands)).width),
-  );
+  let widest: number;
+  if (look.measurePerPlace) {
+    const nameW = data.names.map((t, i) => {
+      const isSymbol = !data.nameIsSymbol || data.nameIsSymbol[i];
+      ctx.font = textFont(options, isSymbol ? 'category' : 'region', base, { role: isSymbol ? font : 'sans' });
+      return ctx.measureText(t).width;
+    });
+    ctx.font = textFont(options, 'value', base);
+    widest = Math.max(
+      ...nameW,
+      ...cellValues(data).map((v) => ctx.measureText(formatValue(v, data.groupThousands)).width),
+    );
+  } else {
+    ctx.font = textFont(options, 'value', base);
+    widest = Math.max(
+      ...data.names.map((t) => ctx.measureText(t).width),
+      ...cellValues(data).map((v) => ctx.measureText(formatValue(v, data.groupThousands)).width),
+    );
+  }
 
   const naturalW = widest + base * PAD_RATIO * 2;
   const unitSize = textSize(options, 'unit', options.fontSize.dataLabel);

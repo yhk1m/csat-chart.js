@@ -18,8 +18,9 @@ const CELL_H_RATIO = 1.7;
 const PAD_RATIO = 0.75;
 /** 항목 이름 뒤 괄호 단위는 이름보다 작게 쓴다 (unitRatio) */
 const LOOK = {
-  classic: { unitRatio: 0.8 },
-  exam: { unitRatio: 0.9 }, // 단위 7.2pt ÷ 값 8.2pt
+  classic: { unitRatio: 0.8, measurePerPlace: false, valueAlign: 'right' as CanvasTextAlign },
+  // 단위 7.2pt ÷ 값 8.2pt. 지명·기호·값의 글꼴이 달라 자리별로 잰다. 값은 가운데 (§2 data-table)
+  exam: { unitRatio: 0.9, measurePerPlace: true, valueAlign: 'center' as CanvasTextAlign },
 };
 
 export function renderDataTable(
@@ -40,18 +41,39 @@ export function renderDataTable(
   const base = options.fontSize.tick;
 
   // ── 자연스러운 칸 크기부터 잰다 ──────────────────────────
-  ctx.font = textFont(options, 'value', base);
-  const labelTextW = Math.max(
-    ctx.measureText(data.cornerLabel).width,
-    ...data.rows.map((r) => rowLabelWidth(ctx, r, base, options, look.unitRatio))
-  );
-  // 값 열은 서로 폭이 같아야 표가 반듯하다 — 가장 넓은 글자에 맞춘다
-  const valueTextW = Math.max(
-    ...data.columns.map((c) => ctx.measureText(c).width),
-    ...data.rows.flatMap((r) =>
-      r.values.map((v) => ctx.measureText(formatValue(v, r.decimals, data.groupThousands)).width)
-    )
-  );
+  let labelTextW: number;
+  let valueTextW: number;
+  if (look.measurePerPlace) {
+    // 그리는 글꼴 그대로 잰다 — 모퉁이·항목 이름은 고딕, 열 이름은 기호면 명조, 값은 숫자 글꼴
+    ctx.font = textFont(options, 'region', base);
+    const cornerW = ctx.measureText(data.cornerLabel).width;
+    labelTextW = Math.max(cornerW, ...data.rows.map((r) => rowLabelWidth(ctx, r, base, options, look.unitRatio)));
+    const colTextW = data.columns.map((c, j) => {
+      const isSymbol = !data.columnIsSymbol || data.columnIsSymbol[j];
+      ctx.font = textFont(options, isSymbol ? 'category' : 'region', base, { role: isSymbol ? font : 'sans' });
+      return ctx.measureText(c).width;
+    });
+    ctx.font = textFont(options, 'value', base);
+    valueTextW = Math.max(
+      ...colTextW,
+      ...data.rows.flatMap((r) =>
+        r.values.map((v) => ctx.measureText(formatValue(v, r.decimals, data.groupThousands)).width)
+      )
+    );
+  } else {
+    ctx.font = textFont(options, 'value', base);
+    labelTextW = Math.max(
+      ctx.measureText(data.cornerLabel).width,
+      ...data.rows.map((r) => rowLabelWidth(ctx, r, base, options, look.unitRatio))
+    );
+    // 값 열은 서로 폭이 같아야 표가 반듯하다 — 가장 넓은 글자에 맞춘다
+    valueTextW = Math.max(
+      ...data.columns.map((c) => ctx.measureText(c).width),
+      ...data.rows.flatMap((r) =>
+        r.values.map((v) => ctx.measureText(formatValue(v, r.decimals, data.groupThousands)).width)
+      )
+    );
+  }
 
   const naturalLabelW = labelTextW + base * PAD_RATIO * 2;
   const naturalValueW = valueTextW + base * PAD_RATIO * 2;
@@ -114,14 +136,14 @@ export function renderDataTable(
     drawRowLabel(ctx, row, tableX + labelW / 2, y + cellH / 2, cellFontSize, options, look.unitRatio);
 
     ctx.font = textFont(options, 'value', cellFontSize);
-    ctx.textAlign = 'right';
+    ctx.textAlign = look.valueAlign;
     for (let j = 0; j < cols; j++) {
       const v = row.values[j];
       if (v === undefined) continue;
-      // 값은 오른쪽 정렬 — 자릿수가 달라도 끝이 맞아야 읽힌다
+      // classic 은 오른쪽 정렬(자릿수가 달라도 끝이 맞게), 시험지는 가운데
       ctx.fillText(
         formatValue(v, row.decimals, data.groupThousands),
-        columnX(j) + valueW - pad,
+        look.valueAlign === 'right' ? columnX(j) + valueW - pad : columnX(j) + valueW / 2,
         y + cellH / 2,
         valueW - pad * 2
       );

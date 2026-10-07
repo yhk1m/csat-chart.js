@@ -221,6 +221,9 @@ export const examStyle: StyleTokens = {
   name: 'exam',
   honorsLegacy: false,
   // 눈금 7.3pt·축 이름 8.0pt·제목 8.2pt·자료값 8.2pt (실측 §1.1) × 4.85
+  // ⚠️ 아직 아무도 읽지 않는다 — createDefaultGraphOptions 는 classic 크기(36/28/26/22)를 준다.
+  // 작업 17 에서 잇는다. 이을 때는 `{ ...examStyle.fontSize }` 로 복사해 넘긴다 — 이 객체를
+  // 그대로 넘기면 사용자가 옵션을 고칠 때 토큰이 함께 바뀐다.
   fontSize: { title: 40, axisLabel: 39, tick: 35, dataLabel: 40 },
   stack: { serif: EXAM_SERIF_STACK, sans: EXAM_SANS_STACK, numeral: EXAM_NUMERAL_STACK },
   text: {

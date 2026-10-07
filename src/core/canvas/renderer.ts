@@ -81,6 +81,10 @@ export interface Legacy {
  * `classicPx` 는 1.7.0 이 그 자리에 쓰던 식의 값이다. classic 은 그대로 쓰고,
  * exam 은 자리 규칙(실측 §1.1 의 «비»)으로 정한다. fontSize 가 없는 옵션
  * (손으로 만든 FontOptions)은 classicPx 를 그대로 돌려준다.
+ *
+ * ⚠️ exam 에서도 fontSize 가 없으면 classic 크기로 떨어진다. 그리고 fontSize 가
+ * 있어도 그 값은 아직 createDefaultGraphOptions 의 classic 기본값이다 —
+ * `examStyle.fontSize` 는 작업 17 에서 잇는다(style.ts 의 그 칸 주석 참고).
  */
 export function textSize(
   o: FontOptions & { fontSize?: GraphOptions['fontSize'] },

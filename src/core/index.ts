@@ -23,10 +23,12 @@ export { renderTernaryGraph } from './graphs/TernaryDiagram';
 
 // ── 공용 유틸 ───────────────────────────────────────────
 export {
-  getFont, fontStackOf, sansFont, clearCanvas, niceStep, autoRange,
+  getFont, fontStackOf, sansFont, textFont, textSize, clearCanvas, niceStep, autoRange,
   DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK,
 } from './canvas/renderer';
-export type { Padding, CanvasSize, FontOptions } from './canvas/renderer';
+export type { Padding, CanvasSize, FontOptions, Legacy } from './canvas/renderer';
+export { classicStyle, examStyle, styleOf, byStyle, tickDirOf, labelPlace } from './canvas/style';
+export type { StyleTokens, TextPlace, TickDir } from './canvas/style';
 
 // ── 타입 및 기본값 ──────────────────────────────────────
 export * from './types/index';

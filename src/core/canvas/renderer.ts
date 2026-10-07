@@ -1,6 +1,7 @@
 // © 2026 김용현
 // Canvas 공통 렌더링 유틸리티
-import type { FontRole, FontStack } from '../types/common';
+import type { FontRole, FontStack, GraphOptions, StyleName } from '../types/common';
+import { styleOf, type TextPlace } from './style';
 
 export interface Padding {
   top: number;
@@ -35,6 +36,8 @@ export interface FontOptions {
   fontFamily?: FontRole;
   customFont?: string;
   fontStack?: FontStack;
+  /** 양식 — 자리마다 굵기·글꼴을 고른다. `styleOf` 참고 */
+  style?: StyleName;
 }
 
 /** 자리 이름 하나를 실제 글꼴 문자열로 푼다 */
@@ -57,6 +60,45 @@ export function getFont(
   role: FontRole = fonts.fontFamily ?? 'serif',
 ): string {
   return `${weight} ${size}px ${fontStackOf(fonts, role)}`;
+}
+
+/** 1.7.0 이 그 자리에서 쓰던 굵기·자리. classic 에서만 읽힌다. */
+export interface Legacy {
+  weight?: 'bold' | 'normal';
+  role?: FontRole;
+}
+
+/**
+ * 글자 자리의 크기(px).
+ *
+ * `classicPx` 는 1.7.0 이 그 자리에 쓰던 식의 값이다. classic 은 그대로 쓰고,
+ * exam 은 자리 규칙(실측 §1.1 의 «비»)으로 정한다. fontSize 가 없는 옵션
+ * (손으로 만든 FontOptions)은 classicPx 를 그대로 돌려준다.
+ */
+export function textSize(
+  o: FontOptions & { fontSize?: GraphOptions['fontSize'] },
+  place: TextPlace,
+  classicPx: number,
+): number {
+  return o.fontSize ? styleOf(o).text[place].size(o.fontSize, classicPx) : classicPx;
+}
+
+/**
+ * 글자 자리의 글꼴 문자열 `${weight} ${size}px ${stack}`.
+ *
+ * 렌더러는 굵기와 글꼴 자리를 직접 고르지 않는다 — 그 자리가 무엇인지만 말한다.
+ * `legacy` 는 1.7.0 이 그 호출에서 쓰던 예외(보통 굵기·특정 자리)이고 classic
+ * 에서만 읽힌다. 그래야 classic 그림이 한 픽셀도 달라지지 않는다.
+ */
+export function textFont(o: FontOptions, place: TextPlace, size: number, legacy: Legacy = {}): string {
+  const t = styleOf(o);
+  const tok = t.text[place];
+  const chosen = o.fontFamily && o.fontFamily !== 'serif' && tok.axisSide
+    ? o.fontFamily
+    : (tok.role ?? o.fontFamily ?? 'serif');
+  const weight = (t.honorsLegacy && legacy.weight) || tok.weight;
+  const role = (t.honorsLegacy && legacy.role) || chosen;
+  return getFont(size, o, weight, role);
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {

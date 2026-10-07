@@ -4,7 +4,8 @@
 // 이 렌더러는 GeoGrapher 원본에 없다. GeoTester 에서 새로 만든 것이라
 // `verify:port` 대조 대상이 아니다. (CHANGES.md 참조)
 import { type MatrixTableData, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { byStyle } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 
 const NAME_FILL = '#d9d9d9';
@@ -14,6 +15,11 @@ const CELL_H_RATIO = 1.7;
 /** 칸 안쪽 좌우 여백 (글자 크기 기준) */
 const PAD_RATIO = 0.75;
 
+const LOOK = {
+  classic: { cellLine: 1.2 },
+  exam: { cellLine: 1.9 }, // 떨어진 상자 꼴(세계지리) 0.39pt — 이어진 계단표(한국지리 0.45pt)는 열린 질문
+};
+
 export function renderMatrixTable(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -22,6 +28,7 @@ export function renderMatrixTable(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const look = byStyle(options, LOOK);
 
   const n = data.names.length;
   if (n === 0) return;
@@ -30,14 +37,15 @@ export function renderMatrixTable(
 
   // 칸 크기는 가장 긴 글자에 맞춘다 — 모든 칸이 같아야 계단이 반듯하다
   const base = options.fontSize.tick;
-  ctx.font = getFont(base, options, 'bold');
+  ctx.font = textFont(options, 'value', base);
   const widest = Math.max(
     ...data.names.map((t) => ctx.measureText(t).width),
     ...cellValues(data).map((v) => ctx.measureText(formatValue(v, data.groupThousands)).width),
   );
 
   const naturalW = widest + base * PAD_RATIO * 2;
-  const unitH = data.unit ? options.fontSize.dataLabel * 1.6 : 0;
+  const unitSize = textSize(options, 'unit', options.fontSize.dataLabel);
+  const unitH = data.unit ? unitSize * 1.6 : 0;
   // 각주 블록은 마지막 줄의 글자 높이만큼 위로 더 올라간다 (drawSourceAndFootnote).
   // 그 몫을 안 빼면 표 마지막 줄과 겹친다.
   const footCount = options.footnotes.filter((f) => f.trim()).length;
@@ -71,7 +79,7 @@ export function renderMatrixTable(
 
   // 단위 — 표 오른쪽 끝에 맞춘다
   if (data.unit) {
-    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+    ctx.font = textFont(options, 'unit', unitSize);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -89,19 +97,20 @@ export function renderMatrixTable(
       ctx.fillStyle = isName ? (data.nameFill ?? NAME_FILL) : '#fff';
       ctx.fillRect(x, y, cellW, cellH);
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = look.cellLine;
       ctx.strokeRect(x, y, cellW, cellH);
 
       ctx.fillStyle = '#000';
       if (isName) {
         // 시험지 관습 — 기호((가)·A)는 명조, 실제 지명은 고딕이다
-        const family = data.nameIsSymbol && !data.nameIsSymbol[i] ? 'sans' : font;
-        ctx.font = getFont(cellFontSize, options, 'bold', family);
+        const isSymbol = !data.nameIsSymbol || data.nameIsSymbol[i];
+        const family = isSymbol ? font : 'sans';
+        ctx.font = textFont(options, isSymbol ? 'category' : 'region', cellFontSize, { role: family });
         ctx.textAlign = 'center';
         ctx.fillText(data.names[i], x + cellW / 2, y + cellH / 2);
       } else {
         // 값은 오른쪽 정렬 — 자릿수가 달라도 끝이 맞아야 읽힌다
-        ctx.font = getFont(cellFontSize, options, 'bold');
+        ctx.font = textFont(options, 'value', cellFontSize);
         ctx.textAlign = 'right';
         ctx.fillText(
           formatValue(data.values[i]?.[j] ?? 0, data.groupThousands),

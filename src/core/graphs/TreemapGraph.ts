@@ -7,8 +7,14 @@
 // 배치는 squarified treemap 이다 — 칸이 정사각형에 가깝게 나와야 라벨이 들어가고,
 // 원본 시험지(2024학년도 수능 세계지리 18번)의 모양과도 맞는다.
 import { type TreemapGraphData, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { styleOf, byStyle } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+
+const LOOK = {
+  classic: { cellLine: 1 },
+  exam: { cellLine: 1.9 }, // 칸 경계 검은 선 0.39pt (§3 #47 한국지리 꼴)
+};
 
 export interface TreemapRect {
   x: number;
@@ -345,13 +351,13 @@ export function renderTreemapGraph(
 
   const rects = squarify(data.cells.map((c) => c.value), frame);
 
-  const labelSize = data.labelFontSize ?? options.fontSize.tick;
+  const labelSize = data.labelFontSize ?? textSize(options, 'region', options.fontSize.tick);
   const minLabelW = data.minLabelWidth ?? MIN_LABEL_W;
   const pad = labelSize * PAD_RATIO;
 
   // ── 칸 ──────────────────────────────────────────────
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = byStyle(options, LOOK).cellLine;
   rects.forEach((r) => {
     if (r.w <= 0 || r.h <= 0) return;
     // 원본 시험지는 칸을 칠하지 않는다 — 흰 바탕에 선만 있다
@@ -362,12 +368,12 @@ export function renderTreemapGraph(
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = getFont(labelSize, options);
+  ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
 
   rects.forEach((r, i) => {
     if (shouldOmitLabel(r, minLabelW, labelSize)) return;
     const avail = r.w - pad * 2;
-    ctx.font = getFont(labelSize, options);
+    ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
     // 줄 수와 글꼴 크기를 함께 고른다 — 칸 너비·높이를 둘 다 만족하는 가장 큰
     // 배율을 주는 줄 수를 찾는다(순서로 매기면 좁고 낮은 칸을 못 푼다,
     // `pickLabelLayout` 설명 참고).
@@ -379,7 +385,7 @@ export function renderTreemapGraph(
     if (shouldOmitLayout(layout)) return;
     const drawSize = resolveDrawSize(labelSize, layout);
     if (drawSize !== labelSize) {
-      ctx.font = getFont(drawSize, options);
+      ctx.font = textFont(options, 'region', drawSize, { weight: 'normal' });
     }
 
     const startY = r.y + r.h / 2 - ((layout.lines.length - 1) * drawSize * 1.2) / 2;
@@ -393,12 +399,12 @@ export function renderTreemapGraph(
 
     // 다음 칸의 pickLabelLayout 측정이 기준 크기를 쓰도록 되돌린다
     if (drawSize !== labelSize) {
-      ctx.font = getFont(labelSize, options);
+      ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
     }
   });
 
   // 바깥 테두리는 굵게 — 원본 시험지가 그렇다
-  ctx.lineWidth = 2;
+  ctx.lineWidth = styleOf(options).line.axis;
   ctx.strokeRect(frame.x, frame.y, frame.w, frame.h);
 
   drawTitle({

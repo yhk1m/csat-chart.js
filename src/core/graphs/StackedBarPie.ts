@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, getFont, textFont, textSize } from '../canvas/renderer';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { drawTitle, drawSourceAndFootnote, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, type StyleTokens } from '../canvas/style';
@@ -9,6 +9,11 @@ import { styleOf, byStyle, type StyleTokens } from '../canvas/style';
 const LOOK = {
   classic: { tick: 1, tickLen: 5, catTicks: false, unitAdjacent: false },
   exam: { tick: 1.9, tickLen: 12, catTicks: true, unitAdjacent: true }, // §3 #24·#25
+};
+
+const PIE_LOOK = {
+  classic: { sliceLine: 1, rimLine: 1.5 },
+  exam: { sliceLine: 1.9, rimLine: 1.9 }, // 원 테두리·조각 경계 0.39pt (실측 §2 stacked 원)
 };
 
 export function renderStackedGraph(
@@ -278,15 +283,17 @@ function renderPieChart(
   options: GraphOptions
 ) {
   const t = styleOf(options);
+  const look = byStyle(options, PIE_LOOK);
+  const catSize = textSize(options, 'category', options.fontSize.tick);
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
+    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
+    ? measureBottomLegend(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5),
         w - 60 - (60 + legendW), options, 'rect', 16)
     : 0;
 
@@ -315,7 +322,7 @@ function renderPieChart(
   const pieScale = (data.pieScale ?? 100) / 100;
   const rotationRad = ((data.pieRotation ?? 0) * Math.PI) / 180;
   const minGap = 24;
-  const labelSpace = options.fontSize.tick + 16;
+  const labelSpace = catSize + 16;
 
   // 기준 반지름 (scale=100%, 한 줄 배치)
   const singleColW = plotW / n;
@@ -352,7 +359,7 @@ function renderPieChart(
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = look.sliceLine;
       ctx.stroke();
 
       // 데이터 라벨
@@ -360,11 +367,11 @@ function renderPieChart(
         const midAngle = (startAngle + endAngle) / 2;
         const lx = cx + Math.cos(midAngle) * maxR * 0.65;
         const ly = cy + Math.sin(midAngle) * maxR * 0.65;
-        ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
-        ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+        const light = lightAt(data, s, t);
+        ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8));
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(String(val), lx, ly);
+        inkText(ctx, String(val), lx, ly, undefined, light, t);
       }
 
       startAngle = endAngle;
@@ -372,14 +379,14 @@ function renderPieChart(
 
     // 원 외곽선
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = look.rimLine;
     ctx.beginPath();
     ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
     ctx.stroke();
 
     // 카테고리 라벨
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'category', catSize);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(data.categories[c].label, cx, cy + maxR + 12);
@@ -403,25 +410,25 @@ function renderPieChart(
       // 마지막 행 원의 하단까지를 유효 plotH로 사용 (범례를 원 옆에 정렬)
       const lastRow = rows - 1;
       const lastCy = plotY + rowH * lastRow + (rowH - labelSpace) / 2;
-      const pieBottom = lastCy + maxR + 12 + options.fontSize.tick;
+      const pieBottom = lastCy + maxR + 12 + catSize;
       const effectivePlotH = pieBottom - plotY;
       drawLegend({
         ctx, fonts: options, items, position: legendPos,
         plotX, plotY, plotW: effectivePlotW, plotH: effectivePlotH,
         canvasW: w, canvasH: h,
-        fontSize: options.fontSize.dataLabel * 0.85 + 5,
+        fontSize: textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5),
       });
     } else {
       // 하단: 가장 아래 행의 원+카테고리 라벨 하단까지를 기준으로
       const lastRow = rows - 1;
       const lastCy = plotY + rowH * lastRow + (rowH - labelSpace) / 2;
-      const pieBottom = lastCy + maxR + 12 + options.fontSize.tick;
+      const pieBottom = lastCy + maxR + 12 + catSize;
       const effectivePlotH = pieBottom - plotY;
       drawLegend({
         ctx, fonts: options, items, position: legendPos,
         plotX, plotY, plotW, plotH: effectivePlotH,
         canvasW: w, canvasH: h,
-        fontSize: options.fontSize.dataLabel * 0.85 + 5,
+        fontSize: textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5),
         bottomOffset: 16,
       });
     }
@@ -477,28 +484,18 @@ function drawSegmentLabel(
   light: boolean,
 ) {
   const text = data.seriesLabels[s] ?? '';
-  const size = options.fontSize.dataLabel * 0.9;
+  // 시험지 관습 — 기호(A·B)는 명조, 지명은 고딕
+  const isSymbol = !data.seriesIsSymbol || data.seriesIsSymbol[s];
+  const size = textSize(options, isSymbol ? 'symbol' : 'region', options.fontSize.dataLabel * 0.9);
   // 칸이 글자보다 얇으면 적지 않는다 — 넘쳐서 옆 칸을 밟는 것보다 낫다
   if (!text || barH < size * 1.1) return;
 
-  // 시험지 관습 — 기호(A·B)는 명조, 지명은 고딕
-  const family = data.seriesIsSymbol && !data.seriesIsSymbol[s] ? 'sans' : options.fontFamily;
-  ctx.font = getFont(size, options, 'bold', family);
+  const family = isSymbol ? options.fontFamily : 'sans';
+  ctx.font = textFont(options, isSymbol ? 'symbol' : 'region', size, { role: family });
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const maxW = Math.max(1, barW - 6);
 
-  if (light) {
-    // 패턴·연한 채움 위 — 흰 테두리를 둘러 글자를 띄운다
-    ctx.save();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#fff';
-    ctx.lineJoin = 'round';
-    ctx.strokeText(text, cx, cy, maxW);
-    ctx.restore();
-    ctx.fillStyle = '#000';
-  } else {
-    ctx.fillStyle = '#fff';
-  }
-  ctx.fillText(text, cx, cy, maxW);
+  // 패턴·연한 채움 위에는 흰 테두리를 둘러 글자를 띄운다
+  inkText(ctx, text, cx, cy, maxW, light, styleOf(options), true);
 }

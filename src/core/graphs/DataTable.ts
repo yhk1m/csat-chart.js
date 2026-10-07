@@ -7,7 +7,8 @@
 // 계단식 행렬표(MatrixTable)와 달리 칸이 서로 붙어 있다. 원본 시험지의 표는
 // 머리글 행만 회색이고, 항목 이름은 가운데, 값은 오른쪽으로 정렬한다.
 import { type DataTableData, type DataTableRow, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont, type FontOptions } from '../canvas/renderer';
+import { clearCanvas, textFont, type FontOptions } from '../canvas/renderer';
+import { styleOf, byStyle } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 
 const HEADER_FILL = '#d9d9d9';
@@ -15,8 +16,11 @@ const HEADER_FILL = '#d9d9d9';
 const CELL_H_RATIO = 1.7;
 /** 칸 안쪽 좌우 여백 (글자 크기 기준) */
 const PAD_RATIO = 0.75;
-/** 항목 이름 뒤 괄호 단위는 이름보다 작게 쓴다 */
-const UNIT_RATIO = 0.8;
+/** 항목 이름 뒤 괄호 단위는 이름보다 작게 쓴다 (unitRatio) */
+const LOOK = {
+  classic: { unitRatio: 0.8 },
+  exam: { unitRatio: 0.9 }, // 단위 7.2pt ÷ 값 8.2pt
+};
 
 export function renderDataTable(
   ctx: CanvasRenderingContext2D,
@@ -26,6 +30,7 @@ export function renderDataTable(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const look = byStyle(options, LOOK);
 
   const cols = data.columns.length;
   const rows = data.rows.length;
@@ -35,10 +40,10 @@ export function renderDataTable(
   const base = options.fontSize.tick;
 
   // ── 자연스러운 칸 크기부터 잰다 ──────────────────────────
-  ctx.font = getFont(base, options, 'bold');
+  ctx.font = textFont(options, 'value', base);
   const labelTextW = Math.max(
     ctx.measureText(data.cornerLabel).width,
-    ...data.rows.map((r) => rowLabelWidth(ctx, r, base, options))
+    ...data.rows.map((r) => rowLabelWidth(ctx, r, base, options, look.unitRatio))
   );
   // 값 열은 서로 폭이 같아야 표가 반듯하다 — 가장 넓은 글자에 맞춘다
   const valueTextW = Math.max(
@@ -91,13 +96,14 @@ export function renderDataTable(
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  ctx.font = getFont(cellFontSize, options, 'bold');
+  ctx.font = textFont(options, 'region', cellFontSize);
   ctx.fillText(data.cornerLabel, tableX + labelW / 2, tableY + cellH / 2, labelW - pad * 2);
 
   data.columns.forEach((name, j) => {
     // 시험지 관습 — 기호((가)·A)는 명조, 실제 지명은 고딕이다
-    const family = data.columnIsSymbol && !data.columnIsSymbol[j] ? 'sans' : font;
-    ctx.font = getFont(cellFontSize, options, 'bold', family);
+    const isSymbol = !data.columnIsSymbol || data.columnIsSymbol[j];
+    const family = isSymbol ? font : 'sans';
+    ctx.font = textFont(options, isSymbol ? 'category' : 'region', cellFontSize, { role: family });
     ctx.fillText(name, columnX(j) + valueW / 2, tableY + cellH / 2, valueW - pad * 2);
   });
 
@@ -105,9 +111,9 @@ export function renderDataTable(
   data.rows.forEach((row, i) => {
     const y = tableY + cellH * (i + 1);
 
-    drawRowLabel(ctx, row, tableX + labelW / 2, y + cellH / 2, cellFontSize, options);
+    drawRowLabel(ctx, row, tableX + labelW / 2, y + cellH / 2, cellFontSize, options, look.unitRatio);
 
-    ctx.font = getFont(cellFontSize, options, 'bold');
+    ctx.font = textFont(options, 'value', cellFontSize);
     ctx.textAlign = 'right';
     for (let j = 0; j < cols; j++) {
       const v = row.values[j];
@@ -125,7 +131,7 @@ export function renderDataTable(
 
   // ── 선 ───────────────────────────────────────────────
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = styleOf(options).line.tableInner;
   for (let i = 1; i <= rows; i++) {
     const y = tableY + cellH * i;
     line(ctx, tableX, y, tableX + tableW, y);
@@ -136,7 +142,7 @@ export function renderDataTable(
   }
 
   // 바깥 테두리는 굵게 — 원본 시험지가 그렇다
-  ctx.lineWidth = 2;
+  ctx.lineWidth = styleOf(options).line.tableOuter;
   ctx.strokeRect(tableX, tableY, tableW, tableH);
 
   drawTitle({ ctx, fonts: options, plotX: tableX, plotW: tableW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
@@ -160,11 +166,12 @@ function rowLabelWidth(
   row: DataTableRow,
   size: number,
   options: FontOptions,
+  unitRatio: number,
 ): number {
-  ctx.font = getFont(size, options, 'bold');
+  ctx.font = textFont(options, 'region', size);
   const labelW = ctx.measureText(row.label).width;
   if (!row.unit) return labelW;
-  ctx.font = getFont(size * UNIT_RATIO, options, 'bold');
+  ctx.font = textFont(options, 'unit', size * unitRatio);
   return labelW + ctx.measureText(row.unit).width;
 }
 
@@ -176,10 +183,11 @@ function drawRowLabel(
   cy: number,
   size: number,
   options: FontOptions,
+  unitRatio: number,
 ) {
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
-  ctx.font = getFont(size, options, 'bold');
+  ctx.font = textFont(options, 'region', size);
   const labelW = ctx.measureText(row.label).width;
 
   if (!row.unit) {
@@ -188,14 +196,14 @@ function drawRowLabel(
     return;
   }
 
-  ctx.font = getFont(size * UNIT_RATIO, options, 'bold');
+  ctx.font = textFont(options, 'unit', size * unitRatio);
   const unitW = ctx.measureText(row.unit).width;
   const startX = cx - (labelW + unitW) / 2;
 
   ctx.textAlign = 'left';
-  ctx.font = getFont(size, options, 'bold');
+  ctx.font = textFont(options, 'region', size);
   ctx.fillText(row.label, startX, cy);
-  ctx.font = getFont(size * UNIT_RATIO, options, 'bold');
+  ctx.font = textFont(options, 'unit', size * unitRatio);
   ctx.fillText(row.unit, startX + labelW, cy);
   ctx.textAlign = 'center';
 }

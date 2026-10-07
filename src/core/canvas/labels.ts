@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { textFont, textSize, type FontOptions } from './renderer';
-import { styleOf } from './style';
+import { styleOf, type StyleTokens } from './style';
 import type { GraphOptions } from '../types/common';
 
 /** 출처·각주 도우미가 받는 옵션 — 렌더러는 options 를 통째로 넘긴다 */
@@ -351,4 +351,48 @@ export function labelStride(spacing: number, extent: number, minGap = 6): number
 export function widestLabel(ctx: CanvasRenderingContext2D, labels: string[]): number {
   if (labels.length === 0) return 0;
   return Math.max(...labels.map((l) => ctx.measureText(l).width));
+}
+
+/**
+ * 채움 위 글자. `light` 는 «검은 글자가 읽히는 바탕» 이다.
+ *
+ * 어두운 바탕에서 classic 은 흰 글자, exam 은 검은 글자 + 흰 테두리다(실측 §1.3).
+ * `haloOnLight` 를 주면 밝은 바탕에도 흰 테두리를 두른다 — 1.7.0 누적 막대의
+ * 빗금·점무늬 칸 글자가 그랬다.
+ */
+export function inkText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number | undefined,
+  light: boolean,
+  st: StyleTokens,
+  haloOnLight = false,
+): void {
+  const halo = light ? haloOnLight : st.darkLabel === 'halo';
+  if (!light && !halo) {
+    ctx.fillStyle = '#fff';
+    put(ctx, 'fill', text, x, y, maxW);
+    return;
+  }
+  if (halo) {
+    ctx.save();
+    ctx.lineWidth = st.haloWidth;
+    ctx.strokeStyle = '#fff';
+    ctx.lineJoin = 'round';
+    put(ctx, 'stroke', text, x, y, maxW);
+    ctx.restore();
+  }
+  ctx.fillStyle = '#000';
+  put(ctx, 'fill', text, x, y, maxW);
+}
+
+/** maxW 가 없으면 넷째 인자를 아예 넘기지 않는다 — undefined 를 넘기면 백엔드에 따라 안 그려진다 */
+function put(ctx: CanvasRenderingContext2D, kind: 'fill' | 'stroke', text: string, x: number, y: number, maxW?: number) {
+  if (kind === 'fill') {
+    if (maxW === undefined) ctx.fillText(text, x, y);
+    else ctx.fillText(text, x, y, maxW);
+  } else if (maxW === undefined) ctx.strokeText(text, x, y);
+  else ctx.strokeText(text, x, y, maxW);
 }

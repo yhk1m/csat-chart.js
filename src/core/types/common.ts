@@ -1,4 +1,6 @@
 // © 2026 김용현
+import { DEFAULT_STYLE, styleOf } from '../canvas/style';
+
 // 그래프 유형
 export type GraphType =
   | 'guide'
@@ -149,7 +151,9 @@ export interface ExportSettings {
   scale: 1 | 2 | 3;
 }
 
-export function createDefaultGraphOptions(): GraphOptions {
+/** 양식의 기본 옵션. 글자 크기가 양식마다 다르다 — 미지정이면 기본 양식 */
+export function createDefaultGraphOptions(style: StyleName = DEFAULT_STYLE): GraphOptions {
+  const t = styleOf({ style });
   return {
     title: '',
     source: '',
@@ -157,12 +161,9 @@ export function createDefaultGraphOptions(): GraphOptions {
     fontFamily: 'serif',
     customFont: '',
     fontStack: {},
-    fontSize: {
-      title: 36,
-      axisLabel: 28,
-      tick: 26,
-      dataLabel: 22,
-    },
+    style: t.name,
+    // 토큰 객체를 그대로 넘기면 사용자가 옵션을 고칠 때 토큰이 함께 바뀐다 — 복사한다
+    fontSize: { ...t.fontSize },
     showDataLabels: false,
     showLegend: true,
     legendPosition: 'bottom',

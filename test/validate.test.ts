@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { describe, it, expect } from 'vitest';
-import { CsatChartError, assertChartType, assertChartData } from '../src/validate';
+import { CsatChartError, assertChartType, assertChartData, assertOptionValues } from '../src/validate';
 import { CHART_TYPES, REGISTRY } from '../src/registry';
 import { createAdAsData, createPointShiftData, createSupplyDemandData } from '../src/core/index';
 
@@ -97,5 +97,24 @@ describe('assertChartData', () => {
 
   it('메시지가 모두 csat-chart 로 시작한다', () => {
     expect(() => assertChartData('ternary', null)).toThrow(/^csat-chart: /);
+  });
+});
+
+describe('assertOptionValues', () => {
+  it('아는 값·빈 값은 통과시킨다', () => {
+    expect(() => assertOptionValues(undefined)).not.toThrow();
+    expect(() => assertOptionValues({})).not.toThrow();
+    expect(() => assertOptionValues({ style: 'exam', tickDirection: 'in' })).not.toThrow();
+    expect(() => assertOptionValues({ style: 'classic', tickDirection: 'out' })).not.toThrow();
+  });
+
+  it('모르는 style 을 한국어로 거부한다', () => {
+    expect(() => assertOptionValues({ style: 'fancy' }))
+      .toThrow(/options\.style 은 'exam'·'classic' 중 하나여야 합니다 \(지금 "fancy"\)/);
+  });
+
+  it('모르는 tickDirection 을 거부한다', () => {
+    expect(() => assertOptionValues({ tickDirection: 'up' }))
+      .toThrow(/options\.tickDirection 은 'in'·'out' 중 하나여야 합니다/);
   });
 });

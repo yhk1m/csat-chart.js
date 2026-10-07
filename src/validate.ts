@@ -186,3 +186,25 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
     }
   }
 }
+
+const STYLE_NAMES = ['exam', 'classic'];
+const TICK_DIRECTIONS = ['in', 'out'];
+
+function oneOf(key: string, value: unknown, allowed: string[]): void {
+  if (value === undefined || allowed.includes(value as string)) return;
+  throw new CsatChartError(
+    `options.${key} 은 ${allowed.map((v) => `'${v}'`).join('·')} 중 하나여야 합니다 (지금 ${JSON.stringify(value)})`,
+  );
+}
+
+/**
+ * 옵션 중 «정해진 낱말만 받는» 칸을 본다. 모양 검사(assertConfigShape)와 달리
+ * 값을 본다 — 모르는 양식 이름은 조용히 기본 양식으로 그려져, 오타를 낸 사람이
+ * 무엇이 틀렸는지 알 수 없기 때문이다.
+ */
+export function assertOptionValues(options: unknown): void {
+  if (typeof options !== 'object' || options === null) return;
+  const o = options as { style?: unknown; tickDirection?: unknown };
+  oneOf('style', o.style, STYLE_NAMES);
+  oneOf('tickDirection', o.tickDirection, TICK_DIRECTIONS);
+}

@@ -1,7 +1,7 @@
 // © 2026 김용현
 // 캔버스 획득·다시 그리기·PNG 추출의 수명주기를 관리하는 파사드.
 import { REGISTRY } from './registry';
-import { CsatChartError, assertChartData, assertChartType, assertConfigShape } from './validate';
+import { CsatChartError, assertChartData, assertChartType, assertConfigShape, assertOptionValues } from './validate';
 import { ensureFonts, type EnsureFontsOptions } from './fonts';
 import { installRoundRectPolyfill } from './roundrect';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
@@ -76,6 +76,21 @@ function mergeOptions(base: GraphOptions, patch?: PartialGraphOptions): GraphOpt
   };
 }
 
+/** 받은 조각 둘을 겹친다 — 나중 것이 이긴다. fontSize·fontStack 은 한 겹 더 깊게. */
+function mergePatch(base: PartialGraphOptions, next?: PartialGraphOptions): PartialGraphOptions {
+  const out: PartialGraphOptions = { ...base, ...next };
+  if (base.fontSize || next?.fontSize) out.fontSize = { ...base.fontSize, ...next?.fontSize };
+  if (base.fontStack || next?.fontStack) out.fontStack = { ...base.fontStack, ...next?.fontStack };
+  const notes = next?.footnotes ?? base.footnotes;
+  if (notes) out.footnotes = [...notes];
+  return out;
+}
+
+/** 받은 조각을 그 양식의 기본값 위에 덮는다 */
+function resolveOptions(patch: PartialGraphOptions): GraphOptions {
+  return mergeOptions(createDefaultGraphOptions(patch.style), patch);
+}
+
 /**
  * 종류 하나를 붙들고 사는 차트.
  *
@@ -103,6 +118,8 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
   private readonly type: T;
   private data: ChartDataMap[T];
   private options: GraphOptions;
+  /** 사용자가 지금까지 준 옵션 조각 — 양식을 바꾸면 그 양식의 기본값 위에 다시 덮는다 */
+  private patch: PartialGraphOptions;
   private destroyed = false;
 
   constructor(target: CanvasLike | string, config: ConfigFor<T>) {
@@ -113,12 +130,14 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
     this.ctx = ctx as CanvasRenderingContext2D;
 
     assertConfigShape(config);
+    assertOptionValues(config.options);
     assertChartType(config.type);
     assertChartData(config.type, config.data);
 
     this.type = config.type;
     this.data = config.data;
-    this.options = mergeOptions(createDefaultGraphOptions(), config.options);
+    this.patch = mergePatch({}, config.options);
+    this.options = resolveOptions(this.patch);
 
     if (isUnsized(this.canvas, 'width', HTML_DEFAULT_WIDTH)) this.canvas.width = DEFAULT_WIDTH;
     if (isUnsized(this.canvas, 'height', HTML_DEFAULT_HEIGHT)) this.canvas.height = DEFAULT_HEIGHT;
@@ -136,12 +155,15 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
   /** `data`·`options` 중 준 것만 덮고 다시 그린다. 어긋나면 던지고 이전 상태를 지킨다. */
   update(next: UpdateFor<T>): this {
     this.assertAlive();
+    // 검사를 먼저 다 한다 — 둘 중 하나가 던지면 아무것도 바뀌지 않게
+    if (next.options !== undefined) assertOptionValues(next.options);
     if (next.data !== undefined) {
       assertChartData(this.type, next.data);
       this.data = next.data;
     }
     if (next.options !== undefined) {
-      this.options = mergeOptions(this.options, next.options);
+      this.patch = mergePatch(this.patch, next.options);
+      this.options = resolveOptions(this.patch);
     }
     this.draw();
     return this;

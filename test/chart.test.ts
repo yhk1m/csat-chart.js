@@ -409,6 +409,36 @@ describe('CsatChart', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(nonWhitePixels(c)).toBe(0);
   });
+
+  it('style 을 바꾸면 그 양식의 기본 글자 크기로 다시 그린다', () => {
+    const a = canvas();
+    const chart = new CsatChart(a, { type: 'ternary', data: createDefaultTernaryData(), options: { style: 'classic' } });
+    chart.update({ options: { style: 'exam' } });
+    const b = canvas();
+    new CsatChart(b, { type: 'ternary', data: createDefaultTernaryData(), options: { style: 'exam' } });
+    expect(nonWhitePixels(a)).toBeGreaterThan(50);
+    expect(a.toDataURL!()).toBe(b.toDataURL!());
+  });
+
+  it('준 fontSize 는 양식을 바꿔도 남는다', () => {
+    const a = canvas();
+    const chart = new CsatChart(a, { type: 'ternary', data: createDefaultTernaryData(), options: { style: 'classic', fontSize: { title: 44 } } });
+    chart.update({ options: { style: 'exam' } });
+    const b = canvas();
+    new CsatChart(b, { type: 'ternary', data: createDefaultTernaryData(), options: { style: 'exam', fontSize: { title: 44 } } });
+    expect(a.toDataURL!()).toBe(b.toDataURL!());
+  });
+
+  it('어긋난 style 은 생성 때 거부하고, update 에서는 이전 상태를 지킨다', () => {
+    expect(() => new CsatChart(canvas(), { type: 'ternary', data: createDefaultTernaryData(), options: { style: 'fancy' as never } }))
+      .toThrow(CsatChartError);
+    const c = canvas();
+    const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
+    const before = c.toDataURL!();
+    expect(() => chart.update({ options: { tickDirection: 'up' as never } })).toThrow(/tickDirection/);
+    chart.resize(800, 600);
+    expect(c.toDataURL!()).toBe(before);
+  });
 });
 
 describe('타입', () => {

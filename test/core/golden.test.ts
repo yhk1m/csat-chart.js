@@ -27,7 +27,7 @@ const SKIP_GOLDEN = process.env.SKIP_GOLDEN === '1';
  */
 function optionsFor(name: string) {
   // 이 42장은 1.7.0 모양의 증거다 — 기본 양식이 바뀌어도 classic 으로 비교한다
-  const base = { ...createDefaultGraphOptions(), style: 'classic' as const };
+  const base = createDefaultGraphOptions('classic');
   // 시험지 틀 케이스는 출처·각주를 한 줄에 두는 배치(sourceInline)까지 감시한다
   if (name.endsWith('ExamFrame')) {
     return {

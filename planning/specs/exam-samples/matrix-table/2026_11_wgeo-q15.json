@@ -11,5 +11,23 @@
     709.5,
     649.38
   ],
-  "note": "거리 삼각 행렬 표"
+  "note": "거리 삼각 행렬 표",
+  "measured": {
+    "px_per_pt": 8.329,
+    "width_pt": 217.2,
+    "fill_gray": [
+      217
+    ],
+    "fill_gray_K": {
+      "217": "15% 머리 칸"
+    },
+    "text_pt": {
+      "category": 10.3,
+      "value": 8.2,
+      "name": 8.0,
+      "footnote": 7.1,
+      "unit": 8.2
+    },
+    "note": "칸마다 떨어진 상자, 값 오른쪽 정렬"
+  }
 }

@@ -11,5 +11,19 @@
     746.16,
     315.6
   ],
-  "note": "수치 표(경상 수지)"
+  "note": "수치 표(경상 수지)",
+  "measured": {
+    "px_per_pt": 8.326,
+    "width_pt": 289.8,
+    "solid_lines_pt": [
+      0.39
+    ],
+    "lines_pt": {
+      "all": 0.39
+    },
+    "text_pt": {
+      "header": 9.1,
+      "value": 9.0
+    }
+  }
 }

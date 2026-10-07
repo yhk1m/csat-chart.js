@@ -11,5 +11,17 @@
     396.78,
     810.12
   ],
-  "note": "380dpi; 가운데 띠"
+  "note": "380dpi; 가운데 띠",
+  "measured": {
+    "px_per_pt": 5.279,
+    "width_pt": 289.1,
+    "solid_lines_pt": [
+      0.37
+    ],
+    "fill_gray": [
+      127,
+      228,
+      229
+    ]
+  }
 }

@@ -11,5 +11,30 @@
     391.5,
     345.06
   ],
-  "note": "눈금·범례·주 별도 그림"
+  "note": "눈금·범례·주 별도 그림",
+  "measured": {
+    "px_per_pt": 8.333,
+    "width_pt": 278.4,
+    "solid_lines_pt": [
+      0.3
+    ],
+    "fill_gray": [
+      63,
+      203
+    ],
+    "legend": {
+      "layout": "한 줄, 테두리 상자",
+      "box_pt": [
+        141.1,
+        14.8
+      ],
+      "swatch_pt": 11.6
+    },
+    "text_pt": {
+      "legend": 8.2,
+      "footnote": 7.5,
+      "year": 7.4
+    },
+    "layout": "마지막 눈금 뒤 100(%), 연도는 각주 줄 오른쪽 끝"
+  }
 }

@@ -11,5 +11,30 @@
     746.94,
     888.12
   ],
-  "note": "세대 간 이동 교차표(음영 칸)"
+  "note": "세대 간 이동 교차표(음영 칸)",
+  "measured": {
+    "px_per_pt": 8.337,
+    "width_pt": 292.2,
+    "solid_lines_pt": [
+      0.39,
+      0.44
+    ],
+    "fill_gray": [
+      229
+    ],
+    "lines_pt": {
+      "all": 0.39
+    },
+    "fill_gray_K": {
+      "229": "10%"
+    },
+    "text_pt": {
+      "title": 9.1,
+      "unit": 7.2,
+      "header": 8.2,
+      "value": 7.9,
+      "footnote": 7.5
+    },
+    "note": "사회문화 — <갑국>, (단위: %) 표 위 오른쪽"
+  }
 }

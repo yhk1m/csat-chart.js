@@ -11,5 +11,31 @@
     399.0,
     963.12
   ],
-  "note": "거리 삼각 행렬 표"
+  "note": "거리 삼각 행렬 표",
+  "measured": {
+    "px_per_pt": 8.333,
+    "width_pt": 293.4,
+    "solid_lines_pt": [
+      0.39,
+      0.43,
+      0.44,
+      0.45,
+      0.49
+    ],
+    "fill_gray": [
+      229
+    ],
+    "lines_pt": {
+      "all": 0.45
+    },
+    "fill_gray_K": {
+      "229": "10% 머리 칸"
+    },
+    "text_pt": {
+      "category": 9.7,
+      "value": 8.1,
+      "name": 8.2,
+      "unit": 7.2
+    }
+  }
 }

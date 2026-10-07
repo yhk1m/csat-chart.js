@@ -11,5 +11,32 @@
     705.66,
     977.76
   ],
-  "note": "삼각 방사형 + 범례 상자"
+  "note": "삼각 방사형 + 범례 상자",
+  "measured": {
+    "px_per_pt": 8.315,
+    "width_pt": 220.8,
+    "solid_lines_pt": [
+      0.3
+    ],
+    "axis_pt": 0.3,
+    "series_pt": {
+      "(가)": 0.98,
+      "(나)": 0.4,
+      "(다) 점선": 0.51
+    },
+    "tick": "축을 가로지르는 짧은 눈금 3.6pt",
+    "legend": {
+      "layout": "오른쪽 위 테두리 상자, 세로",
+      "box_pt": [
+        39.5,
+        39.2
+      ]
+    },
+    "text_pt": {
+      "axis_name": 7.5,
+      "tick_num": 7.9,
+      "legend_paren": 9.4,
+      "footnote": 7.1
+    }
+  }
 }

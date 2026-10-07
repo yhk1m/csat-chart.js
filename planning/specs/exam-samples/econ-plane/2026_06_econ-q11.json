@@ -11,5 +11,25 @@
     315.84,
     350.16
   ],
-  "note": "수요·공급 이동(S1·S2) + 점선 보조선"
+  "note": "수요·공급 이동(S1·S2) + 점선 보조선",
+  "measured": {
+    "px_per_pt": 8.326,
+    "width_pt": 144.0,
+    "solid_lines_pt": [
+      0.39
+    ],
+    "grid_dash_pt": [
+      [
+        1.56,
+        0.96,
+        0.3
+      ]
+    ],
+    "curve_pt": 0.83,
+    "dot_diam_pt": 4.1,
+    "text_pt": {
+      "tick_num": 7.1
+    },
+    "note": "S1·S2·D·A·B 는 세리프 라틴 + 아래 첨자"
+  }
 }

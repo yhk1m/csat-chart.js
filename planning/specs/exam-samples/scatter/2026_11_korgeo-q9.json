@@ -11,5 +11,39 @@
     689.88,
     443.58
   ],
-  "note": "거품 산점(원 크기 범례 상자)"
+  "note": "거품 산점(원 크기 범례 상자)",
+  "measured": {
+    "px_per_pt": 8.333,
+    "width_pt": 168.0,
+    "solid_lines_pt": [
+      0.39
+    ],
+    "grid_dash_pt": [
+      [
+        1.56,
+        0.96,
+        0.3
+      ]
+    ],
+    "frame": "닫힌 틀 0.39, 가로·세로 점선 격자",
+    "bubble_outline_pt": 0.83,
+    "legend": {
+      "layout": "그림 오른쪽 위 테두리 상자, 원 크기 견본",
+      "box_pt": [
+        45.4,
+        36.4
+      ]
+    },
+    "text_pt": {
+      "unit": 7.5,
+      "tick_num": 6.6,
+      "category": 10.0,
+      "axis_name": 8.0,
+      "axis_name_vertical": 7.1,
+      "legend_title": 7.1,
+      "legend_num": 5.7,
+      "footnote": 6.8
+    },
+    "layout": "세로축 이름은 한 자씩 세로로 쌓음(회전 아님)"
+  }
 }

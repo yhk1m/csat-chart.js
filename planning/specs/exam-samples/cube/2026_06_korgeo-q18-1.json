@@ -11,5 +11,13 @@
     268.98,
     1067.46
   ],
-  "note": "345dpi; 아래 띠"
+  "note": "345dpi; 아래 띠",
+  "measured": {
+    "px_per_pt": 4.8,
+    "width_pt": 169.8,
+    "solid_lines_pt": [
+      0.39,
+      0.99
+    ]
+  }
 }

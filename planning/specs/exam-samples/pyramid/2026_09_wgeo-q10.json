@@ -11,5 +11,24 @@
     752.46,
     885.42
   ],
-  "note": "인구 피라미드 3개"
+  "note": "인구 피라미드 3개",
+  "measured": {
+    "px_per_pt": 8.337,
+    "width_pt": 306.0,
+    "solid_lines_pt": [
+      0.39,
+      0.4
+    ],
+    "fill_gray": [
+      203
+    ],
+    "bar_outline_pt": 0.39,
+    "fill_gray_K": {
+      "203": "20% 남"
+    },
+    "tick": "세로축 안쪽(오른쪽) 2.4pt",
+    "text_pt": {
+      "tick_num": 8.2
+    }
+  }
 }

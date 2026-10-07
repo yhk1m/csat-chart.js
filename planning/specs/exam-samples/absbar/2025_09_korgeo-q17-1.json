@@ -11,5 +11,18 @@
     404.04,
     648.3
   ],
-  "note": "가로축·주·출처 별도 그림"
+  "note": "가로축·주·출처 별도 그림",
+  "measured": {
+    "px_per_pt": 8.411,
+    "width_pt": 303.5,
+    "solid_lines_pt": [
+      0.51
+    ],
+    "text_pt": {
+      "category": 8.1,
+      "footnote": 7.1,
+      "source": 7.1
+    },
+    "layout": "(2023) 왼쪽 + (통계청) 오른쪽 같은 줄"
+  }
 }

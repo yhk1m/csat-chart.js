@@ -11,5 +11,45 @@
     396.6,
     630.84
   ],
-  "note": "월별 기온 차이 선 + 강수량 차이 막대(이중 축)"
+  "note": "월별 기온 차이 선 + 강수량 차이 막대(이중 축)",
+  "measured": {
+    "px_per_pt": 8.326,
+    "width_pt": 288.6,
+    "solid_lines_pt": [
+      0.34,
+      0.39
+    ],
+    "grid_dash_pt": [
+      [
+        1.8,
+        0.72,
+        0.48
+      ]
+    ],
+    "fill_gray": [
+      229
+    ],
+    "frame": "닫힌 틀 0.39, 0 선 0.34",
+    "bar_outline_pt": 0.34,
+    "series_pt": 0.81,
+    "fill_gray_K": {
+      "229": "10%"
+    },
+    "tick": "세로축 바깥, 가로축 바깥(아래)",
+    "legend": {
+      "layout": "플롯 안 오른쪽 아래 테두리 상자",
+      "box_pt": [
+        42.5,
+        20.3
+      ]
+    },
+    "text_pt": {
+      "tick_num": 7.4,
+      "month": 7.7,
+      "axis_name_vertical": 6.8,
+      "legend": 7.5,
+      "footnote": 6.4,
+      "source": 6.8
+    }
+  }
 }

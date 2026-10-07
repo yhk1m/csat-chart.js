@@ -11,5 +11,26 @@
     393.9,
     363.96
   ],
-  "note": "범례·주·출처 별도 그림(380dpi); 가로축 이름표가 두 그림 경계에 걸침"
+  "note": "범례·주·출처 별도 그림(380dpi); 가로축 이름표가 두 그림 경계에 걸침",
+  "measured": {
+    "px_per_pt": 5.282,
+    "width_pt": 170.4,
+    "solid_lines_pt": [
+      0.39
+    ],
+    "legend": {
+      "box_border_pt": 0.39,
+      "box_h_pt": 11.2,
+      "swatch_pt": 6.4,
+      "pad_left_pt": 2.7,
+      "layout": "한 줄"
+    },
+    "text_pt": {
+      "legend": 7.1,
+      "footnote": 7.1,
+      "year": 7.1,
+      "source": 7.1
+    },
+    "layout": "(2023) 왼쪽 + (통계청) 오른쪽 같은 줄, 각주 아래"
+  }
 }

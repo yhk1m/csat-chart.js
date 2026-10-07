@@ -24,6 +24,8 @@ export function renderAbsBarGraph(
   // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
   ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
+  // 각주 아래 «(연도) … (출처)» 줄 — 1.7.0 의 절댓값 막대는 넘기지 않았다(classic 은 그대로 둔다)
+  const sourceLeft = byStyle(options, { classic: undefined, exam: options.sourceLeft });
   const t = styleOf(options);
   const look = byStyle(options, LOOK);
   const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
@@ -88,7 +90,8 @@ export function renderAbsBarGraph(
       b = Math.max(b, legendReserve);
       // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
       b += sourceFootnoteReserve(options, options.fontSize.dataLabel,
-        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22,
+        { sourceLeft });
       return b;
     })(),
     left: padLeft,
@@ -499,7 +502,7 @@ export function renderAbsBarGraph(
   }
 
   // 출처 + 각주
-  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, sourceLeft, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
 function formatTick(val: number): string {

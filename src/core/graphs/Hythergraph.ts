@@ -6,6 +6,7 @@ import {
   MONTH_LABELS_EN,
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
@@ -88,6 +89,8 @@ export function renderHythergraph(
   data: HythergraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
   const look = byStyle(options, LOOK);

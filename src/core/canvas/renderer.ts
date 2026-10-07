@@ -54,6 +54,14 @@ export function fontStackOf(fonts: FontOptions, role: FontRole): string {
   return numeral && !own ? `${numeral}, ${base}` : base;
 }
 
+/**
+ * 괄호를 따로 찍을 때(parens.ts)의 글꼴 — 명조 자리 순서 그대로, 숫자 글꼴은 붙이지 않는다.
+ * 시험지 괄호는 본문 명조(HY신명조) 꼴이다. 그 글꼴이 없으면 목록의 다음 명조로 넘어간다.
+ */
+export function parenStackOf(fonts: FontOptions): string {
+  return fonts.fontStack?.serif || styleOf(fonts).stack.serif;
+}
+
 /** 고딕 자리 글꼴 — 제목·출처·각주·범례가 자리를 가리지 않고 이것을 쓴다 */
 export function sansFont(fonts: FontOptions): string {
   return fontStackOf(fonts, 'sans');

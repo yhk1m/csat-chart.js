@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type CubeGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle, leaderOf } from '../canvas/style';
@@ -71,6 +72,8 @@ export function renderCubeGraph(
   data: CubeGraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   // 이 파일은 지역 변수 t 를 여러 곳에서 쓴다 — 토큰은 tk 로 받는다
   const tk = styleOf(options);

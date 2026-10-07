@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, nudgeInside } from '../canvas/fit';
@@ -24,6 +25,8 @@ export function renderStackedGraph(
   data: StackedGraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
 
   if (data.displayMode === 'bar') {
@@ -140,7 +143,11 @@ function renderStackedBar(
     ctx.font = textFont(options, 'unit', unitFs);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(data.unit, plotX - 10, plotY - 16);
+    {
+      // 안에 있으면 그 자리 그대로 — 넓은 글꼴에서 괄호가 왼쪽으로 넘칠 때만 민다
+      const at = nudgeInside(ctx, data.unit, plotX - 10, plotY - 16, w, h);
+      ctx.fillText(data.unit, at.x, at.y);
+    }
 
     // 막대 — 칸의 30%, 최대 84px. 상한은 AbsBarGraph 의 80px 과 같은 꼴이되
     // 조금 넓다: 이 막대는 칸 안에 계열 이름을 적으므로(drawSegmentLabel),

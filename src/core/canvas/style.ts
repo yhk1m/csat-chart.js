@@ -155,6 +155,11 @@ export interface StyleTokens {
     /** 바깥 눈금이 있으면 그 끝에서 이만큼 더 띄운다 */
     pastTick: number;
   } | null;
+  /**
+   * 괄호를 명조 자리 글꼴로 따로 찍는가 (parens.ts `textCtx`). 시험지는 `(통계청)`·`(만 명)`
+   * 의 괄호를 본문 명조 꼴로, 한글 높이의 1.04 배로 한글 가운데에 찍는다.
+   */
+  separateParens: boolean;
 }
 
 const same = (_fs: FontSizes, classicPx: number) => classicPx;
@@ -230,6 +235,7 @@ export const classicStyle: StyleTokens = {
   sourceInline: false,
   ticksByType: false,
   tickText: null,
+  separateParens: false,
 };
 
 /** 시험지 글자 — 굵은 글자는 표본 어디에도 없다(실측 §1.1) */
@@ -317,6 +323,7 @@ export const examStyle: StyleTokens = {
   // 축에서 1.44–2.16pt 띄우고, 가로 숫자 잉크 위는 축 아래 3.1pt(안쪽 눈금)·3.8pt
   // (바깥 2.6pt 눈금 끝 + 1.2pt). 맨 아래 「0」 은 가운데에 두되 가로 숫자와 1.2pt 이상 떨어진다
   tickText: { yGap: 8.7, xGap: 15, pastTick: 5.8 }, // 1.8pt · 3.1pt · 1.2pt
+  separateParens: true,
 };
 
 const STYLES: Record<StyleName, StyleTokens> = { classic: classicStyle, exam: examStyle };

@@ -5,6 +5,7 @@
 // `verify:port` 대조 대상이 아니다. (CHANGES.md 참조)
 import { type MatrixTableData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { byStyle } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
@@ -28,6 +29,8 @@ export function renderMatrixTable(
   data: MatrixTableData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const look = byStyle(options, LOOK);
 

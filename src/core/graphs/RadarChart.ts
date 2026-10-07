@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type RadarGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, textExtent, wrapToWidth } from '../canvas/fit';
@@ -31,6 +32,8 @@ export function renderRadarChart(
   data: RadarGraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
   const look = byStyle(options, LOOK);

@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type AbsBarGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, labelStride, widestLabel, inkText } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
@@ -20,6 +21,8 @@ export function renderAbsBarGraph(
   data: AbsBarGraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
   const look = byStyle(options, LOOK);

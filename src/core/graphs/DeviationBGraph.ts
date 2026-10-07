@@ -2,8 +2,9 @@
 // 모드 B — 지역별 편차 (비교형)
 import { type DeviationBData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawFloatingLabel } from '../canvas/fit';
+import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
@@ -25,6 +26,8 @@ export function renderDeviationBGraph(
   data: DeviationBData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
   const look = byStyle(options, LOOK);
@@ -286,6 +289,8 @@ function drawDevBYAxis(
   ctx.textBaseline = 'bottom';
   const labelX = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
   ctx.textAlign = side === 'left' ? 'right' : 'left';
-  ctx.fillText(label, labelX, plotY - 16);
+  // 안에 있으면 그 자리 그대로 — exam 의 괄호(한글 가운데로 올라선다)가 위로 넘칠 때만 민다
+  const at = nudgeInside(ctx, label, labelX, plotY - 16, width, height);
+  ctx.fillText(label, at.x, at.y);
   ctx.restore();
 }

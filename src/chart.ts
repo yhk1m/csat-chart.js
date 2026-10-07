@@ -6,6 +6,7 @@ import { ensureFonts, type EnsureFontsOptions } from './fonts';
 import { installRoundRectPolyfill } from './roundrect';
 import { clearCanvas, createDefaultGraphOptions, type GraphOptions } from './core/index';
 import { resetDigitCache } from './core/canvas/renderer';
+import { resetParenCache } from './core/canvas/parens';
 import type { ChartDataMap, ConfigFor, CsatChartType, PartialGraphOptions, UpdateFor } from './types';
 
 /**
@@ -260,6 +261,7 @@ export class CsatChart<T extends CsatChartType = CsatChartType> {
         if (this.destroyed) return;
         // 대체 글꼴로 잰 숫자 높이를 버린다 — 도착한 글꼴로 다시 잰다
         resetDigitCache();
+        resetParenCache();
         this.draw();
       })
       .catch(() => {

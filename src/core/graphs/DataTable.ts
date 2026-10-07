@@ -8,6 +8,7 @@
 // 머리글 행만 회색이고, 항목 이름은 가운데, 값은 오른쪽으로 정렬한다.
 import { type DataTableData, type DataTableRow, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, type FontOptions } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { styleOf, byStyle } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
@@ -30,6 +31,8 @@ export function renderDataTable(
   data: DataTableData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
   const look = byStyle(options, LOOK);
 

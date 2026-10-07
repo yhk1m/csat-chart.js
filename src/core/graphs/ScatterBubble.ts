@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { textCtx } from '../canvas/parens';
 import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
@@ -52,6 +53,8 @@ export function renderScatterGraph(
   data: ScatterGraphData,
   options: GraphOptions
 ) {
+  // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
+  ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
 
   if (data.mode === 'deviation') {

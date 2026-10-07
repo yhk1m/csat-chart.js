@@ -3,13 +3,15 @@ import { type CubeGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, leaderOf } from '../canvas/style';
 
 const LOOK = {
-  classic: { axisW: 1.5, head: 10, backW: 1.5, backColor: '#999', backDash: [6, 5], leaderW: 1.2, pointR: 14, pointFill: '#000', pointStroke: 0 },
+  classic: { axisW: 1.5, head: 10, backW: 1.5, backColor: '#999', backDash: [6, 5], pointR: 14, pointFill: '#000', pointStroke: 0 },
   // 굵은 축 0.99pt + 화살촉, 상자 0.39pt, 꼭짓점 회색 공 + 테두리 (실측 §2 cube). 촉 크기·공 크기·회색은 ≈
-  exam: { axisW: 4.8, head: 22, backW: 1.9, backColor: '#000', backDash: [7.6, 4.7], leaderW: 1.45, pointR: 14, pointFill: '#7f7f7f', pointStroke: 1.75 },
+  exam: { axisW: 4.8, head: 22, backW: 1.9, backColor: '#000', backDash: [7.6, 4.7], pointR: 14, pointFill: '#7f7f7f', pointStroke: 1.75 },
 };
+/** 1.7.0 정육면체 유도선 굵기 — classic 에서만. exam 은 t.leader */
+const CLASSIC_LEADER = { width: 1.2 };
 
 // 사각 투영 (oblique / cabinet)
 // 앞면: Z→오른쪽, Y→위 (직사각형)
@@ -169,7 +171,7 @@ export function renderCubeGraph(
 
     // 유도선
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = look.leaderW;
+    ctx.lineWidth = leaderOf(options, CLASSIC_LEADER).width;
     ctx.beginPath();
     ctx.moveTo(px, py);
     ctx.lineTo(lx, ly);

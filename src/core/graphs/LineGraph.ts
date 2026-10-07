@@ -23,13 +23,10 @@ import {
   widestLabel,
 } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, leaderOf } from '../canvas/style';
 
-/** 꺾은선에서만 쓰는 값 */
-const LOOK = {
-  classic: { leaderW: 1 },
-  exam: { leaderW: 1.45 }, // 유도선 0.3pt 쯤 (실측 §2 line)
-};
+/** 1.7.0 꺾은선 유도선 굵기 — classic 에서만. exam 은 t.leader */
+const CLASSIC_LEADER = { width: 1 };
 
 /** 꼭짓점 기호 하나 */
 function drawMarker(
@@ -80,7 +77,7 @@ export function renderLineGraph(
 ) {
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
-  const look = byStyle(options, LOOK);
+  const leaderLine = leaderOf(options, CLASSIC_LEADER);
 
   const n = data.xLabels.length;
   const useLegend = data.labelPlacement === 'legend' && options.showLegend;
@@ -379,7 +376,7 @@ export function renderLineGraph(
       const dist = Math.hypot(vx, vy);
       if (Number.isFinite(hit) && hit < 1 && dist > 3) {
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = look.leaderW;
+        ctx.lineWidth = leaderLine.width;
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(lx + vx * hit, ly + vy * hit);

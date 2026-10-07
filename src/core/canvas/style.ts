@@ -306,6 +306,17 @@ export function byStyle<T>(o: { style?: StyleName }, table: Record<StyleName, T>
 }
 
 /**
+ * 유도선. `t.leader` 가 유일한 출처다 — 1.7.0 이 종류마다 달리 쓰던 값(`classic`)만
+ * 그 종류가 넘겨 classic 에서 덮어쓴다. exam 은 언제나 `t.leader` 그대로다.
+ */
+export function leaderOf(
+  o: { style?: StyleName },
+  classic: Partial<StyleTokens['leader']>,
+): StyleTokens['leader'] {
+  return { ...styleOf(o).leader, ...byStyle<Partial<StyleTokens['leader']>>(o, { classic, exam: {} }) };
+}
+
+/**
  * 눈금 방향. `tickDirection` 을 주면 두 축 모두 그쪽, 아니면 classic 은 늘 바깥,
  * exam 은 종류별 시험지 다수결(`byType`).
  */

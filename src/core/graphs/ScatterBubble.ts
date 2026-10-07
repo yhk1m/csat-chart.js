@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
-import { styleOf, byStyle, labelPlace } from '../canvas/style';
+import { styleOf, byStyle, labelPlace, leaderOf } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
 
@@ -14,7 +14,7 @@ const LOOK = {
     bubbleW: 1.5, bubbleStroke: '#333', bubbleFill: 'rgba(80,80,80,0.3)',
     valueInk: '#555',
     legendBox: { color: '#666', width: 1.5, radius: 4 },
-    leader: { color: '#666', width: 1, dash: [3, 2] },
+    leaderDash: [3, 2],   // 거품 크기 범례의 유도선 — 색·굵기는 CLASSIC_LEADER
     boxedLabelW: 1.2,
   },
   exam: {
@@ -25,10 +25,13 @@ const LOOK = {
     bubbleW: 4.0, bubbleStroke: '#000', bubbleFill: 'transparent', // 원 테두리 0.83pt, 채움 없음 (#39)
     valueInk: '#000',
     legendBox: { color: '#000', width: 1.45, radius: 0 },
-    leader: { color: '#000', width: 1.45, dash: [7.6, 4.7] },
+    leaderDash: [7.6, 4.7], // 색·굵기는 t.leader
     boxedLabelW: 1.45,
   },
 };
+
+/** 1.7.0 거품 크기 범례 유도선 — classic 에서만. exam 은 t.leader */
+const CLASSIC_LEADER = { color: '#666', width: 1 };
 
 export function renderScatterGraph(
   ctx: CanvasRenderingContext2D,
@@ -853,9 +856,10 @@ function drawBubbleLegendAt(
     ctx.stroke();
 
     ctx.save();
-    ctx.strokeStyle = look.leader.color;
-    ctx.lineWidth = look.leader.width;
-    ctx.setLineDash(look.leader.dash);
+    const leader = leaderOf(options, CLASSIC_LEADER);
+    ctx.strokeStyle = leader.color;
+    ctx.lineWidth = leader.width;
+    ctx.setLineDash(look.leaderDash);
     const lineY = cy - r;
     ctx.beginPath();
     ctx.moveTo(circleX, lineY);

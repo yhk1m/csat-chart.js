@@ -1,10 +1,15 @@
 // © 2026 김용현
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, getFont, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
-import { styleOf, type StyleTokens } from '../canvas/style';
+import { styleOf, byStyle, type StyleTokens } from '../canvas/style';
+
+const LOOK = {
+  classic: { tick: 1, tickLen: 5, catTicks: false, unitAdjacent: false },
+  exam: { tick: 1.9, tickLen: 12, catTicks: true, unitAdjacent: true }, // §3 #24·#25
+};
 
 export function renderStackedGraph(
   ctx: CanvasRenderingContext2D,
@@ -30,17 +35,23 @@ function renderStackedBar(
   options: GraphOptions
 ) {
   const t = styleOf(options);
+  const look = byStyle(options, LOOK);
+  const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
+  const tickFs = textSize(options, 'tick', options.fontSize.tick);
+  const unitFs = textSize(options, 'unit', options.fontSize.axisLabel);
+  const valueFs = textSize(options, 'value', options.fontSize.dataLabel * 0.8);
+  const catFs = textSize(options, 'category', options.fontSize.tick);
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
+    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5,
+    ? measureBottomLegend(ctx, data.seriesLabels, legendFs,
         w - (isVertical ? 80 : 100) - (isVertical ? 60 + legendW : 160 + legendW), options)
     : 0;
 
@@ -67,7 +78,7 @@ function renderStackedBar(
 
   // 축선
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
 
   if (isVertical) {
     // 세로 누적 막대 — 사각 테두리
@@ -81,24 +92,24 @@ function renderStackedBar(
 
     // Y축 눈금 (0~100)
     const stepV = data.axisStep ?? 20;
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'tick', tickFs);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let v = 0; v <= 100; v += stepV) {
       const y = plotY + plotH - (v / 100) * plotH;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = look.tick;
       ctx.beginPath();
-      ctx.moveTo(plotX - 5, y);
+      ctx.moveTo(plotX - look.tickLen, y);
       ctx.lineTo(plotX, y);
       ctx.stroke();
       ctx.fillText(String(v), plotX - 10, y);
 
       if (v > 0 && v < 100) {
         ctx.save();
-        ctx.strokeStyle = data.gridColor ?? '#ddd';
-        ctx.lineWidth = 0.5;
-        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = data.gridColor ?? t.line.barGridColor;
+        ctx.lineWidth = t.line.barGrid;
+        ctx.setLineDash(t.line.barGridDash);
         ctx.beginPath();
         ctx.moveTo(plotX, y);
         ctx.lineTo(plotX + plotW, y);
@@ -108,7 +119,7 @@ function renderStackedBar(
     }
 
     // 단위
-    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
+    ctx.font = textFont(options, 'unit', unitFs);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     ctx.fillText(data.unit, plotX - 10, plotY - 16);
@@ -132,14 +143,14 @@ function renderStackedBar(
         ctx.fillStyle = fillOf(ctx, data, s, t);
         ctx.fillRect(cx - barW / 2, y, barW, barH);
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = t.line.barStroke;
         ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
         if (data.labelInSegment) {
           drawSegmentLabel(ctx, data, options, s, cx, y + barH / 2, barW, barH, lightAt(data, s, t));
         } else if (options.showDataLabels && barH > options.fontSize.dataLabel) {
           ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
-          ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+          ctx.font = textFont(options, 'value', valueFs);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(val), cx, y + barH / 2);
@@ -149,7 +160,7 @@ function renderStackedBar(
 
       // X축 라벨
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, options, 'bold');
+      ctx.font = textFont(options, 'category', catFs);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12);
@@ -166,24 +177,24 @@ function renderStackedBar(
 
     // X축 눈금 (0~100)
     const stepH = data.axisStep ?? 20;
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'tick', tickFs);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     for (let v = 0; v <= 100; v += stepH) {
       const x = plotX + (v / 100) * plotW;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = look.tick;
       ctx.beginPath();
       ctx.moveTo(x, plotY + plotH);
-      ctx.lineTo(x, plotY + plotH + 5);
+      ctx.lineTo(x, plotY + plotH + look.tickLen);
       ctx.stroke();
       ctx.fillText(String(v), x, plotY + plotH + 10);
 
       if (v > 0 && v < 100) {
         ctx.save();
-        ctx.strokeStyle = '#ddd';
-        ctx.lineWidth = 0.5;
-        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = t.line.barGridColor;
+        ctx.lineWidth = t.line.barGrid;
+        ctx.setLineDash(t.line.barGridDash);
         ctx.beginPath();
         ctx.moveTo(x, plotY);
         ctx.lineTo(x, plotY + plotH);
@@ -193,7 +204,7 @@ function renderStackedBar(
     }
 
     // 단위 (축 맨 오른쪽)
-    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
+    ctx.font = textFont(options, 'unit', unitFs);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(data.unit, plotX + plotW + 30, plotY + plotH + 10);
@@ -214,12 +225,12 @@ function renderStackedBar(
         ctx.fillStyle = fillOf(ctx, data, s, t);
         ctx.fillRect(x, cy - barH / 2, bw, barH);
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = t.line.barStroke;
         ctx.strokeRect(x, cy - barH / 2, bw, barH);
 
         if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
           ctx.fillStyle = lightAt(data, s, t) ? '#000' : '#fff';
-          ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+          ctx.font = textFont(options, 'value', valueFs);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(val), x + bw / 2, cy);
@@ -229,7 +240,7 @@ function renderStackedBar(
 
       // Y축 라벨
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, options, 'bold');
+      ctx.font = textFont(options, 'category', catFs);
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(data.categories[c].label, plotX - 10, cy);
@@ -251,7 +262,7 @@ function renderStackedBar(
       ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85 + 5,
+      fontSize: legendFs,
     });
   }
 

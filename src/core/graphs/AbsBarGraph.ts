@@ -1,11 +1,17 @@
 // © 2026 김용현
 import { type AbsBarGraphData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
-import { styleOf } from '../canvas/style';
+import { styleOf, byStyle, type TextPlace } from '../canvas/style';
+
+const LOOK = {
+  // 눈금 0.39pt·2.5pt (§3 #24), 0 기준선 0.34–0.39pt, 범주 경계 눈금 (#25)
+  classic: { tick: 1, tickLen: 5, zero: 1.5, catTicks: false, unitAdjacent: false },
+  exam: { tick: 1.9, tickLen: 12, zero: 1.75, catTicks: true, unitAdjacent: true },
+};
 
 export function renderAbsBarGraph(
   ctx: CanvasRenderingContext2D,
@@ -16,11 +22,13 @@ export function renderAbsBarGraph(
 ) {
   clearCanvas(ctx, w, h);
   const t = styleOf(options);
+  const look = byStyle(options, LOOK);
+  const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
 
   const showLegend = options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options)
+    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
@@ -29,17 +37,27 @@ export function renderAbsBarGraph(
 
   // 2단 라벨(가로 전용) — 바깥 라벨이 들어갈 만큼 왼쪽 여백을 넓힌다
   const hasGroups = !isVertical && !!data.groups && data.groups.length > 0;
+  const tickFs = textSize(options, 'tick', options.fontSize.tick);
+  const unitFs = textSize(options, 'unit', options.fontSize.axisLabel);
+  const valueFs = textSize(options, 'value', options.fontSize.dataLabel * 0.8);
+  // 범주 이름은 대개 (가) — 2단 가로 막대에서는 1990년 같은 글자다
+  const catPlace: TextPlace = hasGroups ? 'region' : 'category';
+  const catFs = textSize(options, catPlace, options.fontSize.tick);
+  // groups[].label 은 A·B
+  const groupFs = textSize(options, 'symbol', options.fontSize.tick);
+  const inLegFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.9);
   let groupLabelW = 0;
   let catLabelW = 0;
   let unitW = 0;
   if (hasGroups || data.unitAdjacent || data.insideLegend) {
     ctx.save();
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
     if (hasGroups) {
+      ctx.font = textFont(options, 'symbol', groupFs);
       groupLabelW = widestLabel(ctx, data.groups!.map((g) => g.label));
+      ctx.font = textFont(options, catPlace, catFs);
       catLabelW = widestLabel(ctx, data.categories.map((c) => c.label));
     }
-    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
+    ctx.font = textFont(options, 'unit', unitFs);
     unitW = ctx.measureText(data.unit).width;
     ctx.restore();
   }
@@ -52,7 +70,7 @@ export function renderAbsBarGraph(
     : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100);
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, w - padLeft - padRight, options)
+    ? measureBottomLegend(ctx, data.seriesLabels, legendFs, w - padLeft - padRight, options)
     : 0;
 
   const padding: Padding = {
@@ -113,7 +131,7 @@ export function renderAbsBarGraph(
   };
 
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
 
   if (isVertical) {
     // 사각 테두리
@@ -163,12 +181,12 @@ export function renderAbsBarGraph(
           ctx.fillRect(cx - barW / 2, y, barW, barH);
           noteBar(cx - barW / 2, y, barW, barH);
           ctx.strokeStyle = '#000';
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = t.line.barStroke;
           ctx.strokeRect(cx - barW / 2, y, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
             ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+            ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), cx, y + barH / 2);
@@ -192,12 +210,12 @@ export function renderAbsBarGraph(
           ctx.fillRect(bx, by, barW, barH);
           noteBar(bx, by, barW, barH);
           ctx.strokeStyle = '#000';
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = t.line.barStroke;
           ctx.strokeRect(bx, by, barW, barH);
 
           if (options.showDataLabels && barH > options.fontSize.dataLabel) {
             ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+            ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(String(val), bx + barW / 2, by - 4);
@@ -210,7 +228,7 @@ export function renderAbsBarGraph(
     // 0 기준선 — 막대 위에 그어야 가려지지 않는다
     if (data.zeroBaseline && baseY > plotY && baseY < plotY + plotH) {
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = look.zero;
       ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(plotX, baseY);
@@ -222,7 +240,7 @@ export function renderAbsBarGraph(
     // 편차 그래프는 라벨이 플롯 아래가 아니라 0선 바로 아래에 붙는다.
     const labelY = data.categoryLabelAtBaseline ? baseY + 6 : plotY + plotH + 12;
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, catPlace, catFs);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     // 범주 이름이 서로 붙으면 몇 개 걸러 그린다
@@ -251,7 +269,7 @@ export function renderAbsBarGraph(
       ticks.push(axis.max);
     }
 
-    ctx.font = getFont(options.fontSize.tick, options, 'bold');
+    ctx.font = textFont(options, 'tick', tickFs);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -259,20 +277,20 @@ export function renderAbsBarGraph(
     for (let i = 0; i < ticks.length; i++) {
       const v = ticks[i];
       const x = plotX + ((v - axis.min) / (axis.max - axis.min)) * plotW;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = look.tick;
       ctx.strokeStyle = '#000';
       ctx.beginPath();
       ctx.moveTo(x, plotY + plotH);
-      ctx.lineTo(x, plotY + plotH + 5);
+      ctx.lineTo(x, plotY + plotH + look.tickLen);
       ctx.stroke();
       ctx.fillText(formatTick(v), x, plotY + plotH + 10);
       if (i === ticks.length - 1) lastTickHalfW = ctx.measureText(formatTick(v)).width / 2;
 
       if (i > 0 && i < ticks.length - 1) {
         ctx.save();
-        ctx.strokeStyle = '#ddd';
-        ctx.lineWidth = 0.5;
-        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = t.line.barGridColor;
+        ctx.lineWidth = t.line.barGrid;
+        ctx.setLineDash(t.line.barGridDash);
         ctx.beginPath();
         ctx.moveTo(x, plotY);
         ctx.lineTo(x, plotY + plotH);
@@ -282,7 +300,7 @@ export function renderAbsBarGraph(
     }
 
     // 단위 — 기본은 축 오른쪽에 떨어뜨리고, unitAdjacent 면 마지막 눈금 숫자에 바로 붙인다
-    ctx.font = getFont(options.fontSize.axisLabel, options, 'bold');
+    ctx.font = textFont(options, 'unit', unitFs);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -327,12 +345,12 @@ export function renderAbsBarGraph(
           ctx.fillRect(bx, cy - barH / 2, bw, barH);
           noteBar(bx, cy - barH / 2, bw, barH);
           ctx.strokeStyle = '#000';
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = t.line.barStroke;
           ctx.strokeRect(bx, cy - barH / 2, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
             ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+            ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), bx + bw / 2, cy);
@@ -356,12 +374,12 @@ export function renderAbsBarGraph(
           ctx.fillRect(bx, by, bw, barH);
           noteBar(bx, by, bw, barH);
           ctx.strokeStyle = '#000';
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = t.line.barStroke;
           ctx.strokeRect(bx, by, bw, barH);
 
           if (options.showDataLabels && bw > options.fontSize.dataLabel * 2) {
             ctx.fillStyle = isLightFill(s, t) ? '#000' : '#fff';
-            ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+            ctx.font = textFont(options, 'value', valueFs);
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(val), bx + bw + 4, by + barH / 2);
@@ -375,7 +393,7 @@ export function renderAbsBarGraph(
     const catLabelX = hasGroups ? plotX - 12 : plotX - 10;
     for (let c = 0; c < n; c++) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.tick, options, 'bold');
+      ctx.font = textFont(options, catPlace, catFs);
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(data.categories[c].label, catLabelX, centerY[c]);
@@ -383,6 +401,7 @@ export function renderAbsBarGraph(
 
     // 바깥(2단) 라벨 — 그룹이 차지한 칸의 한가운데에 놓는다
     if (hasGroups) {
+      ctx.font = textFont(options, 'symbol', groupFs);
       let first = 0;
       for (const g of data.groups!) {
         const cy = plotY + catArea * first + (catArea * g.span) / 2;
@@ -409,8 +428,8 @@ export function renderAbsBarGraph(
       corner: data.insideLegend,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.9,
-      font: getFont(options.fontSize.dataLabel * 0.9, options, 'bold'),
+      fontSize: inLegFs,
+      font: textFont(options, 'legend', inLegFs, { role: options.fontFamily ?? 'serif' }),
       fonts: options,
       avoid: barRects,
     });
@@ -426,7 +445,7 @@ export function renderAbsBarGraph(
       ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85 + 5,
+      fontSize: legendFs,
     });
   }
 

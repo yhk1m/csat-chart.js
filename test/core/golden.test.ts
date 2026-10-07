@@ -3,15 +3,24 @@ import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { clearCanvas, createDefaultGraphOptions } from '../../src/core/index';
+import { clearCanvas, createDefaultGraphOptions, type StyleName } from '../../src/core/index';
 import { CASES, type Renderer } from './fixtures';
 
 const SNAP_DIR = join(__dirname, '__snapshots__');
 const W = 800;
 const H = 600;
+/** classic 43장은 1.7.0 모양의 증거로 그대로, exam 43장은 2.0.0 기본 모양 */
+const SETS: [StyleName, string][] = [
+  ['classic', SNAP_DIR],
+  ['exam', join(SNAP_DIR, 'exam')],
+];
 
-/** 기준 이미지를 새로 쓰려면: UPDATE_GOLDEN=1 npx vitest run */
-const UPDATE = process.env.UPDATE_GOLDEN === '1';
+/**
+ * 기준 이미지를 새로 쓰려면: UPDATE_GOLDEN=exam npx vitest run test/core/golden.test.ts
+ * (UPDATE_GOLDEN=1 은 두 벌 다 다시 쓴다 — classic 은 바뀌면 안 되므로 쓰지 않는다)
+ */
+const UPDATE = process.env.UPDATE_GOLDEN;
+const updates = (style: StyleName) => UPDATE === '1' || UPDATE === style;
 
 /**
  * 기준 이미지는 **글꼴 대체 결과에 의존한다.** @napi-rs/canvas 는 등록된 글꼴이
@@ -25,9 +34,8 @@ const SKIP_GOLDEN = process.env.SKIP_GOLDEN === '1';
  * 케이스 이름이 LongText 로 끝나면 제목·각주를 캔버스보다 길게 준다.
  * 글자가 잘리지 않고 줄어드는지 보기 위한 것이다.
  */
-function optionsFor(name: string) {
-  // 이 42장은 1.7.0 모양의 증거다 — 기본 양식이 바뀌어도 classic 으로 비교한다
-  const base = createDefaultGraphOptions('classic');
+function optionsFor(name: string, style: StyleName) {
+  const base = { ...createDefaultGraphOptions(style), style };
   // 시험지 틀 케이스는 출처·각주를 한 줄에 두는 배치(sourceInline)까지 감시한다
   if (name.endsWith('ExamFrame')) {
     return {
@@ -66,22 +74,23 @@ function optionsFor(name: string) {
   };
 }
 
-function render(fn: Renderer, data: unknown, name = ''): Buffer {
+function render(fn: Renderer, data: unknown, name: string, style: StyleName): Buffer {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
-  fn(ctx, W, H, data as never, optionsFor(name));
+  fn(ctx, W, H, data as never, optionsFor(name, style));
   return canvas.toBuffer('image/png');
 }
 
-describe('골든 이미지', () => {
+describe.each(SETS)('골든 이미지 — %s', (style, dir) => {
   (SKIP_GOLDEN ? it.skip : it).each(CASES)(
     '%s 렌더 결과가 기준 이미지와 같다',
     (name, fn, makeData) => {
-      const actual = render(fn, makeData(), name);
-      const snapPath = join(SNAP_DIR, `${name}.png`);
+      const actual = render(fn, makeData(), name, style);
+      const snapPath = join(dir, `${name}.png`);
 
-      if (!existsSync(snapPath) || UPDATE) {
-        mkdirSync(SNAP_DIR, { recursive: true });
+      if (!existsSync(snapPath) || updates(style)) {
+        // 한 칸만 만든다 — 이 PC 의 한글 경로에서 recursive 는 깨진다
+        if (!existsSync(dir)) mkdirSync(dir);
         writeFileSync(snapPath, actual);
         // 기준을 처음 만드는 경우엔 통과시키되, 사람이 눈으로 확인해야 한다.
         return;
@@ -91,7 +100,7 @@ describe('골든 이미지', () => {
       expect(
         actual.equals(expected),
         `${name} 렌더 결과가 기준 이미지와 다릅니다. ` +
-          `의도한 변경이면 UPDATE_GOLDEN=1 로 기준을 갱신하고 CHANGES.md에 기록하세요.`,
+          `의도한 변경이면 UPDATE_GOLDEN=${style} 로 기준을 갱신하고 CHANGELOG.md에 기록하세요.`,
       ).toBe(true);
     },
   );
@@ -101,7 +110,7 @@ describe('골든 이미지', () => {
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
     // 새 캔버스는 투명 검정이다. 흰색으로 채워야 «흰색이 아닌 픽셀» 이 뜻을 가진다.
     clearCanvas(ctx, W, H);
-    fn(ctx, W, H, makeData() as never, optionsFor(_name));
+    fn(ctx, W, H, makeData() as never, optionsFor(_name, style));
 
     // 흰 배경 위에 무언가 그려졌는지 — 흰색이 아닌 픽셀이 있는지 본다
     const raw = canvas.getContext('2d').getImageData(0, 0, W, H).data;

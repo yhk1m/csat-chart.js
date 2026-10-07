@@ -257,17 +257,21 @@ export function sourceFootnoteReserve(
   const filtered = o.footnotes.filter((f) => f.trim());
   const avail = width - EDGE_MARGIN * 2;
   let under = false;
+  let above = false;
   if (inline && !!o.source && !!ctx && width > 0) {
     ctx.save();
     ctx.font = textFont(o, 'source', textSize(o, 'source', fontSize));
     const half = ctx.measureText(o.source).width + 16 <= avail * 0.5;
     ctx.restore();
-    under = !half || !inlineLineFits(ctx, o, o.source, t.footnoteMark(notes - 1) + filtered[notes - 1],
+    // 출처가 줄 절반을 넘으면 draw 는 출처를 각주 **위** 따로 한 줄에 둔다(above), 절반 안인데
+    // 마지막 각주와 한 줄에 안 들어가면 각주 **아래**로 내린다(under)
+    above = !half;
+    under = half && !inlineLineFits(ctx, o, o.source, t.footnoteMark(notes - 1) + filtered[notes - 1],
       textSize(o, 'source', fontSize), textSize(o, 'footnote', fontSize * 0.9), avail);
   }
   let b = 0;
   if (draws.sourceLeft) b += Math.max(srcLine, textSize(o, 'year', fontSize) + 8);
-  else if ((o.source && (!inline || under)) || (draws.reserveSource && notes === 0)) b += srcLine;
+  else if ((o.source && (!inline || under || above)) || (draws.reserveSource && notes === 0)) b += srcLine;
   // 묶음 윗변은 바닥에서 6 + 줄 수 × 줄 높이 + 글자 높이 — 그 위로 4px 더 띄운다.
   // 출처 줄이 각주 아래에 오면 각주 묶음을 한 줄 내려 그린다(drawSourceAndFootnote) — 그만큼 덜 비운다
   if (notes > 0) b += draws.sourceLeft || under ? notes * noteLine + 6 + BELOW_GAP : (notes + 1) * noteLine + 6;

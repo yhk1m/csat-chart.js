@@ -108,6 +108,7 @@ export function setFontMeasurer(ctx: CanvasRenderingContext2D | null): void {
 /** 잰 값을 버린다 — 글꼴이 새로 도착했을 때 */
 export function resetDigitCache(): void {
   digitRatio.clear();
+  numeralScale.clear();
 }
 
 function digitHeightRatio(ctx: CanvasRenderingContext2D, weight: string, stack: string): number {
@@ -141,20 +142,16 @@ export function numeralSize(
   return r > 0 ? Math.round((size * target / r) * 100) / 100 : size;
 }
 
+/** 숫자 자리 글꼴 문자열 → 요청 크기 / 키운 px (textFont 가 적는다) */
+const numeralScale = new Map<string, number>();
+
 /**
- * numeralSize 의 거꾸로 — 숫자 높이 맞추기로 키운 px 에서 요청 크기를 되찾는다.
+ * 숫자 높이 맞추기로 키운 글꼴 문자열이면 요청 크기 / 키운 px, 아니면 1.
  * 괄호(parens.ts)는 요청 크기의 한글에 맞춘다: 「(2024)」 의 괄호가 「(행정안전부)」 와 같은 크기여야 한다.
+ * (숫자 자리와 명조 자리는 글꼴 목록 문자열이 같을 수 있어 목록으로는 못 가른다)
  */
-export function numeralNominal(
-  px: number,
-  weight: string,
-  stack: string,
-  target: number | null,
-  ctx: CanvasRenderingContext2D,
-): number {
-  if (!target) return px;
-  const r = digitHeightRatio(ctx, weight, stack);
-  return r > 0 ? px * r / target : px;
+export function numeralScaleOf(font: string): number {
+  return numeralScale.get(font) ?? 1;
 }
 
 /** 1.7.0 이 그 자리에서 쓰던 굵기·자리. classic 에서만 읽힌다. */
@@ -198,7 +195,9 @@ export function textFont(o: FontOptions, place: TextPlace, size: number, legacy:
   const weight = (t.honorsLegacy && legacy.weight) || tok.weight;
   const role = (t.honorsLegacy && legacy.role) || chosen;
   const px = role === 'numeral' ? numeralSize(size, weight, fontStackOf(o, role), t.digitHeight) : size;
-  return getFont(px, o, weight, role);
+  const font = getFont(px, o, weight, role);
+  if (px !== size && px > 0) numeralScale.set(font, size / px);
+  return font;
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {

@@ -11,7 +11,7 @@
 // 가고(폭을 재서 맞추고 가운데 두는 계산도 같은 폭을 본다), classic 이면 받은 ctx 그대로라
 // 1.7.0 그림이 한 픽셀도 달라지지 않는다.
 import { styleOf } from './style';
-import { fontStackOf, numeralNominal, parenStackOf, type FontOptions } from './renderer';
+import { numeralScaleOf, parenStackOf, type FontOptions } from './renderer';
 
 /** 괄호 잉크 높이 / 한글 잉크 높이 — 시험지 `(천만 명)` 실측 53/51px */
 export const PAREN_HEIGHT = 1.04;
@@ -36,6 +36,9 @@ export function splitParenRuns(text: string): Run[] {
   }
   return runs;
 }
+
+/** 한글이 든 글줄은 괄호를 그려지는 한글에 맞춘다 — 숫자 자리 배율(refScale)은 한글 없는 「(2024)」 에만 */
+const HANGUL = /[가-힣]/;
 
 const hasParen = (text: string) => text.includes('(') || text.includes(')');
 
@@ -214,31 +217,27 @@ export function fillMixed(
 export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRenderingContext2D {
   if (!styleOf(o).separateParens) return ctx;
   const stack = parenStackOf(o);
-  const numeral = fontStackOf(o, 'numeral');
-  const target = styleOf(o).digitHeight;
-  // 렌더러가 건 글꼴 문자열 그대로 — 캔버스가 ctx.font 를 고쳐 쓰므로(따옴표 등) 여기서 기억한다.
-  // 숫자 자리(숫자 높이로 키운 px)면 괄호는 요청 크기의 한글에 맞춘다
-  let refScale = 1;
+  // 숫자 자리(숫자 높이로 키운 px)의 한글 없는 글줄이면 괄호는 요청 크기의 한글에 맞춘다.
+  // 렌더러가 건 글꼴 문자열로 본다 — 캔버스가 ctx.font 를 고쳐 쓰므로(따옴표 등) 걸 때 기억한다
+  // 캔버스가 고쳐 쓴 ctx.font → 그 배율. save/restore 로 글꼴이 돌아와도 맞는 값을 찾는다
+  const scales = new Map<string, number>();
+  const refScale = (t: string) => (HANGUL.test(t) ? 1 : scales.get(ctx.font) ?? 1);
   return new Proxy(ctx, {
     get(target_, prop) {
       if (prop === 'fillText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, false, refScale);
+        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, false, refScale(String(t)));
       }
       if (prop === 'strokeText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, true, refScale);
+        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, true, refScale(String(t)));
       }
-      if (prop === 'measureText') return (t: string) => measureMixed(target_, String(t), stack, refScale);
+      if (prop === 'measureText') return (t: string) => measureMixed(target_, String(t), stack, refScale(String(t)));
       const v = Reflect.get(target_, prop, target_);
       return typeof v === 'function' ? v.bind(target_) : v;
     },
     set(target_, prop, value) {
-      if (prop === 'font' && typeof value === 'string') {
-        const m = /^(.*?)\s*(\d+(?:\.\d+)?)px (.*)$/.exec(value);
-        refScale = m && m[3] === numeral && target
-          ? numeralNominal(parseFloat(m[2]), m[1] || 'normal', numeral, target, target_) / parseFloat(m[2])
-          : 1;
-      }
-      return Reflect.set(target_, prop, value, target_);
+      const ok = Reflect.set(target_, prop, value, target_);
+      if (prop === 'font' && typeof value === 'string') scales.set(target_.font, numeralScaleOf(value));
+      return ok;
     },
   });
 }

@@ -307,9 +307,15 @@ function renderNormal(
     clampLinesMiddle(ctx, yName.lines, plotY + plotH / 2, yNameLineH, h), yNameLineH);
   ctx.font = textFont(options, 'axisName', axisPx);
 
-  // 데이터 포인트
+  // 데이터 포인트 — exam 은 글자가 커서 점 이름이 플롯 안 범례 상자에 닿는다.
+  // 범례 자리는 버블만 보고 정하므로 미리 셈해 이름이 비키게 한다(classic 은 1.7.0 그대로).
+  const legendAvoid = byStyle(options, { classic: false, exam: true })
+    && !outsideLegend && data.showBubble && data.points.length > 0
+    ? insideLegendBoxes(ctx, data, plotX, plotY, plotW, plotH, fs, options,
+      bubbleRects(data, toCanvasX, toCanvasY, look.dotR))
+    : [];
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, options, options.showDataLabels,
-    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h);
+    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h, legendAvoid);
 
   // 버블 크기 범례
   if (outsideLegend) {
@@ -581,6 +587,8 @@ function drawPoints(
   bounds: LabelBox | undefined,
   canvasW: number,
   canvasH: number,
+  /** 이름이 비켜야 할 상자 — 플롯 안 범례 */
+  obstacles: LabelBox[] = [],
 ) {
   const look = byStyle(options, LOOK);
   const maxSize = data.points.length > 0 ? Math.max(...data.points.map((p) => p.size), 1) : 1;
@@ -588,6 +596,7 @@ function drawPoints(
   // 라벨이 서로/점과 겹치지 않게 자리를 잡는다.
   // 점을 먼저 전부 등록해야 라벨이 다른 점 위에 얹히지 않는다.
   const placer = new LabelPlacer(styleOf(options).leader);
+  for (const box of obstacles) placer.reserve(box);
   if (bounds) {
     for (const pt of data.points) {
       const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : look.dotR;
@@ -992,6 +1001,47 @@ function drawBubbleLegend(
   const spot = pickLegendCorner(preferred, m.boxW, m.boxH, plotX, plotY, plotW, plotH, avoid, extraH);
   drawBubbleLegendAt(ctx, m, spot.x, spot.y, options);
   return { height: m.boxH, corner: spot.corner, bottom: spot.y + m.boxH };
+}
+
+/**
+ * 플롯 안 범례 두 상자가 놓일 자리 — 그리지 않고 셈만 한다.
+ * `drawBubbleLegend`·`drawFillLegend` 와 같은 셈이다. 이름이 상자에 붙지 않게 둘레를 넓힌다.
+ */
+function insideLegendBoxes(
+  ctx: CanvasRenderingContext2D,
+  data: ScatterGraphData,
+  plotX: number,
+  plotY: number,
+  plotW: number,
+  plotH: number,
+  fs: GraphOptions['fontSize'],
+  options: FontOptions,
+  avoid: Rect[],
+): LabelBox[] {
+  const pad = 6;
+  const grow = (x: number, y: number, bw: number, bh: number): LabelBox =>
+    ({ left: x - pad, right: x + bw + pad, top: y - pad, bottom: y + bh + pad });
+  ctx.save();
+  const fill = measureFillLegend(ctx, data, fs, options);
+  const m = bubbleLegendMetrics(ctx, data, fs, options);
+  ctx.restore();
+  const boxes: LabelBox[] = [];
+  let corner: Corner = insideCorner(data.bubbleLegendPosition);
+  let stackBelow = 0;
+  if (m) {
+    const spot = pickLegendCorner(corner, m.boxW, m.boxH, plotX, plotY, plotW, plotH, avoid, fill.boxH);
+    boxes.push(grow(spot.x, spot.y, m.boxW, m.boxH));
+    corner = spot.corner;
+    stackBelow = spot.y + m.boxH;
+  }
+  if (fill.boxH > 0) {
+    const x = corner.endsWith('right') ? plotX + plotW - fill.boxW - 10 : plotX + 10;
+    const y = stackBelow > 0
+      ? stackBelow + 6
+      : (corner.startsWith('top') ? plotY + 10 : plotY + plotH - fill.boxH - 10);
+    boxes.push(grow(x, y, fill.boxW, fill.boxH));
+  }
+  return boxes;
 }
 
 /**

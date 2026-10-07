@@ -7,7 +7,7 @@
 // 끊기고 10 이면 끝 눈금이 숫자 솎기에 걸려 사라졌다 — 축이 몇 %까지인지
 // 읽을 수 없었다 (2026-08-27 사용자 지적).
 import { describe, it, expect } from 'vitest';
-import { pickTickStep } from '../../src/core/graphs/PopulationPyramid';
+import { pickTickStep, pickExamTickStep } from '../../src/core/graphs/PopulationPyramid';
 
 /** 실제 문항 패널(360px)에서 눈금 글꼴 24px 로 잰 값에 가깝다 */
 const NARROW = { halfW: 110, twoDigits: 26, oneDigit: 13 };
@@ -72,5 +72,28 @@ describe('pickTickStep', () => {
     const step = pickTickStep(7, 20, 40);
 
     expect(step).toBe(7);
+  });
+});
+
+describe('pickExamTickStep — 시험지 피라미드 (2026_09 wgeo q10: 12% 를 4% 숫자·2% 눈금)', () => {
+  it('넓은 칸에서도 12% 는 4% 숫자 (한쪽 숫자 넷 0·4·8·12), 눈금은 그 절반', () => {
+    expect(pickExamTickStep(12, WIDE.halfW, WIDE.twoDigits)).toEqual({ label: 4, tick: 2 });
+    expect(pickExamTickStep(12, NARROW.halfW, NARROW.twoDigits)).toEqual({ label: 4, tick: 2 });
+  });
+
+  it('셋으로 안 나뉘면 넷, 그다음 둘 — 10% 는 5%·2.5%', () => {
+    expect(pickExamTickStep(10, WIDE.halfW, WIDE.twoDigits)).toEqual({ label: 5, tick: 2.5 });
+    expect(pickExamTickStep(8, WIDE.halfW, WIDE.oneDigit)).toEqual({ label: 2, tick: 1 });
+  });
+
+  it('숫자가 안 들어가면 덜 나눈다 — 간격은 늘 최댓값을 나누고 0 이 아니다', () => {
+    expect(pickExamTickStep(12, 40, 26).label).toBe(12);
+    for (let max = 1; max <= 40; max += 1) {
+      const s = pickExamTickStep(max, NARROW.halfW, NARROW.twoDigits);
+      expect(s.label).toBeGreaterThan(0);
+      expect(divides(max, s.label)).toBe(true);
+      expect(divides(s.label, s.tick)).toBe(true);
+    }
+    expect(pickExamTickStep(0, 100, 10).label).toBeGreaterThan(0);
   });
 });

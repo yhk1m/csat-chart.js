@@ -14,11 +14,15 @@ const LOOK = {
     tick: 1, tickLen: 5, ageTickLen: 6, ageTickEvery: 20, grid: '#aaa',
     male: '#666', maleStroke: '#444', female: '#BBB', femaleStroke: '#888', barStroke: 0.5,
     barGapRatio: 0.1, barGapPx: 2, sexBelow: false, unitInline: false,
+    topLine: true, showGrid: true, legend: true, unitOnSexRow: false, examTicks: false,
   },
   exam: {
     tick: 1.9, tickLen: 11.2, ageTickLen: 11.6, ageTickEvery: 5, grid: '#000',
     male: '#cbcbcb', maleStroke: '#000', female: '#ffffff', femaleStroke: '#000', barStroke: 1.9,
     barGapRatio: 0, barGapPx: 0, sexBelow: true, unitInline: true,
+    // 2026_09 wgeo q10: L 자 열린 틀(윗변 없음)·격자 없음·범례 없음(남·여가 눈금 아래에 있다),
+    // (%) 는 남·여 줄 오른쪽 끝, 숫자는 한쪽 넷(0·4·8·12)·눈금 표시는 그 절반 간격
+    topLine: false, showGrid: false, legend: false, unitOnSexRow: true, examTicks: true,
   },
 };
 
@@ -67,6 +71,27 @@ export function pickTickStep(maxVal: number, halfW: number, labelWidth: number):
   return maxVal;
 }
 
+/**
+ * 시험지 피라미드의 가로축 — 숫자는 한쪽에 0 포함 넷(최댓값을 셋으로 나눈 간격)이 기본,
+ * 눈금 표시는 숫자 간격의 절반마다 (2026_09 wgeo q10: 12% 를 0·4·8·12, 눈금 2% 마다).
+ * 셋으로 깔끔히 안 나뉘면 넷·둘 순으로 본다. 정수 간격을 먼저, 없으면 0.5·0.1 단위.
+ * 숫자가 들어갈 자리보다 많이 나누지는 않는다 — 다 안 되면 0 과 끝만.
+ */
+export function pickExamTickStep(maxVal: number, halfW: number, labelWidth: number): { label: number; tick: number } {
+  if (!Number.isFinite(maxVal) || maxVal <= 0) return { label: 1, tick: 0.5 };
+  const fits = Math.max(1, Math.floor(halfW / (labelWidth + TICK_LABEL_GAP)));
+  const isMultipleOf = (v: number, unit: number) =>
+    Math.abs(v / unit - Math.round(v / unit)) < 1e-9;
+  for (const unit of [1, 0.5, 0.1]) {
+    for (const d of [3, 4, 2]) {
+      if (d > fits) continue;
+      const step = maxVal / d;
+      if (isMultipleOf(step, unit)) return { label: step, tick: step / 2 };
+    }
+  }
+  return { label: maxVal, tick: maxVal / 2 };
+}
+
 export function renderPyramidGraph(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -84,7 +109,7 @@ export function renderPyramidGraph(
   // 남·여를 눈금 숫자 아래에 둘 때 그 한 줄 (classic 은 위에 두므로 0)
   const sexLine = look.sexBelow ? textSize(options, 'legend', options.fontSize.axisLabel) + 8 : 0;
 
-  const showLegend = options.showLegend;
+  const showLegend = options.showLegend && look.legend;
   const legendPos = options.legendPosition;
   const legendLabels = [
     options.legendLabel1 || data.maleLabel,
@@ -191,7 +216,7 @@ export function renderPyramidGraph(
     ctx.stroke();
   }
   // 중앙 세로선
-  if (side === 'center') {
+  if (side === 'center' && !(data.numericAgeAxis && !look.topLine)) {
     // 가운데 빈 기둥이 있으면 그 양쪽(남·여의 0 자리)에 하나씩
     for (const x of ageGap > 0 ? [maleX0, femaleX0] : [centerX]) {
       ctx.beginPath();
@@ -201,11 +226,21 @@ export function renderPyramidGraph(
     }
   }
 
-  // 상단 가로선
-  ctx.beginPath();
-  ctx.moveTo(plotX, plotY);
-  ctx.lineTo(plotX + plotW, plotY);
-  ctx.stroke();
+  // 나이 수치 축은 왼쪽 세로선이 축이다 (exam — classic 은 1.7.0 처럼 그리지 않는다)
+  if (side !== 'left' && data.numericAgeAxis && !look.topLine) {
+    ctx.beginPath();
+    ctx.moveTo(plotX, plotY);
+    ctx.lineTo(plotX, plotY + plotH);
+    ctx.stroke();
+  }
+
+  // 상단 가로선 — exam 은 L 자 열린 틀
+  if (look.topLine) {
+    ctx.beginPath();
+    ctx.moveTo(plotX, plotY);
+    ctx.lineTo(plotX + plotW, plotY);
+    ctx.stroke();
+  }
 
   // 하단 가로선
   ctx.beginPath();
@@ -217,11 +252,14 @@ export function renderPyramidGraph(
   // 숫자 폭을 재야 하므로 눈금 글꼴을 잠깐 걸어 둔다.
   ctx.save();
   ctx.font = textFont(options, 'tick', tickFs);
-  const tickStep = pickTickStep(maxVal, halfW, ctx.measureText(fmtTick(maxVal)).width);
+  const steps = look.examTicks
+    ? pickExamTickStep(maxVal, halfW, ctx.measureText(fmtTick(maxVal)).width)
+    : null;
+  const tickStep = steps ? steps.label : pickTickStep(maxVal, halfW, ctx.measureText(fmtTick(maxVal)).width);
   ctx.restore();
 
-  // 격자선 (막대 아래에 그리기 위해 먼저)
-  for (let v = tickStep; v <= maxVal; v += tickStep) {
+  // 격자선 (막대 아래에 그리기 위해 먼저) — exam 은 없다
+  for (let v = tickStep; look.showGrid && v <= maxVal; v += tickStep) {
     const offset = (v / maxVal) * halfW;
     ctx.save();
     ctx.strokeStyle = look.grid;
@@ -370,6 +408,21 @@ export function renderPyramidGraph(
     }
   }
 
+  // 숫자 없는 눈금 표시 — exam 은 숫자 간격의 절반마다 (12·8·4 사이의 10·6·2)
+  if (steps && steps.tick < steps.label - 1e-9) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = look.tick;
+    for (let v = steps.tick; v < maxVal - 1e-9; v += steps.label) {
+      const offset = (v / maxVal) * halfW;
+      for (const x of [maleX0 - offset, femaleX0 + offset]) {
+        ctx.beginPath();
+        ctx.moveTo(x, plotY + plotH);
+        ctx.lineTo(x, plotY + plotH + xs * look.tickLen);
+        ctx.stroke();
+      }
+    }
+  }
+
   // 축 라벨 (좌: 남, 우: 여)
   ctx.font = textFont(options, 'region', textSize(options, 'legend', options.fontSize.axisLabel));
   ctx.fillStyle = '#000';
@@ -386,7 +439,13 @@ export function renderPyramidGraph(
   // 단위 라벨 — 축 오른쪽 바깥.
   // 기본은 X축 숫자 **아랫줄**, `axisLabelInline` 이면 숫자와 **같은 줄**(시험지 배치).
   ctx.save();
-  if (data.axisLabelInline ?? look.unitInline) {
+  if (data.axisLabelInline === undefined && look.unitOnSexRow) {
+    // 시험지: 남·여 줄의 오른쪽 끝 — 가로축 끝 아래에 가운데로 (2026_09 wgeo q10)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    drawFloatingLabel(ctx, data.axisLabel, femaleX0 + halfW, sexY, w, h,
+      textSize(options, 'unit', options.fontSize.tick), (size) => textFont(options, 'unit', size));
+  } else if (data.axisLabelInline ?? look.unitInline) {
     // 마지막 눈금 숫자는 축 끝에 가운데 정렬이라 절반이 플롯 밖으로 나온다.
     // 그만큼 더 밀어야 숫자와 붙지 않는다. 글자 크기도 숫자와 같게 맞춘다 —
     // 크기가 다르면 같은 줄에 놓아도 글줄이 어긋나 보인다.

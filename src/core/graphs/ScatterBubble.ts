@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
-import { styleOf, byStyle, labelPlace, leaderOf } from '../canvas/style';
+import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
 
@@ -16,6 +16,8 @@ const LOOK = {
     legendBox: { color: '#666', width: 1.5, radius: 4 },
     leaderDash: [3, 2],   // 거품 크기 범례의 유도선 — 색·굵기는 CLASSIC_LEADER
     boxedLabelW: 1.2,
+    closedFrame: false,
+    stackYName: false,
   },
   exam: {
     frameGrid: { color: '#000', width: 1.45, dash: [7.6, 4.7] },
@@ -27,8 +29,17 @@ const LOOK = {
     legendBox: { color: '#000', width: 1.45, radius: 0 },
     leaderDash: [7.6, 4.7], // 색·굵기는 t.leader
     boxedLabelW: 1.45,
+    // 표본 셋 모두 닫힌 틀에 눈금 표시가 없고, 세로 축 이름은 한 자씩 쌓는다 (§1.4, §2 scatter)
+    closedFrame: true,
+    stackYName: true,
   },
 };
+
+/** 눈금 한 줄이 축에서 [a, b] 만큼 — 바깥 +, 안쪽 − (가로축 기준) */
+function tickSeg(t: StyleTokens, d: TickDir): [number, number] {
+  const L = t.line.tickLen;
+  return d === 'out' ? [0, L] : d === 'in' ? [-L, 0] : d === 'cross' ? [-L / 2, L / 2] : [0, 0];
+}
 
 /** 1.7.0 거품 크기 범례 유도선 — classic 에서만. exam 은 t.leader */
 const CLASSIC_LEADER = { color: '#666', width: 1 };
@@ -63,6 +74,9 @@ function renderNormal(
   const look = byStyle(options, LOOK);
   const tickPx = textSize(options, 'tick', fs.tick);
   const axisPx = textSize(options, 'axisName', fs.axisLabel);
+  const dir = tickDirOf(options, { x: 'none', y: 'none' });
+  // 시험지는 닫힌 틀이 기본 — examFrame 을 직접 주면 그것을 따른다
+  const examFrame = data.examFrame ?? look.closedFrame;
 
   // 범례를 플롯 바깥에 둘 참이면 먼저 크기를 재서 오른쪽 여백을 확보한다.
   // 그려 놓고 자리를 잡으면 이미 늦다.
@@ -75,7 +89,7 @@ function renderNormal(
   // 시험지 틀은 x축 단위를 마지막 눈금 **옆**에 두므로 그만큼 오른쪽이 더 필요하다.
   // 60px 고정으로 두면 `(℃)` 가 캔버스 밖으로 밀린다.
   const examUnitW = (() => {
-    if (data.examFrame !== true || !data.xUnit) return 0;
+    if (!examFrame || !data.xUnit) return 0;
     ctx.save();
     ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.tick));
     const width = ctx.measureText(data.xUnit).width;
@@ -96,7 +110,7 @@ function renderNormal(
   const xStep = data.xRange.step ?? (data.xRange.auto ? xAuto.step : (xMax - xMin) / 5);
   const yStep = data.yRange.step ?? (data.yRange.auto ? yAuto.step : (yMax - yMin) / 5);
 
-  const yName = measureYAxisName(ctx, data, w, yMin, yMax, yStep, fs, options);
+  const yName = measureYAxisName(ctx, data, w, h, yMin, yMax, yStep, fs, options);
 
   const padding: Padding = {
     top: options.title ? 100 : 50,
@@ -124,7 +138,6 @@ function renderNormal(
   const toCanvasY = (v: number) => plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
   // 격자선 — 시험지 틀이면 진한 점선이다
-  const examFrame = data.examFrame === true;
   ctx.save();
   ctx.strokeStyle = examFrame ? look.frameGrid.color : t.line.barGridColor;
   ctx.lineWidth = examFrame ? look.frameGrid.width : t.line.barGrid;
@@ -176,11 +189,14 @@ function renderNormal(
   let lastXLabelRight = plotX + plotW;
   xTicks.forEach((v, i) => {
     const x = toCanvasX(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(x, plotY + plotH);
-    ctx.lineTo(x, plotY + plotH + t.line.tickLen);
-    ctx.stroke();
+    const [a, b] = tickSeg(t, dir.x);
+    if (a !== b) {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      ctx.moveTo(x, plotY + plotH + a);
+      ctx.lineTo(x, plotY + plotH + b);
+      ctx.stroke();
+    }
     if (i % xStride === 0) {
       const text = formatTick(v);
       ctx.fillText(text, x, plotY + plotH + 10);
@@ -199,11 +215,14 @@ function renderNormal(
   const yTickTextW = yName.tickW;
   yTicks.forEach((v, i) => {
     const y = toCanvasY(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(plotX - t.line.tickLen, y);
-    ctx.lineTo(plotX, y);
-    ctx.stroke();
+    const [a, b] = tickSeg(t, dir.y);
+    if (a !== b) {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      ctx.moveTo(plotX - b, y);
+      ctx.lineTo(plotX - a, y);
+      ctx.stroke();
+    }
     if (i % yStride === 0) ctx.fillText(formatTick(v), plotX - 10, y);
   });
 
@@ -245,10 +264,10 @@ function renderNormal(
 
   // Y축 라벨 (Y축 중간) — 왼쪽 여백은 이미 이 이름 몫만큼 비워 두었다
   ctx.font = textFont(options, 'axisNameV', yName.size);
-  ctx.textAlign = 'right';
+  ctx.textAlign = yName.stacked ? 'center' : 'right';
   ctx.textBaseline = 'middle';
-  const yNameLineH = yName.size * 1.3;
-  fillLines(ctx, yName.lines, plotX - 18 - yTickTextW,
+  const yNameLineH = yName.size * (yName.stacked ? STACK_LINE : 1.3);
+  fillLines(ctx, yName.lines, plotX - 18 - yTickTextW - (yName.stacked ? yName.nameW / 2 : 0),
     clampLinesMiddle(ctx, yName.lines, plotY + plotH / 2, yNameLineH, h), yNameLineH);
   ctx.font = textFont(options, 'axisName', axisPx);
 
@@ -329,6 +348,7 @@ function renderDeviation(
 
   const originX = toCanvasX(0);
   const originY = toCanvasY(0);
+  const dir = tickDirOf(options, { x: 'none', y: 'none' });
 
   // 격자선
   ctx.save();
@@ -401,11 +421,14 @@ function renderDeviation(
   devXTicks.forEach((v, i) => {
     if (Math.abs(v) < xStep * 0.01) return;
     const x = toCanvasX(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(x, xTickBase);
-    ctx.lineTo(x, xTickBase + t.line.tickLen);
-    ctx.stroke();
+    const [a, b] = tickSeg(t, dir.x);
+    if (a !== b) {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      ctx.moveTo(x, xTickBase + a);
+      ctx.lineTo(x, xTickBase + b);
+      ctx.stroke();
+    }
     if (i % devXStride === 0) ctx.fillText(formatTick(v), x, xTickBase + 10);
   });
 
@@ -419,11 +442,14 @@ function renderDeviation(
   devYTicks.forEach((v, i) => {
     if (Math.abs(v) < yStep * 0.01) return;
     const y = toCanvasY(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(yTickBase - t.line.tickLen, y);
-    ctx.lineTo(yTickBase, y);
-    ctx.stroke();
+    const [a, b] = tickSeg(t, dir.y);
+    if (a !== b) {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      ctx.moveTo(yTickBase - b, y);
+      ctx.lineTo(yTickBase - a, y);
+      ctx.stroke();
+    }
     if (i % devYStride === 0) ctx.fillText(formatTick(v), yTickBase - 10, y);
   });
 
@@ -476,8 +502,19 @@ function renderDeviation(
     // Y축 라벨 (Y축 중간, 줄바꿈 지원)
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.font = textFont(options, 'axisNameV', textSize(options, 'axisNameV', fs.axisLabel));
-    fillTextMultiline(ctx, data.yLabel, yTickBase - 18 - yTickTextW, plotY + plotH / 2, textSize(options, 'axisNameV', fs.axisLabel) * 1.3);
+    const namePx = textSize(options, 'axisNameV', fs.axisLabel);
+    ctx.font = textFont(options, 'axisNameV', namePx);
+    const stacked = look.stackYName ? stackChars(data.yLabel, namePx, h) : null;
+    if (stacked) {
+      // 한 자씩 쌓는다 — 시험지 「폭염 일수」 꼴
+      const nameW = widestLine(ctx, stacked);
+      ctx.textAlign = 'center';
+      const lineH = namePx * STACK_LINE;
+      fillLines(ctx, stacked, yTickBase - 18 - yTickTextW - nameW / 2,
+        clampLinesMiddle(ctx, stacked, plotY + plotH / 2, lineH, h), lineH);
+    } else {
+      fillTextMultiline(ctx, data.yLabel, yTickBase - 18 - yTickTextW, plotY + plotH / 2, namePx * 1.3);
+    }
   }
 
   // 데이터 포인트
@@ -628,12 +665,13 @@ function measureYAxisName(
   ctx: CanvasRenderingContext2D,
   data: ScatterGraphData,
   w: number,
+  h: number,
   yMin: number,
   yMax: number,
   yStep: number,
   fs: GraphOptions['fontSize'],
   options: FontOptions,
-): { lines: string[]; size: number; tickW: number; reserve: number } {
+): { lines: string[]; size: number; tickW: number; reserve: number; nameW: number; stacked: boolean } {
   ctx.save();
 
   ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));
@@ -644,6 +682,12 @@ function measureYAxisName(
   const makeFont = (size: number) => textFont(options, 'axisNameV', size);
   const base = textSize(options, 'axisNameV', fs.axisLabel);
   ctx.font = makeFont(base);
+  const stacked = byStyle(options, LOOK).stackYName ? stackChars(data.yLabel, base, h) : null;
+  if (stacked) {
+    const nameW = widestLine(ctx, stacked);
+    ctx.restore();
+    return { lines: stacked, size: base, tickW, reserve: 18 + tickW + nameW + 12, nameW, stacked: true };
+  }
   // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
   const given = (data.yLabel || '').split('\\n');
   const budget = Math.max(40, w * 0.3 - 18 - tickW - 12);
@@ -657,7 +701,21 @@ function measureYAxisName(
   const nameW = widestLine(ctx, lines);
 
   ctx.restore();
-  return { lines, size, tickW, reserve: 18 + tickW + nameW + 12 };
+  return { lines, size, tickW, reserve: 18 + tickW + nameW + 12, nameW, stacked: false };
+}
+
+/** 한 자씩 쌓은 세로 축 이름의 줄 간격 (글자 크기 배) */
+const STACK_LINE = 1.15;
+
+/**
+ * 세로 축 이름을 한 자씩 쌓은 줄 배열. 공백은 빈 줄로 둔다(「폭염 일수」).
+ * 쌓은 높이가 캔버스 높이의 60% 를 넘으면 null — 그때는 가로로 눕혀 쓴다.
+ */
+function stackChars(label: string | undefined, size: number, canvasH: number): string[] | null {
+  const chars = Array.from((label || '').split('\\n').join(''));
+  if (chars.length === 0) return null;
+  if (chars.length * size * STACK_LINE > canvasH * 0.6) return null;
+  return chars.map((ch) => (ch === ' ' ? '' : ch));
 }
 
 interface Rect { x0: number; y0: number; x1: number; y1: number }

@@ -18,9 +18,10 @@ const LINE_STYLES: { dash: number[]; width: number }[] = [
 const GRAY_SHADES = ['#000', '#444', '#777', '#AAA', '#CCC'];
 
 const LOOK = {
-  classic: { grid: { w: 0.8, color: '#ccc' }, axis: { w: 1, color: '#999' }, tickInk: '#888', dotHalo: 5, dotR: 3.5 },
-  // 축 0.30pt (실측 §3 #38). 꼭짓점 점은 표본에 없다 — 0 이면 안 그린다
-  exam: { grid: { w: 1.45, color: '#000' }, axis: { w: 1.45, color: '#000' }, tickInk: '#000', dotHalo: 0, dotR: 0 },
+  classic: { grid: { w: 0.8, color: '#ccc' }, axis: { w: 1, color: '#999' }, tickInk: '#888', dotHalo: 5, dotR: 3.5, crossTick: 0 },
+  // 축 0.30pt (실측 §3 #38). 꼭짓점 점은 표본에 없다 — 0 이면 안 그린다.
+  // 눈금마다 축을 가로지르는 짧은 선 3.6pt (§2 radar)
+  exam: { grid: { w: 1.45, color: '#000' }, axis: { w: 1.45, color: '#000' }, tickInk: '#000', dotHalo: 0, dotR: 0, crossTick: 17.5 },
 };
 
 export function renderRadarChart(
@@ -126,6 +127,28 @@ export function renderRadarChart(
     ctx.stroke();
   }
 
+  // 축을 가로지르는 눈금
+  if (look.crossTick > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = look.axis.w;
+    ctx.setLineDash([]);
+    const half = look.crossTick / 2;
+    for (let i = 0; i < n; i++) {
+      // 축에 수직인 단위 벡터
+      const nx = -Math.sin(angles[i]);
+      const ny = Math.cos(angles[i]);
+      for (let step = 1; step <= data.gridSteps; step++) {
+        const [px, py] = toXY(angles[i], (step / data.gridSteps) * radius);
+        ctx.beginPath();
+        ctx.moveTo(px - nx * half, py - ny * half);
+        ctx.lineTo(px + nx * half, py + ny * half);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
   // 눈금값
   ctx.fillStyle = look.tickInk;
   ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick * 0.8), { weight: 'normal' });
@@ -134,7 +157,7 @@ export function renderRadarChart(
   for (let step = 1; step <= data.gridSteps; step++) {
     const val = (maxVal / data.gridSteps) * step;
     const r = (step / data.gridSteps) * radius;
-    ctx.fillText(formatTick(val), cx + 4, cy - r - 2);
+    ctx.fillText(formatTick(val), cx + byStyle(options, { classic: 4, exam: look.crossTick / 2 + 3 }), cy - r - 2);
   }
 
   // 축 라벨

@@ -212,11 +212,14 @@ export function renderCubeGraph(
 
 function drawArrow(
   ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, headLen: number,
+  stopAtHead: boolean,
 ) {
   const angle = Math.atan2(y2 - y1, x2 - x1);
+  // 굵은 축은 촉 밑에서 멈춘다 — 선 끝이 촉 옆으로 삐져나오지 않게
+  const back = stopAtHead ? headLen * Math.cos(0.4) : 0;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
+  ctx.lineTo(x2 - back * Math.cos(angle), y2 - back * Math.sin(angle));
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(x2, y2);
@@ -380,17 +383,18 @@ function drawAxes(
   // X축 화살표 (깊이, 좌하): 꼭짓점 (1,0,0)에서 바깥으로
   const xStart = project(1, 0, 0, cx, cy, scale);
   const xEnd = project(ext, 0, 0, cx, cy, scale);
-  drawArrow(ctx, xStart[0], xStart[1], xEnd[0], xEnd[1], look.head);
+  const stopAtHead = byStyle(options, { classic: false, exam: true });
+  drawArrow(ctx, xStart[0], xStart[1], xEnd[0], xEnd[1], look.head, stopAtHead);
 
   // Y축 화살표 (위): 꼭짓점 (0,1,0)에서 바깥으로
   const yStart = project(0, 1, 0, cx, cy, scale);
   const yEnd = project(0, ext, 0, cx, cy, scale);
-  drawArrow(ctx, yStart[0], yStart[1], yEnd[0], yEnd[1], look.head);
+  drawArrow(ctx, yStart[0], yStart[1], yEnd[0], yEnd[1], look.head, stopAtHead);
 
   // Z축 화살표 (오른쪽): 꼭짓점 (0,0,1)에서 바깥으로
   const zStart = project(0, 0, 1, cx, cy, scale);
   const zEnd = project(0, 0, ext, cx, cy, scale);
-  drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1], look.head);
+  drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1], look.head, stopAtHead);
 
   const nameFont = textFont(options, 'axisName', nameSize);
   const dirFont = textFont(options, 'axisName', textSize(options, 'axisName', fs.axisLabel * 0.9), { weight: 'normal' });

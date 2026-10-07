@@ -9,7 +9,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
-import { styleOf, byStyle } from '../canvas/style';
+import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 // 계열별 점선 (classic) — 굵기는 t.line.series
 const LINE_DASHES: number[][] = [
@@ -27,9 +27,9 @@ const MARKERS: MarkerType[] = ['filledCircle', 'filledSquare', 'filledTriangle',
 /** 시험지 일점쇄선(짧은) 5.0/0.84/1.0/0.84pt — 다섯째 계열 */
 const EXAM_DASHDOT_SHORT = [24.3, 4.1, 4.9, 4.1];
 const LOOK = {
-  classic: { tickW: 1, markerR: 5, haloR: 7, iconGap: 8 },
+  classic: { tickW: 1, markerR: 5, haloR: 7, iconGap: 8, closedFrame: false },
   // 꺾은선 기호(§3 #32)·눈금(#24). haloR ≈ — 기호 + 2px (하이서그래프 표본 없음)
-  exam: { tickW: 1.9, markerR: 6.8, haloR: 8.8, iconGap: 14 },
+  exam: { tickW: 1.9, markerR: 6.8, haloR: 8.8, iconGap: 14, closedFrame: true },
 };
 
 function drawMarker(
@@ -173,7 +173,16 @@ export function renderHythergraph(
   ctx.moveTo(plotX, plotY);
   ctx.lineTo(plotX, plotY + plotH);
   ctx.lineTo(plotX + plotW, plotY + plotH);
+  // 시험지는 산점도처럼 닫힌 틀
+  if (look.closedFrame) {
+    ctx.lineTo(plotX + plotW, plotY);
+    ctx.closePath();
+  }
   ctx.stroke();
+
+  // 눈금 방향 — 시험지는 두 축 모두 안쪽
+  const dir = tickDirOf(options, { x: 'in', y: 'in' });
+  const L = t.line.tickLen;
 
   // X축 눈금 — 마지막 눈금은 단위와 겹치므로 스킵
   ctx.fillStyle = '#000';
@@ -182,14 +191,16 @@ export function renderHythergraph(
   ctx.textBaseline = 'top';
   for (let v = xMin; v <= xMax + xStep * 0.01; v += xStep) {
     const x = toX(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(x, plotY + plotH);
-    ctx.lineTo(x, plotY + plotH + t.line.tickLen);
-    ctx.stroke();
+    if (dir.x !== 'none') {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      ctx.moveTo(x, plotY + plotH);
+      ctx.lineTo(x, plotY + plotH + (dir.x === 'in' ? -L : L));
+      ctx.stroke();
+    }
     const isLast = v + xStep > xMax + xStep * 0.01;
     if (!(isLast && data.xUnit)) {
-      ctx.fillText(formatTick(v), x, plotY + plotH + 10);
+      ctx.fillText(formatTick(v), x, plotY + plotH + (dir.x === 'out' ? L : 0) + 4);
     }
   }
 
@@ -198,14 +209,16 @@ export function renderHythergraph(
   ctx.textBaseline = 'middle';
   for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) {
     const y = toY(v);
-    ctx.lineWidth = look.tickW;
-    ctx.beginPath();
-    ctx.moveTo(plotX - t.line.tickLen, y);
-    ctx.lineTo(plotX, y);
-    ctx.stroke();
+    if (dir.y !== 'none') {
+      ctx.lineWidth = look.tickW;
+      ctx.beginPath();
+      if (dir.y === 'in') { ctx.moveTo(plotX, y); ctx.lineTo(plotX + L, y); }
+      else { ctx.moveTo(plotX - L, y); ctx.lineTo(plotX, y); }
+      ctx.stroke();
+    }
     const isLast = v + yStep > yMax + yStep * 0.01;
     if (!(isLast && data.yUnit)) {
-      ctx.fillText(formatTick(v), plotX - 10, y);
+      ctx.fillText(formatTick(v), plotX - (dir.y === 'out' ? L : 0) - 4, y);
     }
   }
 

@@ -3,7 +3,7 @@ import { type TernaryGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, textExtent, wrapToWidth } from '../canvas/fit';
-import { styleOf, byStyle, labelPlace } from '../canvas/style';
+import { styleOf, byStyle, labelPlace, tickDirOf } from '../canvas/style';
 
 const LOOK = {
   // classic 격자는 실선이다 — 공유 토큰(grid [4,4])과 달라 여기 둔다
@@ -141,7 +141,9 @@ export function renderTernaryGraph(
   // 좌변의 tick은 좌변에서 바깥쪽, 격자선(하변 평행=수평) 방향 → 좌측 수평
   // 하변의 tick은 하변에서 바깥쪽, 격자선(좌변 평행=120°) 방향 → 60° 아래 좌측
   // 우변의 tick은 우변에서 바깥쪽, 격자선(하변 평행=수평) 방향 → 우측 수평
-  const tickLen = look.tickLen;
+  // 눈금은 값을 읽는 방향이라 두 양식 모두 바깥. 'none' 이면 선을 빼고 숫자를 변에 붙인다
+  const showTicks = tickDirOf(options, { x: 'out', y: 'out' }).x !== 'none';
+  const tickLen = showTicks ? look.tickLen : 0;
 
   // A축(좌변) tick 방향: 수평 좌측 (-1, 0)
   const aTick = { x: -1, y: 0 };
@@ -160,30 +162,36 @@ export function renderTernaryGraph(
 
     // A축 (좌변: bottom → top, 시계방향) — tick + 숫자
     const aPos = ternaryToXY(100 - val, 0, val, cx, cy, triSize);
-    ctx.beginPath();
-    ctx.moveTo(aPos.x, aPos.y);
-    ctx.lineTo(aPos.x + aTick.x * tickLen, aPos.y + aTick.y * tickLen);
-    ctx.stroke();
+    if (showTicks) {
+      ctx.beginPath();
+      ctx.moveTo(aPos.x, aPos.y);
+      ctx.lineTo(aPos.x + aTick.x * tickLen, aPos.y + aTick.y * tickLen);
+      ctx.stroke();
+    }
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(val), aPos.x + aTick.x * tickLen - 4, aPos.y + aTick.y * tickLen);
 
     // B축 (하변: right → left, 시계방향) — tick + 숫자
     const bPos = ternaryToXY(val, 100 - val, 0, cx, cy, triSize);
-    ctx.beginPath();
-    ctx.moveTo(bPos.x, bPos.y);
-    ctx.lineTo(bPos.x + bTick.x * tickLen, bPos.y + bTick.y * tickLen);
-    ctx.stroke();
+    if (showTicks) {
+      ctx.beginPath();
+      ctx.moveTo(bPos.x, bPos.y);
+      ctx.lineTo(bPos.x + bTick.x * tickLen, bPos.y + bTick.y * tickLen);
+      ctx.stroke();
+    }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(String(val), bPos.x + bTick.x * tickLen, bPos.y + bTick.y * tickLen + 4);
 
     // C축 (우변: top → bottom, 시계방향) — tick + 숫자
     const cPos = ternaryToXY(0, val, 100 - val, cx, cy, triSize);
-    ctx.beginPath();
-    ctx.moveTo(cPos.x, cPos.y);
-    ctx.lineTo(cPos.x + cTick.x * tickLen, cPos.y + cTick.y * tickLen);
-    ctx.stroke();
+    if (showTicks) {
+      ctx.beginPath();
+      ctx.moveTo(cPos.x, cPos.y);
+      ctx.lineTo(cPos.x + cTick.x * tickLen, cPos.y + cTick.y * tickLen);
+      ctx.stroke();
+    }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     // 「100 (%)」는 우하 꼭짓점 바깥이라 삼각형이 크면 캔버스를 넘는다.

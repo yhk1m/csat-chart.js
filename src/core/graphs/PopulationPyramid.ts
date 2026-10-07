@@ -139,7 +139,17 @@ export function renderPyramidGraph(
         (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
       return b;
     })(),
-    left: 60,
+    // exam 의 나이 숫자는 눈금 글꼴이 커서 고정 60 이면 넓은 대체 글꼴(CI 리눅스)에서
+    // 왼쪽으로 넘친다 — 두 자리 숫자 폭 + 숫자와 축 사이 10 + 가장자리 4 를 잰다
+    left: data.numericAgeAxis && look.examTicks
+      ? (() => {
+          ctx.save();
+          ctx.font = textFont(options, 'tick', tickFs);
+          const wNum = ctx.measureText('88').width;
+          ctx.restore();
+          return Math.max(60, Math.ceil(wNum) + 14);
+        })()
+      : 60,
   };
 
   const plotX = padding.left;

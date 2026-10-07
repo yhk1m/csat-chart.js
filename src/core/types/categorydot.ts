@@ -30,6 +30,11 @@ export interface CategoryDotGraphData {
    * 점 자체는 값 위치에 찍히므로 막대와 달리 기준선이 그리기에 영향을 주지 않는다.
    */
   zeroBaseline?: boolean;
+  /**
+   * 양수 눈금에 + 를 붙인다 (+30 · 0 · −30). 기본은 붙이지 않는다(30).
+   * 편차처럼 부호가 뜻을 갖는 그림에서 켠다. 켜면 classic 에서도 붙는다.
+   */
+  signedTicks?: boolean;
 }
 
 export function createDefaultCategoryDotData(): CategoryDotGraphData {

@@ -18,9 +18,10 @@ import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } 
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 const LOOK = {
-  classic: { zeroW: 1.5, zeroDash: [] as number[], catGrid: false, minorTickLen: 0, signed: false },
-  // 0 선 일점쇄선 0.30pt (실측 §3 #45), 범주 경계 세로 점선·안쪽 보조 눈금 3.5pt·부호 붙은 눈금 (§2 category-dot)
-  exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9], catGrid: true, minorTickLen: 17, signed: true },
+  classic: { zeroW: 1.5, zeroDash: [] as number[], catGrid: false, minorTickLen: 0, signed: false as false | 'minus' },
+  // 0 선 일점쇄선 0.30pt (실측 §3 #45), 범주 경계 세로 점선·안쪽 보조 눈금 3.5pt (§2 category-dot).
+  // 음수 눈금은 −(U+2212). 양수의 + 는 저자 검토(2026-10-08)로 뺐다 — data.signedTicks 로 켠다
+  exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9], catGrid: true, minorTickLen: 17, signed: 'minus' as false | 'minus' },
 };
 
 /** 기호 하나를 (cx, cy)에 그린다 */
@@ -143,7 +144,7 @@ export function renderCategoryDotGraph(
     labelFontSize: options.fontSize.axisLabel,
     drawGrid: true,
     tickDir: tickDirOf(options, { x: 'none', y: 'in' }).y,
-    signed: look.signed,
+    signed: data.signedTicks ? 'both' : look.signed,
   });
 
   // 시험지는 범주 경계마다 세로 점선

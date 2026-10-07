@@ -68,3 +68,36 @@ describe('CategoryDotGraph', () => {
     expect(isDark(px, centerX, PAD.top - DOT_R - 6)).toBe(false);
   });
 });
+
+describe('CategoryDotGraph 눈금 부호', () => {
+  /** 그리는 동안 찍힌 글자를 모은다 */
+  function ticksOf(signedTicks: boolean | undefined, style: 'exam' | 'classic') {
+    const data = createDefaultCategoryDotData();
+    data.categories = [{ label: 'A', values: [30] }, { label: 'B', values: [-30] }];
+    data.yRange = { min: -30, max: 30, auto: false, step: 30 };
+    if (signedTicks !== undefined) data.signedTicks = signedTicks;
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+    const seen: string[] = [];
+    const orig = ctx.fillText.bind(ctx);
+    ctx.fillText = (s: string, x: number, y: number, m?: number) => { seen.push(s); orig(s, x, y, m); };
+    renderCategoryDotGraph(ctx, W, H, data, { ...createDefaultGraphOptions(style), style, showLegend: false });
+    return seen.join('|');
+  }
+
+  it('시험지 기본은 양수 눈금에 + 를 붙이지 않는다 (30), 음수는 − (U+2212)', () => {
+    const s = ticksOf(undefined, 'exam');
+    expect(s).not.toMatch(/\+30/);
+    expect(s).toMatch(/(^|\|)30(\||$)/);
+    expect(s).toMatch(/−30/);
+  });
+
+  it('signedTicks: true 면 +30 으로 쓴다', () => {
+    expect(ticksOf(true, 'exam')).toMatch(/\+30/);
+  });
+
+  it('classic 은 1.7.0 처럼 부호를 붙이지 않는다', () => {
+    const s = ticksOf(undefined, 'classic');
+    expect(s).not.toMatch(/\+30|−30/);
+  });
+});

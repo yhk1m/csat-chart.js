@@ -289,7 +289,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `cells`: 배열(4) of `{ label: string, value: number }` (넓이는 `value`의 비율대로 나뉜다. 내림차순으로 주면 칸이 정사각형에 가깝게 나온다)
 
 각 타입 데이터 인터페이스에는 위에 없는 **선택적(optional) 필드**도 있다 —
-시험지의 세부 배치를 재현하는 고급 옵션들이다(예: `absbar.zeroBaseline`,
+시험지의 세부 배치를 재현하는 고급 옵션들이다(예: `absbar.zeroBaseline`, `category-dot.signedTicks` — 양수 눈금에 `+`,
 `scatter.examFrame`, `pyramid.sexFills`, `line.frame` — `'open'`이면 L 자 틀). 검증기는 이 필드들을 요구하지
 않으므로 빠뜨려도 오류가 나지 않고, 완전한 목록은 `dist/csat-chart.d.ts`의
 타입 선언에 있다. 이 문서는 **항상 있는** 필드만 표로 만들었다 — 없어도

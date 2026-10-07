@@ -29,8 +29,11 @@ interface YAxisParams extends AxisOptions {
   gridWidth?: number;
   /** 눈금 표시 방향 — 미지정이면 바깥(1.7.0). 렌더러는 tickDirOf 로 정해 넘긴다 */
   tickDir?: TickDir;
-  /** 눈금 숫자에 부호를 붙인다 (+4 · −4) — 범주 점 그래프 시험지 꼴 */
-  signed?: boolean;
+  /**
+   * 눈금 숫자의 부호 — `'minus'` 는 음수만 −4 (U+2212), `'both'` 는 +4 · −4.
+   * 미지정·false 면 1.7.0 처럼 그대로 (-4).
+   */
+  signed?: false | 'minus' | 'both';
 }
 
 interface XAxisParams extends AxisOptions {
@@ -126,7 +129,7 @@ export function drawYAxis({
 
     // 숫자 — 서로 붙으면 몇 개 걸러 그린다 (눈금선은 그대로)
     if (i % stride === 0) {
-      const text = signed ? signedTick(val) : formatTick(val);
+      const text = signed ? signedTick(val, signed === 'both') : formatTick(val);
       const at = yTickLabelAt(ctx, fonts, x, side, tickDir, y, plot.y + plot.h);
       const tx = at ? at.x : side === 'left' ? x - tickGap : x + tickGap;
       if (at) {
@@ -286,8 +289,8 @@ function formatTick(val: number): string {
   return val.toFixed(1);
 }
 
-/** +4 · 0 · −4 (빼기는 U+2212 — 시험지 꼴) */
-function signedTick(val: number): string {
+/** (+)4 · 0 · −4 (빼기는 U+2212 — 시험지 꼴). plus 가 false 면 양수에 + 를 붙이지 않는다 */
+function signedTick(val: number, plus: boolean): string {
   const s = formatTick(Math.abs(val));
-  return val > 0 ? `+${s}` : val < 0 ? `−${s}` : s;
+  return val > 0 ? (plus ? `+${s}` : s) : val < 0 ? `−${s}` : s;
 }

@@ -91,6 +91,11 @@ export interface LineGraphData {
   gridColor?: string;
   /** 격자 굵기(px). 미지정이면 양식의 격자 (classic #ccc·0.5). 시험지 점선은 1px 쯤이라 gridColor 와 함께 올린다 */
   gridWidth?: number;
+  /**
+   * 틀 모양. `'closed'`(기본) — 사각 틀, `'open'` — 왼쪽·아래 선만(L자).
+   * 시험지는 닫힌 틀이 다수이고, 열린 L자는 2026학년도 수능 세계지리 10번 꼴이다.
+   */
+  frame?: 'closed' | 'open';
 }
 
 export function createDefaultLineData(): LineGraphData {

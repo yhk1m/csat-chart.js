@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import {
   renderAbsBarGraph, createDefaultAbsBarData, createDefaultGraphOptions, clearCanvas,
+  renderLineGraph, createDefaultLineData,
   type GraphOptions,
 } from '../../src/core/index';
 
@@ -52,5 +53,32 @@ describe('절댓값 막대 — exam', () => {
     const axisX = lines.filter((l) => l.x0 === l.x1).sort((a, b) => Math.abs(b.y1 - b.y0) - Math.abs(a.y1 - a.y0))[0].x0;
     const ticks = lines.filter((l) => l.y0 === l.y1 && Math.min(l.x0, l.x1) === axisX - 12);
     expect(ticks.length).toBeGreaterThan(0);
+  });
+});
+
+describe('꺾은선', () => {
+  const right = (lines: { x0: number; y0: number; x1: number; y1: number }[]) =>
+    Math.max(...lines.map((l) => Math.max(l.x0, l.x1)));
+
+  it("frame: 'open' 이면 위·오른쪽 틀선이 없다", () => {
+    const d = { ...createDefaultLineData(), frame: 'open' as const };
+    const { lines } = draw(renderLineGraph as never, d);
+    const plotTop = Math.min(...lines.filter((l) => l.x0 === l.x1).map((l) => Math.min(l.y0, l.y1)));
+    const topEdges = lines.filter((l) => l.y0 === plotTop && l.y1 === plotTop && Math.abs(l.x1 - l.x0) > 100);
+    expect(topEdges).toEqual([]);
+  });
+
+  it('기본은 닫힌 틀이다', () => {
+    const { lines } = draw(renderLineGraph as never, createDefaultLineData());
+    const plotTop = Math.min(...lines.filter((l) => l.x0 === l.x1).map((l) => Math.min(l.y0, l.y1)));
+    expect(lines.some((l) => l.y0 === plotTop && l.y1 === plotTop && Math.abs(l.x1 - l.x0) > 100)).toBe(true);
+    expect(right(lines)).toBeGreaterThan(0);
+  });
+
+  it('exam 은 가로축 눈금을 안쪽(위)으로 긋는다', () => {
+    const { lines } = draw(renderLineGraph as never, createDefaultLineData());
+    const bottom = Math.max(...lines.filter((l) => l.y0 === l.y1 && Math.abs(l.x1 - l.x0) > 100).map((l) => l.y0));
+    const up = lines.filter((l) => l.x0 === l.x1 && l.y0 === bottom && l.y1 === bottom - 12);
+    expect(up.length).toBeGreaterThan(0);
   });
 });

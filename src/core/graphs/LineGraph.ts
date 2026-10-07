@@ -23,7 +23,7 @@ import {
   widestLabel,
 } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
-import { styleOf, leaderOf } from '../canvas/style';
+import { styleOf, byStyle, leaderOf, tickDirOf, type TickDir } from '../canvas/style';
 
 /** 1.7.0 꺾은선 유도선 굵기 — classic 에서만. exam 은 t.leader */
 const CLASSIC_LEADER = { width: 1 };
@@ -153,7 +153,11 @@ export function renderLineGraph(
   const gridColor = data.gridColor ?? t.line.gridColor;
   const gridWidth = data.gridWidth ?? t.line.grid;
 
-  // 사각 테두리
+  // 시험지: 안쪽 2 : 바깥 1 (실측 §2 line). classic 은 가로축 눈금을 안 그렸다
+  const dir = tickDirOf(options, { x: 'in', y: 'in' });
+  const xTick = byStyle<TickDir>(options, { classic: 'none', exam: dir.x });
+
+  // 틀 — 기본 닫힌 사각, frame: 'open' 이면 L자
   ctx.strokeStyle = '#000';
   ctx.lineWidth = t.line.axis;
   ctx.setLineDash([]);
@@ -161,8 +165,10 @@ export function renderLineGraph(
   ctx.moveTo(plotX, plotY);
   ctx.lineTo(plotX, plotY + plotH);
   ctx.lineTo(plotX + plotW, plotY + plotH);
-  ctx.lineTo(plotX + plotW, plotY);
-  ctx.lineTo(plotX, plotY);
+  if (data.frame !== 'open') {
+    ctx.lineTo(plotX + plotW, plotY);
+    ctx.lineTo(plotX, plotY);
+  }
   ctx.stroke();
 
   drawYAxis({
@@ -176,6 +182,7 @@ export function renderLineGraph(
     drawGrid: true,
     gridColor,
     gridWidth,
+    tickDir: dir.y,
   });
 
   // x 위치 — 첫 점과 마지막 점이 좌우 끝에 오도록 나눈다
@@ -211,6 +218,27 @@ export function renderLineGraph(
     }
     ctx.restore();
   }
+
+  // 가로축 눈금 — 이름이 있는 자리에만
+  if (xTick !== 'none') {
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = t.line.tick;
+    ctx.setLineDash([]);
+    const y0 = plotY + plotH;
+    const L = t.line.tickLen;
+    for (let i = 0; i < n; i++) {
+      if (!labelShown(i)) continue;
+      ctx.beginPath();
+      if (xTick === 'in') { ctx.moveTo(toX(i), y0); ctx.lineTo(toX(i), y0 - L); }
+      else if (xTick === 'out') { ctx.moveTo(toX(i), y0); ctx.lineTo(toX(i), y0 + L); }
+      else { ctx.moveTo(toX(i), y0 - L / 2); ctx.lineTo(toX(i), y0 + L / 2); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // 가로 이름이 눈금 아래로 비켜설 거리 — 바깥 눈금일 때만 (classic 은 'none' 이라 그대로)
+  const xLabelY = plotY + plotH + (xTick === 'out' ? t.line.tickLen : 0) + 10;
 
   // 0 기준선 (편차 그래프)
   if (data.zeroBaseline && axis.min < 0 && axis.max > 0) {
@@ -395,7 +423,7 @@ export function renderLineGraph(
   ctx.textBaseline = 'top';
   data.xLabels.forEach((label, i) => {
     if (!labelShown(i)) return;
-    ctx.fillText(label, toX(i), plotY + plotH + 10);
+    ctx.fillText(label, toX(i), xLabelY);
   });
 
   // X축 단위 — 마지막 눈금 이름 오른쪽.
@@ -404,7 +432,7 @@ export function renderLineGraph(
     const lastLabelHalf = ctx.measureText(data.xLabels[n - 1] ?? '').width / 2;
     ctx.textAlign = 'left';
     ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
-    ctx.fillText(data.xUnit, plotX + plotW + lastLabelHalf + 6, plotY + plotH + 10);
+    ctx.fillText(data.xUnit, plotX + plotW + lastLabelHalf + 6, xLabelY);
   }
 
   if (options.title) {

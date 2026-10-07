@@ -11,13 +11,13 @@ import { drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle } from '../canvas/style';
 
-// 계열별 선 스타일
-const LINE_STYLES: { dash: number[]; width: number }[] = [
-  { dash: [], width: 2 },           // 실선
-  { dash: [8, 4], width: 2 },       // 파선
-  { dash: [2, 3], width: 2 },       // 점선
-  { dash: [8, 3, 2, 3], width: 2 }, // 일점쇄선
-  { dash: [12, 4, 2, 4, 2, 4], width: 2 }, // 이점쇄선
+// 계열별 점선 (classic) — 굵기는 t.line.series
+const LINE_DASHES: number[][] = [
+  [],                    // 실선
+  [8, 4],                // 파선
+  [2, 3],                // 점선
+  [8, 3, 2, 3],          // 일점쇄선
+  [12, 4, 2, 4, 2, 4],   // 이점쇄선
 ];
 
 // 기호: ● ■ ▲ ○ □
@@ -92,7 +92,7 @@ export function renderHythergraph(
 
   const fs = options.fontSize;
   const dashes = byStyle(options, {
-    classic: LINE_STYLES.map((s) => s.dash),
+    classic: LINE_DASHES,
     exam: [t.seriesDash.solid, t.seriesDash.dashed, t.seriesDash.dotted, t.seriesDash.dashdot, EXAM_DASHDOT_SHORT],
   });
   const lfSize = textSize(options, 'legend', fs.dataLabel * 0.85 + 5);

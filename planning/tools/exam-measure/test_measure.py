@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 from measure import run_lengths, stroke_width, dash_pattern, gray_levels, ink_height
+from numerals import normalize, iou, aspect, N
 
 
 def blank(h=100, w=200):
@@ -55,6 +56,28 @@ class InkHeight(unittest.TestCase):
         a = blank()
         a[30:62, 10:30] = 0  # 32px 높이 글자 덩어리
         self.assertEqual(ink_height(a), 32)
+
+
+
+class Numerals(unittest.TestCase):
+    def test_normalize_fits_height(self):
+        m = np.zeros((40, 100), dtype=bool)
+        m[10:30, 20:30] = True              # 20 높이 × 10 폭
+        out = normalize(m)
+        self.assertEqual(out.shape, (N, N))
+        ys, xs = np.nonzero(out)
+        self.assertEqual(ys.max() - ys.min() + 1, N)
+        self.assertAlmostEqual((xs.max() - xs.min() + 1) / N, 0.5, delta=0.05)
+
+    def test_iou_same_and_disjoint(self):
+        a = np.zeros((N, N), dtype=bool); a[:, :10] = True
+        b = np.zeros((N, N), dtype=bool); b[:, 20:30] = True
+        self.assertEqual(iou(a, a), 1.0)
+        self.assertEqual(iou(a, b), 0.0)
+
+    def test_aspect(self):
+        m = np.zeros((50, 50), dtype=bool); m[5:25, 5:15] = True
+        self.assertAlmostEqual(aspect(m), 0.5)
 
 
 if __name__ == "__main__":

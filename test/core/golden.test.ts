@@ -26,7 +26,8 @@ const SKIP_GOLDEN = process.env.SKIP_GOLDEN === '1';
  * 글자가 잘리지 않고 줄어드는지 보기 위한 것이다.
  */
 function optionsFor(name: string) {
-  const base = createDefaultGraphOptions();
+  // 이 42장은 1.7.0 모양의 증거다 — 기본 양식이 바뀌어도 classic 으로 비교한다
+  const base = { ...createDefaultGraphOptions(), style: 'classic' as const };
   // 시험지 틀 케이스는 출처·각주를 한 줄에 두는 배치(sourceInline)까지 감시한다
   if (name.endsWith('ExamFrame')) {
     return {
@@ -54,6 +55,8 @@ function optionsFor(name: string) {
       sourceInline: true,
     };
   }
+  // 원그래프 — 조각 안 값 라벨(어두운 조각은 흰 글자)까지 감시한다
+  if (name === 'stackedPie') return { ...base, showDataLabels: true };
   if (!name.endsWith('LongText')) return base;
   return {
     ...base,

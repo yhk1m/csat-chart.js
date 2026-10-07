@@ -178,6 +178,19 @@ const stackedExam = () => {
   return d;
 };
 
+/** 원그래프 셋 — 조각 경계·테두리·조각 안 값(어두운 조각의 흰 글자)을 감시한다 */
+const stackedPie = () => {
+  const d = createDefaultStackedData();
+  d.displayMode = 'pie';
+  d.seriesLabels = ['항목1', '항목2', '항목3', '항목4'];
+  d.categories = [
+    { label: '(가)', values: [45, 25, 20, 10] },
+    { label: '(나)', values: [30, 30, 25, 15] },
+    { label: '(다)', values: [20, 15, 40, 25] },
+  ];
+  return d;
+};
+
 const deviationBWithData = () => {
   const d = createDefaultDeviationBData();
   d.baseTemp = 12;
@@ -696,6 +709,7 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['cube', renderCubeGraph as Renderer, createDefaultCubeData],
   ['deviationA', renderDeviationAGraph as Renderer, deviationAWithData],
   ['stackedExam', renderStackedGraph as Renderer, stackedExam],
+  ['stackedPie', renderStackedGraph as Renderer, stackedPie],
   ['matrixTable', renderMatrixTable as Renderer, matrixTableExam],
   ['dataTable', renderDataTable as Renderer, dataTableExam],
   ['deviationAExam', renderDeviationAGraph as Renderer, deviationAExam],

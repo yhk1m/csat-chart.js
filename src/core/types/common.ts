@@ -47,6 +47,17 @@ export type InsideLegendCorner = 'top-right' | 'top-left' | 'bottom-right' | 'bo
 export type FontRole = 'serif' | 'sans' | 'custom';
 
 /**
+ * 그림 양식.
+ *
+ * - `'exam'` — 평가원 시험지 실물에 맞춘 글꼴·굵기·선 (2.0.0 기본)
+ * - `'classic'` — 1.7.x 모양 그대로 (굵은 글자, 2px 축, 회색 점선 격자)
+ */
+export type StyleName = 'exam' | 'classic';
+
+/** 눈금 표시 방향. 주지 않으면 양식·종류마다 시험지 다수결을 따른다. */
+export type TickDirection = 'in' | 'out';
+
+/**
  * 두 글꼴 «자리»를 통째로 갈아 끼운다.
  *
  * 시험지 그림은 자리마다 서체가 다르다 — 축 이름·눈금·자료값은 명조,
@@ -98,6 +109,16 @@ export interface GraphOptions {
    * **축 쪽**만 바꾸고 제목·범례는 못 건드린다. 이쪽은 자리마다 따로 준다.
    */
   fontStack?: FontStack;
+  /**
+   * 그림 양식. 미지정이면 기본 양식(2.0.0 부터 `'exam'`).
+   * 1.7.x 와 같은 그림이 필요하면 `'classic'`.
+   */
+  style?: StyleName;
+  /**
+   * 눈금 표시 방향을 모든 축에 한 번에 정한다.
+   * 미지정이면 classic 은 늘 바깥, exam 은 종류마다 시험지 다수결.
+   */
+  tickDirection?: TickDirection;
   fontSize: {
     title: number;
     axisLabel: number;

@@ -10,10 +10,16 @@ import {
   type GraphOptions,
   DOT_MARKER_ORDER,
 } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
+import { styleOf, byStyle } from '../canvas/style';
+
+const LOOK = {
+  classic: { zeroW: 1.5, zeroDash: [] as number[] },
+  exam: { zeroW: 1.45, zeroDash: [41, 4.9, 5.3, 4.9] }, // 0 선 일점쇄선 0.30pt (실측 §3 #45)
+};
 
 /** 기호 하나를 (cx, cy)에 그린다 */
 function drawMarker(
@@ -56,6 +62,8 @@ export function renderCategoryDotGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   const n = data.categories.length;
   const sCount = data.seriesLabels.length;
@@ -65,12 +73,12 @@ export function renderCategoryDotGraph(
   const showLegend = options.showLegend && sCount > 1;
   const legendPos = options.legendPosition;
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85 + 5, options, 'circle')
+    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'circle')
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, data.seriesLabels, options.fontSize.dataLabel * 0.85, w - 130 - (60 + legendW), options, 'circle')
+    ? measureBottomLegend(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85), w - 130 - (60 + legendW), options, 'circle')
     : 0;
 
   const padding: Padding = {
@@ -107,7 +115,7 @@ export function renderCategoryDotGraph(
 
   // 사각 테두리
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   ctx.beginPath();
   ctx.moveTo(plotX, plotY);
   ctx.lineTo(plotX, plotY + plotH);
@@ -156,7 +164,7 @@ export function renderCategoryDotGraph(
       drawMarker(ctx, markers[s % markers.length], cx, cy, data.dotRadius);
 
       if (options.showDataLabels) {
-        ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+        ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8));
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(String(val), cx, cy - data.dotRadius - 4);
@@ -169,19 +177,21 @@ export function renderCategoryDotGraph(
   if (data.zeroBaseline) {
     const zeroY = valToY(0);
     if (zeroY > plotY && zeroY < plotY + plotH) {
+      ctx.save();
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
+      ctx.lineWidth = look.zeroW;
+      ctx.setLineDash(look.zeroDash);
       ctx.beginPath();
       ctx.moveTo(plotX, zeroY);
       ctx.lineTo(plotX + plotW, zeroY);
       ctx.stroke();
+      ctx.restore();
     }
   }
 
   // X축 범주 라벨 (클리핑 밖에서)
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'symbol', textSize(options, 'symbol', options.fontSize.tick));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (let c = 0; c < n; c++) {
@@ -206,7 +216,7 @@ export function renderCategoryDotGraph(
       ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85,
+      fontSize: textSize(options, 'legend', options.fontSize.dataLabel * 0.85),
     });
   }
 

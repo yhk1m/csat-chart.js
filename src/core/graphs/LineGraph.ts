@@ -9,12 +9,11 @@ import {
   type LineGraphData,
   type LineMarker,
   type GraphOptions,
-  LINE_DASH,
   LINE_STYLE_ORDER,
   LINE_MARKER_ORDER,
   defaultLineLeader,
 } from '../types/index';
-import { type Padding, clearCanvas, autoRange, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
 import {
   drawTitle,
@@ -24,6 +23,13 @@ import {
   widestLabel,
 } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
+import { styleOf, byStyle } from '../canvas/style';
+
+/** 꺾은선에서만 쓰는 값 */
+const LOOK = {
+  classic: { leaderW: 1 },
+  exam: { leaderW: 1.45 }, // 유도선 0.3pt 쯤 (실측 §2 line)
+};
 
 /** 꼭짓점 기호 하나 */
 function drawMarker(
@@ -32,7 +38,8 @@ function drawMarker(
   cx: number,
   cy: number,
   r: number,
-  hollow: boolean
+  hollow: boolean,
+  stroke: number,
 ) {
   ctx.beginPath();
   switch (marker) {
@@ -59,7 +66,7 @@ function drawMarker(
   ctx.fillStyle = hollow ? '#fff' : '#000';
   ctx.fill();
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = stroke;
   ctx.setLineDash([]);
   ctx.stroke();
 }
@@ -72,23 +79,27 @@ export function renderLineGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   const n = data.xLabels.length;
   const useLegend = data.labelPlacement === 'legend' && options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (useLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.series.map((s) => s.label), options.fontSize.dataLabel * 0.85 + 5, options, 'line')
+    ? measureLegendWidth(ctx, data.series.map((s) => s.label), textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'line')
     : 0;
 
   // 선 끝에 이름을 붙이면 오른쪽에 자리가 필요하다
-  ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+  const endSize = textSize(options, 'category', options.fontSize.dataLabel);
+  ctx.font = textFont(options, 'category', endSize);
   const endLabelW = data.labelPlacement === 'lineEnd'
     ? widestLabel(ctx, data.series.map((s) => s.label)) + 16
     : 0;
 
   // x축 단위((년) 등)도 마지막 눈금 오른쪽에 놓이므로 그만큼 자리를 비워 둔다.
   // 안 그러면 좁은 패널에서 잘린다.
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  const tickSize = textSize(options, 'tick', options.fontSize.tick);
+  ctx.font = textFont(options, 'tick', tickSize);
   const xUnitW = data.xUnit
     ? ctx.measureText(data.xUnit).width + ctx.measureText(data.xLabels[n - 1] ?? '').width / 2 + 12
     : 0;
@@ -97,7 +108,7 @@ export function renderLineGraph(
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (useLegend && legendPos === 'bottom' && !data.insideLegend)
     ? measureBottomLegend(ctx, data.series.map((s) => s.label),
-        options.fontSize.dataLabel * 0.85, w - 130 - padRight, options, 'line')
+        textSize(options, 'legend', options.fontSize.dataLabel * 0.85), w - 130 - padRight, options, 'line')
     : 0;
 
   const padding: Padding = {
@@ -142,12 +153,12 @@ export function renderLineGraph(
         step: data.yRange.step || Math.max(1, Math.round((data.yRange.max - data.yRange.min) / 6)),
       };
 
-  const gridColor = data.gridColor ?? '#ccc';
-  const gridWidth = data.gridWidth ?? 0.5;
+  const gridColor = data.gridColor ?? t.line.gridColor;
+  const gridWidth = data.gridWidth ?? t.line.grid;
 
   // 사각 테두리
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   ctx.setLineDash([]);
   ctx.beginPath();
   ctx.moveTo(plotX, plotY);
@@ -179,7 +190,7 @@ export function renderLineGraph(
   // 걸러내기는 **이름이 있는 자리들 사이의 간격**으로 판단한다. 칸 간격으로 재면 빈
   // 이름이 섞인 5년 자료·10년 라벨에서 이름 있는 자리까지 엉뚱하게 빠진다.
   // 세로 격자도 **같은 자리**에만 긋는다 (라벨과 격자가 늘 함께 간다).
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', tickSize);
   const named = data.xLabels.flatMap((l, i) => (l.trim() !== '' ? [i] : []));
   const namedGap = named.length > 1
     ? Math.min(...named.slice(1).map((v, k) => v - named[k]))
@@ -193,7 +204,7 @@ export function renderLineGraph(
     ctx.save();
     ctx.strokeStyle = gridColor;
     ctx.lineWidth = gridWidth;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash(t.line.gridDash);
     for (let i = 1; i < n - 1; i++) {
       if (!labelShown(i)) continue;
       ctx.beginPath();
@@ -208,8 +219,8 @@ export function renderLineGraph(
   if (data.zeroBaseline && axis.min < 0 && axis.max > 0) {
     ctx.save();
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = t.line.zero;
+    ctx.setLineDash(t.line.gridDash);
     ctx.beginPath();
     ctx.moveTo(plotX, toY(0));
     ctx.lineTo(plotX + plotW, toY(0));
@@ -268,8 +279,8 @@ export function renderLineGraph(
     const style = s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length];
     ctx.save();
     ctx.strokeStyle = s.stroke ?? '#000';
-    ctx.lineWidth = s.lineWidth ?? 2;
-    ctx.setLineDash(LINE_DASH[style]);
+    ctx.lineWidth = s.lineWidth ?? t.line.series;
+    ctx.setLineDash(t.seriesDash[style]);
     ctx.beginPath();
     let started = false;
     tops[si].forEach((v, i) => {
@@ -289,7 +300,7 @@ export function renderLineGraph(
       const marker = s.marker ?? LINE_MARKER_ORDER[si % LINE_MARKER_ORDER.length];
       tops[si].forEach((v, i) => {
         if (v === null) return;
-        drawMarker(ctx, marker, toX(i), toY(v), 4.5, s.hollowMarker ?? false);
+        drawMarker(ctx, marker, toX(i), toY(v), t.marker.r, s.hollowMarker ?? false, t.marker.stroke);
       });
     });
   }
@@ -299,9 +310,9 @@ export function renderLineGraph(
   // (8방향 배치는 가로 위치가 흐트러져 어긋나 보인다).
   if (data.labelPlacement === 'lineEnd') {
     ctx.fillStyle = '#000';
-    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+    ctx.font = textFont(options, 'category', endSize);
     const placer = new LabelPlacer();
-    const lineHeight = options.fontSize.dataLabel * 1.1;
+    const lineHeight = endSize * 1.1;
     const columnX = plotX + plotW + 10;
     const bounds = {
       left: columnX,
@@ -332,11 +343,11 @@ export function renderLineGraph(
   // 상자가 점을 덮으면 선은 생략한다.
   if (data.labelPlacement === 'leader') {
     ctx.save();
-    ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+    ctx.font = textFont(options, 'category', endSize);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const lineH = options.fontSize.dataLabel;
+    const lineH = endSize;
     data.series.forEach((s, si) => {
       const top = tops[si];
       const leader = s.leader ?? defaultLineLeader(n);
@@ -358,20 +369,20 @@ export function renderLineGraph(
       const halfW = ctx.measureText(s.label).width / 2 + 2;
       const halfH = lineH / 2 + 2;
 
-      // 라벨 중심→점 선분이 상자 경계와 만나는 매개변수 t (t < 1 이면 점이 상자 밖)
+      // 라벨 중심→점 선분이 상자 경계와 만나는 매개변수 hit (hit < 1 이면 점이 상자 밖)
       const vx = px - lx;
       const vy = py - ly;
-      const t = Math.min(
+      const hit = Math.min(
         vx !== 0 ? halfW / Math.abs(vx) : Infinity,
         vy !== 0 ? halfH / Math.abs(vy) : Infinity,
       );
       const dist = Math.hypot(vx, vy);
-      if (Number.isFinite(t) && t < 1 && dist > 3) {
+      if (Number.isFinite(hit) && hit < 1 && dist > 3) {
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = look.leaderW;
         ctx.setLineDash([]);
         ctx.beginPath();
-        ctx.moveTo(lx + vx * t, ly + vy * t);
+        ctx.moveTo(lx + vx * hit, ly + vy * hit);
         ctx.lineTo(px - (vx / dist) * 3, py - (vy / dist) * 3);
         ctx.stroke();
       }
@@ -382,7 +393,7 @@ export function renderLineGraph(
 
   // X축 눈금 이름 — 빈 이름은 건너뛴다
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', tickSize);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   data.xLabels.forEach((label, i) => {
@@ -395,6 +406,7 @@ export function renderLineGraph(
   if (data.xUnit) {
     const lastLabelHalf = ctx.measureText(data.xLabels[n - 1] ?? '').width / 2;
     ctx.textAlign = 'left';
+    ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
     ctx.fillText(data.xUnit, plotX + plotW + lastLabelHalf + 6, plotY + plotH + 10);
   }
 
@@ -405,7 +417,8 @@ export function renderLineGraph(
   if (useLegend && data.insideLegend) {
     // 시험지 누적 면적 그래프는 범례를 플롯 안쪽 왼쪽 위에 작은 상자로 둔다
     ctx.save();
-    ctx.font = getFont(options.fontSize.dataLabel * 0.8, options, 'bold');
+    const inSize = textSize(options, 'legend', options.fontSize.dataLabel * 0.8);
+    ctx.font = textFont(options, 'legend', inSize, { role: options.fontFamily ?? 'serif' });
     const rowH = options.fontSize.dataLabel * 1.15;
     const swatch = rowH * 0.75;
     const boxW = swatch + 6 + widestLabel(ctx, data.series.map((s) => s.label)) + 10;
@@ -414,7 +427,7 @@ export function renderLineGraph(
       ctx.fillStyle = '#fff';
       ctx.fillRect(plotX + 6, ly, boxW, rowH);
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = t.legend.insideBoxLine;
       ctx.setLineDash([]);
       ctx.strokeRect(plotX + 6, ly, boxW, rowH);
 
@@ -435,15 +448,15 @@ export function renderLineGraph(
       type: 'line',
       fillStyle: s.stroke ?? '#000',
       strokeStyle: s.stroke ?? '#000',
-      lineWidth: s.lineWidth ?? 2,
+      lineWidth: s.lineWidth ?? t.line.series,
       label: s.label,
-      dash: LINE_DASH[s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length]],
+      dash: t.seriesDash[s.lineStyle ?? LINE_STYLE_ORDER[si % LINE_STYLE_ORDER.length]],
     }));
     drawLegend({
       ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: options.fontSize.dataLabel * 0.85,
+      fontSize: textSize(options, 'legend', options.fontSize.dataLabel * 0.85),
     });
   }
 

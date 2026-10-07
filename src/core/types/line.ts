@@ -49,7 +49,7 @@ export interface LineSeries {
   areaFill?: string;
   /** 선 색. 미지정이면 검정. 시험지는 회색(#999)으로 한 계열을 가르기도 한다 */
   stroke?: string;
-  /** 선 굵기(px). 미지정이면 2 */
+  /** 선 굵기(px). 미지정이면 양식의 계열 굵기 (classic 2 · exam 3.9) */
   lineWidth?: number;
   /** 유도선 라벨 자리 (labelPlacement: 'leader' 일 때). 미지정이면 defaultLineLeader */
   leader?: LineLeader;
@@ -87,9 +87,9 @@ export interface LineGraphData {
   insideLegend?: boolean;
   /** x 눈금 자리에 세로 점선 격자. 첫·끝은 테두리와 겹치므로 안쪽만 긋는다 */
   xGrid?: boolean;
-  /** 격자 색. 미지정이면 #ccc. 시험지는 #555 쯤의 진한 점선이다 */
+  /** 격자 색. 미지정이면 양식의 격자 (classic #ccc·0.5). 시험지는 #555 쯤의 진한 점선이다 */
   gridColor?: string;
-  /** 격자 굵기(px). 미지정이면 0.5. 시험지 점선은 1px 쯤이라 gridColor 와 함께 올린다 */
+  /** 격자 굵기(px). 미지정이면 양식의 격자 (classic #ccc·0.5). 시험지 점선은 1px 쯤이라 gridColor 와 함께 올린다 */
   gridWidth?: number;
 }
 

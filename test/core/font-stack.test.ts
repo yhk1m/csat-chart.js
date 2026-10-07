@@ -17,12 +17,15 @@ import {
   fontStackOf,
   getFont,
   sansFont,
+  styleOf,
 } from '../../src/core/index';
 import { measureLegendWidth } from '../../src/core/canvas/legend';
 import { CASES, type Renderer } from './fixtures';
 
 const W = 800;
 const H = 600;
+/** 기본 양식의 글꼴 순서 */
+const DEFAULT = styleOf({}).stack;
 
 /** 눈에 띄는 표시를 단 글꼴 — 그려진 글꼴 문자열에서 찾기 쉽다 */
 const SERIF_MARK = "'테스트명조', serif";
@@ -67,28 +70,28 @@ function renderWith(fn: Renderer, data: unknown, patch: Record<string, unknown>)
 
 describe('글꼴 자리 풀기', () => {
   it('적지 않은 자리는 기본 글꼴 그대로다', () => {
-    const o = createDefaultGraphOptions();
+    const o = createDefaultGraphOptions('classic');
     expect(fontStackOf(o, 'serif')).toBe(DEFAULT_SERIF_STACK);
     expect(fontStackOf(o, 'sans')).toBe(DEFAULT_SANS_STACK);
     expect(sansFont(o)).toBe(DEFAULT_SANS_STACK);
     // fontStack 자체가 없는 옵션(직접 만든 객체)도 같아야 한다
-    expect(fontStackOf({}, 'serif')).toBe(DEFAULT_SERIF_STACK);
-    expect(fontStackOf({}, 'sans')).toBe(DEFAULT_SANS_STACK);
+    expect(fontStackOf({ style: 'classic' }, 'serif')).toBe(DEFAULT_SERIF_STACK);
+    expect(fontStackOf({ style: 'classic' }, 'sans')).toBe(DEFAULT_SANS_STACK);
   });
 
   it('한 자리만 주면 나머지 자리는 기본값을 지킨다', () => {
-    const serifOnly = { fontStack: { serif: SERIF_MARK } };
+    const serifOnly = { style: 'classic' as const, fontStack: { serif: SERIF_MARK } };
     expect(fontStackOf(serifOnly, 'serif')).toBe(SERIF_MARK);
     expect(fontStackOf(serifOnly, 'sans')).toBe(DEFAULT_SANS_STACK);
 
-    const sansOnly = { fontStack: { sans: SANS_MARK } };
+    const sansOnly = { style: 'classic' as const, fontStack: { sans: SANS_MARK } };
     expect(fontStackOf(sansOnly, 'serif')).toBe(DEFAULT_SERIF_STACK);
     expect(fontStackOf(sansOnly, 'sans')).toBe(SANS_MARK);
   });
 
   it('빈 문자열은 «적지 않은 것»으로 본다', () => {
-    expect(fontStackOf({ fontStack: { serif: '' } }, 'serif')).toBe(DEFAULT_SERIF_STACK);
-    expect(fontStackOf({ fontStack: { sans: '' } }, 'sans')).toBe(DEFAULT_SANS_STACK);
+    expect(fontStackOf({ style: 'classic', fontStack: { serif: '' } }, 'serif')).toBe(DEFAULT_SERIF_STACK);
+    expect(fontStackOf({ style: 'classic', fontStack: { sans: '' } }, 'sans')).toBe(DEFAULT_SANS_STACK);
   });
 
   it('customFont 은 예전 그대로다 — fontStack 이 건드리지 않는다', () => {
@@ -128,10 +131,20 @@ describe('fontStack 이 렌더러 17종에 닿는다', () => {
   });
 
   it.each(CASES)('%s — 고딕 자리만 갈아도 명조 자리는 그대로다', (_name, fn, makeData) => {
-    const fonts = renderWith(fn, makeData(), { fontStack: { sans: SANS_MARK } });
+    const fonts = renderWith(fn, makeData(), { style: 'classic', fontStack: { sans: SANS_MARK } });
     expect(fonts.some((f) => f.includes(SANS_MARK)), '고딕 자리가 안 바뀌었다').toBe(true);
     expect(fonts.some((f) => f.includes(DEFAULT_SERIF_STACK)), '명조 자리가 함께 바뀌었다').toBe(true);
     expect(fonts.some((f) => f.includes(DEFAULT_SANS_STACK)), '기본 고딕이 남아 있다').toBe(false);
+  });
+
+  // exam 은 정육면체·트리맵처럼 명조 자리가 하나도 없는 그림이 있다 — 그래서 «명조가
+  // 남았다» 대신 «고딕이 아닌 글자는 모두 기본 명조를 지녔다» 를 본다
+  it.each(CASES)('%s — exam 에서도 고딕 자리만 갈린다', (_name, fn, makeData) => {
+    const fonts = renderWith(fn, makeData(), { fontStack: { sans: SANS_MARK } });
+    expect(fonts.some((f) => f.includes(SANS_MARK)), '고딕 자리가 안 바뀌었다').toBe(true);
+    const others = fonts.filter((f) => !f.includes(SANS_MARK));
+    expect(others.filter((f) => !f.includes(DEFAULT.serif)), '명조 자리가 함께 바뀌었다').toEqual([]);
+    expect(fonts.some((f) => f.includes(DEFAULT.sans)), '기본 고딕이 남아 있다').toBe(false);
   });
 
   // 17종을 하나도 빠뜨리지 않았는지 — 케이스 목록이 아니라 레지스트리에서 센다
@@ -182,6 +195,6 @@ describe('fontStack 은 update() 에서 살아남는다', () => {
       { fontStack: { sans: undefined } },
     ]);
     expect(fonts.some((f) => f.includes(SERIF_MARK))).toBe(true);
-    expect(fonts.some((f) => f.includes(DEFAULT_SANS_STACK))).toBe(true);
+    expect(fonts.some((f) => f.includes(DEFAULT.sans))).toBe(true);
   });
 });

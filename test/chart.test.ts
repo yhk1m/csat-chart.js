@@ -341,7 +341,7 @@ describe('CsatChart', () => {
     new CsatChart(c2, {
       type: 'ternary',
       data: createDefaultTernaryData(),
-      options: { fontSize: { title: 44, axisLabel: 28, tick: 26, dataLabel: 22 } },
+      options: { fontSize: { title: 44, axisLabel: 39, tick: 35, dataLabel: 40 } },
     });
 
     // 먼저 «뭔가 그려졌다» 를 못박는다 — 안 그러면 draw() 가 아무 일도 하지 않는

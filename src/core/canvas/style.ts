@@ -227,9 +227,8 @@ export const examStyle: StyleTokens = {
   name: 'exam',
   honorsLegacy: false,
   // 눈금 7.3pt·축 이름 8.0pt·제목 8.2pt·자료값 8.2pt (실측 §1.1) × 4.85
-  // ⚠️ 아직 아무도 읽지 않는다 — createDefaultGraphOptions 는 classic 크기(36/28/26/22)를 준다.
-  // 작업 17 에서 잇는다. 이을 때는 `{ ...examStyle.fontSize }` 로 복사해 넘긴다 — 이 객체를
-  // 그대로 넘기면 사용자가 옵션을 고칠 때 토큰이 함께 바뀐다.
+  // createDefaultGraphOptions 가 `{ ...fontSize }` 로 복사해 넘긴다 — 이 객체를 그대로
+  // 넘기면 사용자가 옵션을 고칠 때 토큰이 함께 바뀐다.
   fontSize: { title: 40, axisLabel: 39, tick: 35, dataLabel: 40 },
   stack: { serif: EXAM_SERIF_STACK, sans: EXAM_SANS_STACK, numeral: EXAM_NUMERAL_STACK },
   // 본문 «한양신명조» 숫자 높이 0.758 em — Garamond 0.650·Times New Roman 0.685 라
@@ -305,8 +304,8 @@ export const examStyle: StyleTokens = {
 
 const STYLES: Record<StyleName, StyleTokens> = { classic: classicStyle, exam: examStyle };
 
-/** 양식을 적지 않은 옵션이 받는 양식. 작업 17 에서 'exam' 으로 바꾼다. */
-export const DEFAULT_STYLE: StyleName = 'classic';
+/** 양식을 적지 않은 옵션이 받는 양식 — 2.0.0 부터 시험지 */
+export const DEFAULT_STYLE: StyleName = 'exam';
 
 export function styleOf(o: { style?: StyleName }): StyleTokens {
   return STYLES[o.style as StyleName] ?? STYLES[DEFAULT_STYLE];

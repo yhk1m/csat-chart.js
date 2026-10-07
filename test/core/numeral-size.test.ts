@@ -73,7 +73,7 @@ describe('numeralSize — 숫자 높이를 목표 비율에 맞춘다', () => {
 
 describe('textFont — exam 의 numeral 자리만 키운다', () => {
   const exam = { ...createDefaultGraphOptions(), style: 'exam' as const };
-  const classic = createDefaultGraphOptions();
+  const classic = createDefaultGraphOptions('classic');
 
   it('토큰: classic 은 맞추지 않고 exam 은 0.758', () => {
     expect(classicStyle.digitHeight).toBeNull();

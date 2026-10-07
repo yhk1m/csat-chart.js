@@ -20,6 +20,10 @@ describe('styleOf', () => {
   it('모르는 이름은 기본 양식으로 본다', () => {
     expect(styleOf({ style: 'zzz' as never })).toBe(styleOf({}));
   });
+
+  it('적지 않으면 시험지 양식이다 (2.0.0)', () => {
+    expect(styleOf({})).toBe(examStyle);
+  });
 });
 
 describe('classic 글꼴은 1.7.0 과 같다', () => {

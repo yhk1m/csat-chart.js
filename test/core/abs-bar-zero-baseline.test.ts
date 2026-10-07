@@ -16,7 +16,7 @@ const H = 300;
 /** AbsBarGraph 의 세로 막대 여백 (제목·범례·출처·각주 없음) */
 const PAD = { top: 50, right: 60, bottom: 70, left: 130 };
 
-function render(zeroBaseline: boolean) {
+function render(zeroBaseline: boolean, style: 'classic' | 'exam' = 'classic') {
   const data = createDefaultAbsBarData();
   data.categories = [
     { label: 'A', values: [100] },
@@ -29,7 +29,8 @@ function render(zeroBaseline: boolean) {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
   renderAbsBarGraph(ctx, W, H, data, {
-    ...createDefaultGraphOptions(),
+    // 막대 채움이 #333(classic) 이라는 것을 «어둡다» 로 본다 — exam 은 아래에서 따로
+    ...createDefaultGraphOptions(style),
     showLegend: false,
     title: '',
   });
@@ -74,5 +75,24 @@ describe('AbsBarGraph zeroBaseline', () => {
     const px = render(false);
 
     expect(isDark(px, bCenterX, nearBottomY)).toBe(true);
+  });
+});
+
+/** exam 의 첫 채움은 연회색(#d9d9d9)이다 — «어둡다» 대신 «흰색이 아니다» 로 본다 */
+function isInked(px: Uint8ClampedArray, x: number, y: number) {
+  const i = (y * W + x) * 4;
+  return px[i] < 240 || px[i + 1] < 240 || px[i + 2] < 240;
+}
+
+describe('AbsBarGraph zeroBaseline — exam', () => {
+  it('음수 막대가 0선에서 아래로 자라고 축 바닥까지 내려가지 않는다', () => {
+    const px = render(true, 'exam');
+    expect(isInked(px, bCenterX, zeroY + 15)).toBe(true);
+    expect(isInked(px, bCenterX, nearBottomY)).toBe(false);
+  });
+
+  it('지정하지 않으면 축 바닥에서 자란다', () => {
+    const px = render(false, 'exam');
+    expect(isInked(px, bCenterX, nearBottomY)).toBe(true);
   });
 });

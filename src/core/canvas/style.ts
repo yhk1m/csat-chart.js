@@ -127,6 +127,8 @@ export interface StyleTokens {
   fillsCycleFrom: number;
   /** 사선 빗금 타일 한 변·선 굵기 (선 사이 수직 간격 = tile / √2) */
   hatch: { tile: number; width: number };
+  /** 나머지 패턴 타일의 선 굵기 — 격자(grid·diagonalGrid)·줄무늬(vertical·horizontal) */
+  patternLine: { grid: number; stripe: number };
   /** 어두운 칸 위 글자 — 흰 글자 / 검은 글자 + 흰 테두리 */
   darkLabel: 'white' | 'halo';
   haloWidth: number;
@@ -203,6 +205,7 @@ export const classicStyle: StyleTokens = {
   ],
   fillsCycleFrom: 4,
   hatch: { tile: 10, width: 1.5 },
+  patternLine: { grid: 1.2, stripe: 1.5 },
   darkLabel: 'white',
   haloWidth: 3,
   footnoteMark: () => '* ',
@@ -280,6 +283,7 @@ export const examStyle: StyleTokens = {
   ],
   fillsCycleFrom: 9,
   hatch: { tile: 15, width: 2 }, // 수직 간격 10.6px = 2.2pt, 선 0.42pt
+  patternLine: { grid: 2, stripe: 2 }, // ≈ 빗금 0.42pt 를 따랐다 (실측 없음 — 표본에 없는 무늬)
   darkLabel: 'halo',
   haloWidth: 8,                  // strokeText 는 획 가운데로 그린다 — 한쪽 4px = 0.8pt (실측 0.7–1.0pt)
   footnoteMark: (i) => '* '.repeat(i + 1),

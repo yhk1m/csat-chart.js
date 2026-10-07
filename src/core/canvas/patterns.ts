@@ -68,7 +68,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType, t
     case 'grid':
       return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
-        p.lineWidth = 1.2;
+        p.lineWidth = t.patternLine.grid;
         p.beginPath();
         p.moveTo(s / 2, 0);
         p.lineTo(s / 2, s);
@@ -80,7 +80,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType, t
     case 'diagonalGrid':
       return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
-        p.lineWidth = 1.2;
+        p.lineWidth = t.patternLine.grid;
         p.beginPath();
         p.moveTo(0, 0);
         p.lineTo(s, s);
@@ -110,7 +110,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType, t
     case 'vertical':
       return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
-        p.lineWidth = 1.5;
+        p.lineWidth = t.patternLine.stripe;
         p.beginPath();
         p.moveTo(s / 2, 0);
         p.lineTo(s / 2, s);
@@ -120,7 +120,7 @@ function createPatternCanvas(ctx: CanvasRenderingContext2D, type: PatternType, t
     case 'horizontal':
       return makeTile(ctx, TILE, (p, s) => {
         p.strokeStyle = '#000';
-        p.lineWidth = 1.5;
+        p.lineWidth = t.patternLine.stripe;
         p.beginPath();
         p.moveTo(0, s / 2);
         p.lineTo(s, s / 2);

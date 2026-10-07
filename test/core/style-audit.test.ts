@@ -13,13 +13,20 @@ const FILES = DIRS.flatMap((d) => readdirSync(d).filter((f) => f.endsWith('.ts')
 
 /** 이 파일들은 토큰을 정의하는 쪽이다 */
 const DEFINERS = ['style.ts'];
-/** 양식과 상관없는 그림 — 패턴 타일(흰 배경 위 검은 무늬)과 글자 테두리 도우미 */
-const ALLOWED_LINE_WIDTH = /patterns\.ts$/;
+/** 글꼴 문자열을 조립하는 유일한 곳 — 나머지는 textFont·textSize 로만 고른다 */
+const FONT_HOME = 'renderer.ts';
 
-const RULES: [string, RegExp][] = [
+/** [이름, 규칙, 이 파일에는 적용하지 않음] */
+const RULES: [string, RegExp, string?][] = [
   ["getFont(…, 'bold')", /getFont\([^)]*'bold'/],
   ['`bold ${…}px` 글꼴 문자열', /`bold \$\{/],
-  ['ctx.lineWidth = <숫자>', /\.lineWidth\s*=\s*\d/],
+  ["'bold …' 글꼴 문자열", /['"`]bold\s/],
+  // getFont 는 굵기·자리를 직접 고른다 — 렌더러는 textFont 로 자리 이름만 말한다
+  ['getFont( 직접 호출', /\bgetFont\(/, FONT_HOME],
+  // 대입·객체 칸·?? 기본값 어느 쪽으로든 숫자(또는 식)를 박는 것
+  ['lineWidth = / : / ?? <숫자>', /lineWidth\s*(=|:|\?\?)\s*[\d(]/],
+  // 굵기를 삼항으로 고르는 것 — `lineWidth = x ? 2 : 1`
+  ['lineWidth 삼항 숫자', /lineWidth.*\?\s*\d+(\.\d+)?\s*:/],
   ['setLineDash([<숫자>…])', /setLineDash\(\[\s*\d/],
 ];
 
@@ -28,12 +35,12 @@ describe('렌더러에 양식 값이 박혀 있지 않다', () => {
     const name = file.split(/[\\/]/).pop()!;
     if (DEFINERS.includes(name)) continue;
     const lines = readFileSync(file, 'utf8').split('\n');
-    for (const [label, re] of RULES) {
-      if (label.startsWith('ctx.lineWidth') && ALLOWED_LINE_WIDTH.test(file)) continue;
+    for (const [label, re, exempt] of RULES) {
+      if (exempt === name) continue;
       it(`${name} — ${label}`, () => {
         const hits = lines
           .map((l, i) => [i + 1, l] as const)
-          .filter(([, l]) => re.test(l) && !l.trim().startsWith('//') && !l.trim().startsWith('*'));
+          .filter(([, l]) => re.test(l) && !/^(\/\/|\/\*|\*)/.test(l.trim()));
         expect(hits.map(([n, l]) => `${n}: ${l.trim()}`)).toEqual([]);
       });
     }

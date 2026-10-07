@@ -9,9 +9,10 @@ import type { StyleName } from '../types/common';
  * 1.7.0 범례 선 견본이 계열 선·표지 토큰과 달랐던 값 — classic 에서만 둔다.
  * exam 은 비워 두어 `t.line.series`·`t.marker.r` 를 그대로 쓴다(견본 = 그림 속 계열).
  */
-const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number }> = {
-  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5 },
-  exam: {},
+const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number; rightMaxRatio: number }> = {
+  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity },
+  // 오른쪽 범례는 캔버스 폭의 40% 까지 — 넘는 이름은 글꼴을 줄여 담는다 (exam 글자가 커서 플롯이 사라졌다)
+  exam: { rightMaxRatio: 0.4 },
 };
 
 export interface LegendItem {
@@ -216,6 +217,8 @@ interface LegendParams {
 }
 
 const ITEM_SPACING = 30;
+/** 오른쪽 범례 글꼴을 이보다 작게 줄이지는 않는다 */
+const MIN_RIGHT_SCALE = 0.5;
 /** 두 줄 이상일 때 줄 사이 간격 */
 const ROW_GAP = 6;
 
@@ -232,7 +235,9 @@ export function measureLegendWidth(
    * 빠뜨린 호출부가 전부 타입 오류가 된다.
    */
   fonts: FontOptions,
-  iconType: 'rect' | 'circle' | 'line' = 'rect'
+  iconType: 'rect' | 'circle' | 'line' = 'rect',
+  /** 캔버스 폭 — 주면 양식의 상한(exam 40%)을 넘지 않는다. drawLegend 가 그 폭에 맞춰 글꼴을 줄인다 */
+  canvasW?: number,
 ): number {
   ctx.save();
   ctx.font = textFont(fonts, 'legend', fontSize);
@@ -242,7 +247,8 @@ export function measureLegendWidth(
   const padding = lg.pad;
   const maxW = Math.max(...labels.map((l) => iconSize + iconGap + ctx.measureText(l).width));
   ctx.restore();
-  return maxW + padding * 2 + 30; // 박스 + 간격
+  const cap = canvasW != null ? canvasW * byStyle(fonts, LOOK).rightMaxRatio : Infinity;
+  return Math.min(maxW + padding * 2 + 30, cap); // 박스 + 간격
 }
 
 export interface BottomLegendRow {
@@ -421,7 +427,18 @@ export function drawLegend({
   } else {
     // 우측: 그래프 바로 옆, 하단 정렬
     const itemGap = 10;
-    const maxItemW = Math.max(...itemWidths);
+    let maxItemW = Math.max(...itemWidths);
+    // 이름이 남은 폭보다 길면 (exam) 글꼴을 줄여 담는다 — 이름은 자르지 않는다
+    const room = canvasW - 1 - (plotX + plotW + rightGap) - padding * 2;
+    if (Number.isFinite(look.rightMaxRatio) && room > 0 && maxItemW > room) {
+      const iconW = Math.max(...items.map(iconWidthOf)) + iconGap;
+      const textW = maxItemW - iconW;
+      const scale = Math.max(MIN_RIGHT_SCALE, (room - iconW) / textW);
+      fontSize *= scale;
+      ctx.font = textFont(fonts, 'legend', fontSize);
+      maxItemW = Math.max(...items.map((item) => iconWidthOf(item) + iconGap + ctx.measureText(item.label).width));
+    }
+    const lineHeight = fontSize + 8;
     const boxW = maxItemW + padding * 2;
     const boxH = lineHeight * items.length + itemGap * (items.length - 1) + padding * 2;
     // 호출부가 잡아 둔 오른쪽 여백이 모자라도 캔버스 밖으로는 내보내지 않는다

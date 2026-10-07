@@ -2,7 +2,7 @@
 import { type PyramidGraphData, type GraphOptions, AGE_GROUPS } from '../types/index';
 import { type Padding, clearCanvas, niceStep, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawFloatingLabel } from '../canvas/fit';
+import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
@@ -350,8 +350,11 @@ export function renderPyramidGraph(
   // 시험지는 남·여를 눈금 숫자 아래에 둔다
   const sexY = look.sexBelow ? plotY + plotH + 10 + tickFs + 8 : plotY - 16;
   ctx.textBaseline = look.sexBelow ? 'top' : 'bottom';
-  ctx.fillText(data.maleLabel, plotX + halfW / 2, sexY);
-  ctx.fillText(data.femaleLabel, centerX + halfW / 2, sexY);
+  // 긴 이름은 캔버스를 넘는다 — 여백에 떠 있는 글자라 안으로 민다
+  for (const [label, x] of [[data.maleLabel, plotX + halfW / 2], [data.femaleLabel, centerX + halfW / 2]] as const) {
+    const at = nudgeInside(ctx, label, x, sexY, w, h);
+    ctx.fillText(label, at.x, at.y);
+  }
 
   // 단위 라벨 — 축 오른쪽 바깥.
   // 기본은 X축 숫자 **아랫줄**, `axisLabelInline` 이면 숫자와 **같은 줄**(시험지 배치).

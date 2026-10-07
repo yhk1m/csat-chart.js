@@ -231,7 +231,9 @@ export function renderTernaryGraph(
       ctx.font = textFont(options, lp, textSize(options, lp, options.fontSize.dataLabel));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(p.label, x + look.dotR + 4, y - 4);
+      // 오른쪽 꼭짓점 가까운 점의 긴 이름은 캔버스를 넘는다 — 안으로 민다
+      const at = nudgeInside(ctx, p.label, x + look.dotR + 4, y - 4, w, h);
+      ctx.fillText(p.label, at.x, at.y);
     }
 
     // 데이터 라벨 (값 표시)
@@ -240,7 +242,9 @@ export function renderTernaryGraph(
       ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8), { weight: 'normal' });
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(`(${p.a}, ${p.b}, ${p.c})`, x + look.dotR + 4, y + 4);
+      const value = `(${p.a}, ${p.b}, ${p.c})`;
+      const at = nudgeInside(ctx, value, x + look.dotR + 4, y + 4, w, h);
+      ctx.fillText(value, at.x, at.y);
     }
   }
 

@@ -83,7 +83,7 @@ export function renderLineGraph(
   const useLegend = data.labelPlacement === 'legend' && options.showLegend;
   const legendPos = options.legendPosition;
   const legendW = (useLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.series.map((s) => s.label), textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'line')
+    ? measureLegendWidth(ctx, data.series.map((s) => s.label), textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'line', w)
     : 0;
 
   // 선 끝에 이름을 붙이면 오른쪽에 자리가 필요하다

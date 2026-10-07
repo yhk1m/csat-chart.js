@@ -3,6 +3,7 @@ import { type StackedGraphData, type StackedCategory, type GraphOptions } from '
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { EDGE, nudgeInside } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
 
@@ -54,10 +55,14 @@ function renderStackedBar(
 
   const isVertical = data.barDirection === 'vertical';
 
+  // 세로 막대 왼쪽 여백 — exam 은 눈금 숫자 「100」 폭에서 잰다 (classic 은 80 그대로)
+  ctx.font = textFont(options, 'tick', tickFs);
+  const vLeft = byStyle(options, { classic: 80, exam: Math.max(80, ctx.measureText('100').width + 10 + EDGE) });
+
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, data.seriesLabels, legendFs,
-        w - (isVertical ? 80 : 100) - (isVertical ? 60 + legendW : 160 + legendW), options)
+        w - (isVertical ? vLeft : 100) - (isVertical ? 60 + legendW : 160 + legendW), options)
     : 0;
 
   const padding: Padding = {
@@ -71,7 +76,7 @@ function renderStackedBar(
       b += options.footnotes.filter(f => f.trim()).length * 22;
       return b;
     })(),
-    left: isVertical ? 80 : 100,
+    left: isVertical ? vLeft : 100,
   };
 
   const plotX = padding.left;
@@ -173,7 +178,9 @@ function renderStackedBar(
       ctx.font = textFont(options, 'category', catFs);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(data.categories[c].label, cx, plotY + plotH + 12);
+      // 양 끝 칸의 긴 이름은 캔버스를 넘는다 — 아래 여백에 떠 있으니 안으로 민다
+      const at = nudgeInside(ctx, data.categories[c].label, cx, plotY + plotH + 12, w, h);
+      ctx.fillText(data.categories[c].label, at.x, at.y);
     }
 
     // 경계 눈금 (세로) — 범주 사이 경계에서 위로

@@ -13,6 +13,11 @@ const LOOK = {
   exam: { zero: 1.75, barPos: '#7f7f7f', barNeg: '#ffffff', barStrokeColor: '#000', barStroke: 1.45, markerR: 6.8, crossTicks: true, crossLen: 15.5, labelAtZero: true, frame: true },
 };
 
+/** 편차 값 — 뺄셈이 남긴 부동소수 꼬리(2.1999999999999993)를 지운다 */
+function fmtDiff(v: number): string {
+  return String(Math.round(v * 1e10) / 1e10);
+}
+
 export function renderDeviationBGraph(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -193,11 +198,11 @@ export function renderDeviationBGraph(
       const pY = plotY + plotH - ((pVal - precipAxis.min) / (precipAxis.max - precipAxis.min)) * plotH;
       ctx.fillStyle = '#000';
       ctx.textBaseline = pVal >= 0 ? 'bottom' : 'top';
-      ctx.fillText(String(pVal), cx, pVal >= 0 ? pY - barWidth / 2 - 4 : pY + 4);
+      ctx.fillText(fmtDiff(pVal), cx, pVal >= 0 ? pY - barWidth / 2 - 4 : pY + 4);
       const tVal = tempDiffs[i];
       const tY = plotY + plotH - ((tVal - tempAxis.min) / (tempAxis.max - tempAxis.min)) * plotH;
       ctx.textBaseline = 'bottom';
-      ctx.fillText(String(tVal), cx, tY - look.markerR - 3);
+      ctx.fillText(fmtDiff(tVal), cx, tY - look.markerR - 3);
     }
   }
 

@@ -113,14 +113,16 @@ export function drawSourceAndFootnote({
   const sourceBelow = !!sourceLeft;
   // 시험지 관습 — 출처를 마지막 각주와 **같은 줄** 오른쪽 끝에 둔다.
   // 주지 않으면 양식의 기본값(exam 은 켜짐). 각주가 없으면 놓을 줄이 없으므로 기존 배치.
-  const inlineSource = !!(sourceInline ?? t.sourceInline) && !!source && !sourceBelow && filtered.length > 0;
-  const sourceH = (source || sourceLeft) && !inlineSource ? srcSize + 4 : 0;
-  let y = height - 6 - totalFootnoteH - (sourceBelow ? sourceH : 0);
-
-  // 각주는 왼쪽 끝에서 시작해 오른쪽으로 흐른다. 캔버스를 넘으면 잘리므로
-  // 쓸 수 있는 폭을 미리 재 두고, 넘치는 글은 글꼴을 줄여 맞춘다.
+  // 쓸 수 있는 폭 (각주는 왼쪽 끝에서 오른쪽으로 흐른다 — 넘치면 글꼴을 줄인다)
   const rightEdge = canvasWidth != null ? rightX : plotX + plotW;
   const available = Math.max(0, rightEdge - leftX);
+  // 출처가 줄의 절반을 넘게 차지하면 각주 자리가 남지 않는다 — 그때는 따로 한 줄
+  ctx.font = textFont(fonts, 'source', srcSize);
+  const inlineFits = !source || ctx.measureText(source).width + 16 <= available * 0.5;
+  const inlineSource = !!(sourceInline ?? t.sourceInline) && !!source && !sourceBelow && filtered.length > 0
+    && inlineFits;
+  const sourceH = (source || sourceLeft) && !inlineSource ? srcSize + 4 : 0;
+  let y = height - 6 - totalFootnoteH - (sourceBelow ? sourceH : 0);
 
   const sourceFont = (size: number) => textFont(fonts, 'source', size);
 
@@ -313,8 +315,12 @@ export class LabelPlacer {
       }
     }
 
-    // 다 막혔다 — 가장 먼 자리에 놓고 유도선을 긋는다
-    const far = fallback ?? { x: cx + gap, y: cy - h };
+    // 다 막혔다 — 가장 먼 자리에 놓고 유도선을 긋는다.
+    // 어느 후보도 영역 안에 못 들었으면(이름이 길다 — exam 은 글자가 크다) 영역 안으로 당긴다
+    const far = fallback ?? {
+      x: Math.max(bounds.left, Math.min(cx + gap, bounds.right - w)),
+      y: Math.max(bounds.top, Math.min(cy - h, bounds.bottom - h)),
+    };
     const box = { left: far.x, right: far.x + w, top: far.y, bottom: far.y + h };
     this.used.push(box);
 

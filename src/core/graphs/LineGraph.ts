@@ -364,7 +364,37 @@ export function renderLineGraph(
       top: 4,
       bottom: h - 4,
     };
+    if (byStyle(options, { classic: false, exam: true })) {
+      // exam: 이름의 위아래 차례를 선 끝의 차례대로 지키고(겹침을 피하려고 다른 이름을 넘어
+      // 가지 않는다), 열린 틀이면 모든 이름을 선 끝 점에서 짧은 유도선으로 잇는다 (2026_11 wgeo q10:
+      // (나)(다)(라)를 위에서 아래로 펼쳐 유도선으로 잇고, 안 밀린 (가)도 가로 유도선)
+      const ends = data.series.map((s, si) => {
+        const top = tops[si];
+        let last = -1;
+        for (let i = top.length - 1; i >= 0; i--) {
+          if (top[i] !== null) { last = i; break; }
+        }
+        return last < 0 ? null : { label: s.label, x: toX(last), y: toY(top[last] as number) };
+      }).filter((e): e is { label: string; x: number; y: number } => e !== null && !!e.label);
+      const centres = stackInOrder(ends.map((e) => e.y), lineHeight, bounds.top + lineHeight / 2, bounds.bottom - lineHeight / 2);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ends.forEach((e, k) => {
+        const cy = centres[k];
+        ctx.fillText(e.label, columnX, cy);
+        // 닫힌 틀은 선 끝이 틀에 붙어 유도선이 틀을 건넌다 — 표본(2025_09 korgeo q20)도 긋지 않는다
+        if (data.frame !== 'open') return;
+        ctx.strokeStyle = t.leader.color;
+        ctx.lineWidth = t.leader.width;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(e.x + t.marker.r + 1, e.y);
+        ctx.lineTo(columnX - 2, cy);
+        ctx.stroke();
+      });
+    }
     data.series.forEach((s, si) => {
+      if (byStyle(options, { classic: false, exam: true })) return;
       // 값이 있는 마지막 점을 찾는다
       const top = tops[si];
       let last = -1;
@@ -511,4 +541,37 @@ export function renderLineGraph(
     footnotes: options.footnotes,
     fontSize: options.fontSize.dataLabel * 0.85,
   });
+}
+
+/**
+ * 세로 한 줄에 이름을 놓을 가운데 y 들 — 바라는 자리(`want`, 선 끝 y)의 **위아래 차례를
+ * 지키고** 서로 `gap` 이상 떨어지게, 바라는 자리에서 덜 움직이게 묶어 민다.
+ * 붙는 이름끼리 한 덩어리가 되어 덩어리 가운데가 바라는 자리들의 가운데에 온다.
+ * 덩어리는 [lo, hi] 안으로 당긴다. 돌려주는 순서는 받은 순서다.
+ */
+export function stackInOrder(want: number[], gap: number, lo: number, hi: number): number[] {
+  const order = want.map((y, i) => [y, i] as const).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  type Cluster = { idx: number[]; start: number };
+  const clusters: Cluster[] = [];
+  const fit = (c: Cluster) => {
+    // 덩어리 첫 이름 자리 = Σ(바라는 자리 − 덩어리 안 차례 × gap) / 개수, 범위 안으로
+    const mean = c.idx.reduce((sum, i, k) => sum + want[i] - k * gap, 0) / c.idx.length;
+    const maxStart = hi - (c.idx.length - 1) * gap;
+    c.start = Math.max(lo, Math.min(mean, maxStart));
+  };
+  for (const [, i] of order) {
+    const c: Cluster = { idx: [i], start: 0 };
+    fit(c);
+    clusters.push(c);
+    while (clusters.length > 1) {
+      const b = clusters[clusters.length - 1];
+      const a = clusters[clusters.length - 2];
+      if (a.start + a.idx.length * gap <= b.start + 1e-9) break;
+      clusters.splice(clusters.length - 2, 2, { idx: [...a.idx, ...b.idx], start: 0 });
+      fit(clusters[clusters.length - 1]);
+    }
+  }
+  const out = new Array<number>(want.length);
+  for (const c of clusters) c.idx.forEach((i, k) => { out[i] = c.start + k * gap; });
+  return out;
 }

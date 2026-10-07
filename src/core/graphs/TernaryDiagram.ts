@@ -1,8 +1,15 @@
 // © 2026 김용현
 import { type TernaryGraphData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, getFont } from '../canvas/renderer';
+import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, textExtent, wrapToWidth } from '../canvas/fit';
+import { styleOf, byStyle, labelPlace } from '../canvas/style';
+
+const LOOK = {
+  // classic 격자는 실선이다 — 공유 토큰(grid [4,4])과 달라 여기 둔다
+  classic: { gridDash: [] as number[], tickLen: 12, dotR: 6, valueInk: '#555' },
+  exam: { gridDash: [7.6, 4.7], tickLen: 12, dotR: 7, valueInk: '#000' }, // 산점을 따른다(실측 §2 ternary)
+};
 
 // 삼각좌표 → 캔버스 좌표 변환
 // a = 하단좌, b = 하단우, c = 상단
@@ -35,9 +42,11 @@ export function renderTernaryGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   // 하단 여백: tick + 숫자 + 축라벨 + 출처/각주
-  const tickSpace = 12 + options.fontSize.tick + 10;
+  const tickSpace = look.tickLen + textSize(options, 'tick', options.fontSize.tick) + 10;
   const axisLabelSpace = options.fontSize.axisLabel * 1.3 + 30;
   let bottomExtra = tickSpace + axisLabelSpace;
   if (options.source) bottomExtra += options.fontSize.dataLabel + 10;
@@ -82,8 +91,9 @@ export function renderTernaryGraph(
   const steps = 100 / interval;
 
   ctx.save();
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = t.line.gridColor;
+  ctx.lineWidth = t.line.grid;
+  ctx.setLineDash(look.gridDash);
   for (let i = 1; i < steps; i++) {
     const v = i * interval;
     // A축 평행선 (하변과 평행, 상수 c = v)
@@ -114,7 +124,7 @@ export function renderTernaryGraph(
 
   // 삼각형 외곽선
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   ctx.beginPath();
   ctx.moveTo(topPt.x, topPt.y);
   ctx.lineTo(leftPt.x, leftPt.y);
@@ -131,7 +141,7 @@ export function renderTernaryGraph(
   // 좌변의 tick은 좌변에서 바깥쪽, 격자선(하변 평행=수평) 방향 → 좌측 수평
   // 하변의 tick은 하변에서 바깥쪽, 격자선(좌변 평행=120°) 방향 → 60° 아래 좌측
   // 우변의 tick은 우변에서 바깥쪽, 격자선(하변 평행=수평) 방향 → 우측 수평
-  const tickLen = 12;
+  const tickLen = look.tickLen;
 
   // A축(좌변) tick 방향: 수평 좌측 (-1, 0)
   const aTick = { x: -1, y: 0 };
@@ -141,9 +151,9 @@ export function renderTernaryGraph(
   const cTick = { x: Math.cos(Math.PI / 3), y: -Math.sin(Math.PI / 3) };
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(options.fontSize.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', options.fontSize.tick));
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = t.line.tick;
 
   for (let i = 0; i <= steps; i++) {
     const val = i * interval;
@@ -184,7 +194,7 @@ export function renderTernaryGraph(
   }
 
   // 축 라벨 — 자리는 재는 쪽(fitAxisNames)과 같은 계산을 쓴다
-  ctx.font = getFont(nameFit.fontSize, options, 'bold');
+  ctx.font = textFont(options, 'axisName', nameFit.fontSize);
   ctx.fillStyle = '#000';
   const labelLineH = nameFit.fontSize * 1.3;
   const spots = namePlaces(w, plotX + plotW / 2, padding.top, triSize, nameFit.lines, labelLineH);
@@ -203,25 +213,26 @@ export function renderTernaryGraph(
     // 점
     ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.arc(x, y, look.dotR, 0, Math.PI * 2);
     ctx.fill();
 
     // 라벨
     if (p.label) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(options.fontSize.dataLabel, options, 'bold');
+      const lp = labelPlace(p.label);
+      ctx.font = textFont(options, lp, textSize(options, lp, options.fontSize.dataLabel));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(p.label, x + 10, y - 4);
+      ctx.fillText(p.label, x + look.dotR + 4, y - 4);
     }
 
     // 데이터 라벨 (값 표시)
     if (options.showDataLabels) {
-      ctx.fillStyle = '#555';
-      ctx.font = getFont(options.fontSize.dataLabel * 0.8, options);
+      ctx.fillStyle = look.valueInk;
+      ctx.font = textFont(options, 'value', textSize(options, 'value', options.fontSize.dataLabel * 0.8), { weight: 'normal' });
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(`(${p.a}, ${p.b}, ${p.c})`, x + 10, y + 4);
+      ctx.fillText(`(${p.a}, ${p.b}, ${p.c})`, x + look.dotR + 4, y + 4);
     }
   }
 
@@ -281,8 +292,8 @@ function fitAxisNames(
   maxSize: number,
 ): { size: number; lines: string[][]; fontSize: number } {
   ctx.save();
-  const makeFont = (size: number) => getFont(size, options, 'bold');
-  let fontSize = options.fontSize.axisLabel * 1.3;
+  const makeFont = (size: number) => textFont(options, 'axisName', size);
+  let fontSize = textSize(options, 'axisName', options.fontSize.axisLabel * 1.3);
   // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
   const given = labels.map((l) => (l || '').split('\\n'));
   let lines = given.map((g) => g.slice());
@@ -321,7 +332,7 @@ function fitAxisNames(
 
   if (size <= 40) {
     // 삼각형을 바닥까지 줄여도 안 들어간다 — 이름 글꼴을 줄여 본다
-    fontSize = options.fontSize.axisLabel * 1.3 * MIN_SCALE;
+    fontSize = textSize(options, 'axisName', options.fontSize.axisLabel * 1.3) * MIN_SCALE;
     ctx.font = makeFont(fontSize);
     lines = lines.map((ls) => ls.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))));
     size = largestFitting(40, maxSize, fits);

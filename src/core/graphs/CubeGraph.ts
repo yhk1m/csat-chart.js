@@ -1,8 +1,15 @@
 // © 2026 김용현
 import { type CubeGraphData, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont, sansFont, type FontOptions } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
+import { styleOf, byStyle } from '../canvas/style';
+
+const LOOK = {
+  classic: { axisW: 1.5, head: 10, backW: 1.5, backColor: '#999', backDash: [6, 5], leaderW: 1.2, pointR: 14, pointFill: '#000', pointStroke: 0 },
+  // 굵은 축 0.99pt + 화살촉, 상자 0.39pt, 꼭짓점 회색 공 + 테두리 (실측 §2 cube). 촉 크기·공 크기·회색은 ≈
+  exam: { axisW: 4.8, head: 22, backW: 1.9, backColor: '#000', backDash: [7.6, 4.7], leaderW: 1.45, pointR: 14, pointFill: '#7f7f7f', pointStroke: 1.75 },
+};
 
 // 사각 투영 (oblique / cabinet)
 // 앞면: Z→오른쪽, Y→위 (직사각형)
@@ -63,6 +70,9 @@ export function renderCubeGraph(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  // 이 파일은 지역 변수 t 를 여러 곳에서 쓴다 — 토큰은 tk 로 받는다
+  const tk = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   const fs = options.fontSize;
 
@@ -91,9 +101,9 @@ export function renderCubeGraph(
 
   // 뒤쪽 모서리 (점선)
   ctx.save();
-  ctx.strokeStyle = '#999';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = look.backColor;
+  ctx.lineWidth = look.backW;
+  ctx.setLineDash(look.backDash);
   for (const [a, b, back] of EDGES) {
     if (!back) continue;
     ctx.beginPath();
@@ -105,7 +115,7 @@ export function renderCubeGraph(
 
   // 앞쪽 모서리 (실선)
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = tk.line.axis;
   for (const [a, b, back] of EDGES) {
     if (back) continue;
     ctx.beginPath();
@@ -126,10 +136,15 @@ export function renderCubeGraph(
     const [px, py] = project(pt.z, pt.y, pt.x, cx, cy, scale);
 
     // 포인트 (채운 원, 이전 크기)
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = look.pointFill;
     ctx.beginPath();
-    ctx.arc(px, py, 14, 0, Math.PI * 2);
+    ctx.arc(px, py, look.pointR, 0, Math.PI * 2);
     ctx.fill();
+    if (look.pointStroke > 0) {
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = look.pointStroke;
+      ctx.stroke();
+    }
 
     // 유도선 방향: 자동(큐브 중심에서 바깥으로) + 수동 오프셋
     let autoDx = px - cubeCenter2D[0];
@@ -145,7 +160,7 @@ export function renderCubeGraph(
     // **함께** 안으로 민다. 유도선이 그대로 점을 가리키므로 어느 점의
     // 이름인지가 흐려지지 않는다. (「서울특별시 강남구」가 왼쪽으로 53.4px
     // 넘던 자리다. 들어가 있으면 좌표가 한 픽셀도 안 움직인다.)
-    ctx.font = getFont(fs.dataLabel + 10, options, 'bold');
+    ctx.font = textFont(options, 'region', textSize(options, 'region', fs.dataLabel + 10));
     ctx.textAlign = dx >= 0 ? 'left' : 'right';
     ctx.textBaseline = 'middle';
     const anchor = nudgeInside(ctx, pt.label, px + dx + (dx >= 0 ? 4 : -4), py + dy, w, h);
@@ -154,7 +169,7 @@ export function renderCubeGraph(
 
     // 유도선
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = look.leaderW;
     ctx.beginPath();
     ctx.moveTo(px, py);
     ctx.lineTo(lx, ly);
@@ -175,15 +190,15 @@ export function renderCubeGraph(
   if (options.title) {
     // 제목은 고딕 자리다 — 다른 종류가 drawTitle 로 하는 일을 여기서 직접 한다
     // (정육면체는 제목 자리가 축 꼭대기에 매여 있어 공용 함수를 못 쓴다).
-    const titleFont = sansFont(options);
+    const titleSize = textSize(options, 'title', fs.title);
     const yAxisTop = project(0, 1.25, 0, cx, cy, scale);
     ctx.fillStyle = '#000';
-    ctx.font = `bold ${fs.title}px ${titleFont}`;
+    ctx.font = textFont(options, 'title', titleSize);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     // 제목은 캔버스 가운데에 놓이므로 길면 양쪽으로 넘친다 — 줄여 담고 민다
-    drawFloatingLabel(ctx, options.title, w / 2, yAxisTop[1] - 50, w, h, fs.title,
-      (size) => `bold ${size}px ${titleFont}`);
+    drawFloatingLabel(ctx, options.title, w / 2, yAxisTop[1] - 50, w, h, titleSize,
+      (size) => textFont(options, 'title', size));
   }
 
   // Z축 이름/높음 라벨 아래 기준
@@ -193,8 +208,9 @@ export function renderCubeGraph(
   drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: sourceY, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel });
 }
 
-function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
-  const headLen = 10;
+function drawArrow(
+  ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, headLen: number,
+) {
   const angle = Math.atan2(y2 - y1, x2 - x1);
   ctx.beginPath();
   ctx.moveTo(x1, y1);
@@ -287,9 +303,9 @@ function fitCubeScale(
 ): { scale: number; names: AxisNameLines; nameSize: number } {
   ctx.save();
 
-  let nameSize = fs.axisLabel;
-  const makeNameFont = (size: number) => getFont(size, options, 'bold');
-  const dirFont = getFont(fs.axisLabel * 0.9, options, 'normal');
+  let nameSize = textSize(options, 'axisName', fs.axisLabel);
+  const makeNameFont = (size: number) => textFont(options, 'axisName', size);
+  const dirFont = textFont(options, 'axisName', textSize(options, 'axisName', fs.axisLabel * 0.9), { weight: 'normal' });
   let names: AxisNameLines = { x: [data.xAxis.name], y: [data.yAxis.name], z: [data.zAxis.name] };
 
   const fits = (s: number) => {
@@ -328,7 +344,7 @@ function fitCubeScale(
 
   if (scale <= 20) {
     // 배율을 바닥까지 줄여도 안 들어간다 — 이름 글꼴을 줄여 본다
-    nameSize = fs.axisLabel * MIN_SCALE;
+    nameSize = textSize(options, 'axisName', fs.axisLabel) * MIN_SCALE;
     ctx.font = makeNameFont(nameSize);
     names = {
       x: names.x.flatMap((l) => wrapToWidth(ctx, l, Math.max(30, w / 3))),
@@ -353,28 +369,29 @@ function drawAxes(
   nameSize: number,
 ) {
   const ext = 1.25;
+  const look = byStyle(options, LOOK);
 
   ctx.strokeStyle = '#000';
   ctx.fillStyle = '#000';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = look.axisW;
 
   // X축 화살표 (깊이, 좌하): 꼭짓점 (1,0,0)에서 바깥으로
   const xStart = project(1, 0, 0, cx, cy, scale);
   const xEnd = project(ext, 0, 0, cx, cy, scale);
-  drawArrow(ctx, xStart[0], xStart[1], xEnd[0], xEnd[1]);
+  drawArrow(ctx, xStart[0], xStart[1], xEnd[0], xEnd[1], look.head);
 
   // Y축 화살표 (위): 꼭짓점 (0,1,0)에서 바깥으로
   const yStart = project(0, 1, 0, cx, cy, scale);
   const yEnd = project(0, ext, 0, cx, cy, scale);
-  drawArrow(ctx, yStart[0], yStart[1], yEnd[0], yEnd[1]);
+  drawArrow(ctx, yStart[0], yStart[1], yEnd[0], yEnd[1], look.head);
 
   // Z축 화살표 (오른쪽): 꼭짓점 (0,0,1)에서 바깥으로
   const zStart = project(0, 0, 1, cx, cy, scale);
   const zEnd = project(0, 0, ext, cx, cy, scale);
-  drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1]);
+  drawArrow(ctx, zStart[0], zStart[1], zEnd[0], zEnd[1], look.head);
 
-  const nameFont = getFont(nameSize, options, 'bold');
-  const dirFont = getFont(fs.axisLabel * 0.9, options, 'normal');
+  const nameFont = textFont(options, 'axisName', nameSize);
+  const dirFont = textFont(options, 'axisName', textSize(options, 'axisName', fs.axisLabel * 0.9), { weight: 'normal' });
 
   // 배율을 이미 맞췄으므로 여기서 미는 일은 거의 없다. 사용자가 준 오프셋이
   // 캔버스 밖을 가리키는 경우를 위한 마지막 안전장치다.

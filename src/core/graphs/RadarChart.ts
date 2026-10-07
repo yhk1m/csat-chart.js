@@ -1,9 +1,10 @@
 // © 2026 김용현
 import { type RadarGraphData, type GraphOptions } from '../types/index';
-import { clearCanvas, getFont } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, textExtent, wrapToWidth } from '../canvas/fit';
+import { styleOf, byStyle } from '../canvas/style';
 
 // 계열별 선 스타일
 const LINE_STYLES: { dash: number[]; width: number }[] = [
@@ -16,6 +17,12 @@ const LINE_STYLES: { dash: number[]; width: number }[] = [
 
 const GRAY_SHADES = ['#000', '#444', '#777', '#AAA', '#CCC'];
 
+const LOOK = {
+  classic: { grid: { w: 0.8, color: '#ccc' }, axis: { w: 1, color: '#999' }, tickInk: '#888', dotHalo: 5, dotR: 3.5 },
+  // 축 0.30pt (실측 §3 #38). 꼭짓점 점은 표본에 없다 — 0 이면 안 그린다
+  exam: { grid: { w: 1.45, color: '#000' }, axis: { w: 1.45, color: '#000' }, tickInk: '#000', dotHalo: 0, dotR: 0 },
+};
+
 export function renderRadarChart(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -24,8 +31,21 @@ export function renderRadarChart(
   options: GraphOptions
 ) {
   clearCanvas(ctx, w, h);
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   const fs = options.fontSize;
+  const SERIES = byStyle(options, {
+    classic: LINE_STYLES.map((s, i) => ({ dash: s.dash, width: s.width, color: GRAY_SHADES[i] })),
+    exam: [
+      { dash: [] as number[], width: 4.8, color: '#000' }, // 굵은 실선 0.98pt
+      { dash: [] as number[], width: 1.9, color: '#000' }, // 가는 실선 0.40pt
+      { dash: t.seriesDash.dashed, width: 2.5, color: '#000' }, // 점선 0.51pt
+      { dash: t.seriesDash.dashdot, width: 1.9, color: '#000' }, // ≈ 넷째부터 실측 없음
+      { dash: t.seriesDash.dotted, width: 1.9, color: '#000' },
+    ],
+  });
+  const legendSize = textSize(options, 'legend', fs.dataLabel * 0.85 + 5);
   const n = data.axisLabels.length;
   if (n < 3) return;
 
@@ -33,7 +53,7 @@ export function renderRadarChart(
   const legendPos = options.legendPosition;
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, fs.dataLabel * 0.85 + 5, options, 'line')
+    ? measureLegendWidth(ctx, legendLabels, legendSize, options, 'line')
     : 0;
 
   const topPad = options.title ? 60 : 10;
@@ -44,7 +64,7 @@ export function renderRadarChart(
     bottomPad += 70;
     // 상수 70 은 한 줄짜리 상자(높이 55.7)에도 모자랐다 — 실제 높이를 재서 잡는다
     bottomPad = Math.max(bottomPad, measureBottomLegend(
-      ctx, legendLabels, fs.dataLabel * 0.85 + 5, w - leftPad - rightPad, options, 'line', 30));
+      ctx, legendLabels, legendSize, w - leftPad - rightPad, options, 'line', 30));
   }
   if (options.source) bottomPad += 25;
   bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
@@ -62,8 +82,8 @@ export function renderRadarChart(
   // 세워 놓은 이름이 아니므로 여백을 넓히면 되지만 여기서 여백을 넓히는 것은
   // 곧 **반지름을 줄이는 것**이다 (범례 때 플롯이 줄어든 것과 같은 손해다).
   // 다만 그림이 5분의 1 넘게 줄어들 판이면 줄이기 전에 이름을 접는다.
-  const labelFontSize = fs.axisLabel * 0.85;
-  const makeLabelFont = (size: number) => getFont(size, options, 'bold');
+  const labelFontSize = textSize(options, 'axisName', fs.axisLabel * 0.85);
+  const makeLabelFont = (size: number) => textFont(options, 'axisName', size);
   const { radius, labelLines, labelSize } = fitAxisLabels(
     ctx, data.axisLabels, angles, cx, cy, w, h,
     Math.min(availW, availH) / 2 - 40, labelFontSize, makeLabelFont,
@@ -81,8 +101,8 @@ export function renderRadarChart(
 
   // 동심 다각형 격자
   ctx.save();
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = look.grid.color;
+  ctx.lineWidth = look.grid.w;
   for (let step = 1; step <= data.gridSteps; step++) {
     const r = (step / data.gridSteps) * radius;
     ctx.beginPath();
@@ -96,8 +116,8 @@ export function renderRadarChart(
   ctx.restore();
 
   // 축 선
-  ctx.strokeStyle = '#999';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = look.axis.color;
+  ctx.lineWidth = look.axis.w;
   for (let i = 0; i < n; i++) {
     const [px, py] = toXY(angles[i], radius);
     ctx.beginPath();
@@ -107,8 +127,8 @@ export function renderRadarChart(
   }
 
   // 눈금값
-  ctx.fillStyle = '#888';
-  ctx.font = getFont(fs.tick * 0.8, options, 'normal');
+  ctx.fillStyle = look.tickInk;
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick * 0.8), { weight: 'normal' });
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   for (let step = 1; step <= data.gridSteps; step++) {
@@ -140,7 +160,7 @@ export function renderRadarChart(
   // 1단계: 채움 먼저 전부 그리기
   if (data.showFill) {
     for (let si = 0; si < data.series.length; si++) {
-      const color = GRAY_SHADES[si % GRAY_SHADES.length];
+      const color = SERIES[si % SERIES.length].color;
       const pts = allPts[si];
       const r = parseInt(color.slice(1, 2), 16) * 17;
       const g = parseInt(color.slice(2, 3), 16) * 17;
@@ -158,8 +178,8 @@ export function renderRadarChart(
 
   // 2단계: 선과 포인트를 채움 위에 그리기
   for (let si = 0; si < data.series.length; si++) {
-    const style = LINE_STYLES[si % LINE_STYLES.length];
-    const color = GRAY_SHADES[si % GRAY_SHADES.length];
+    const style = SERIES[si % SERIES.length];
+    const color = style.color;
     const pts = allPts[si];
 
     // 다각형 선
@@ -176,16 +196,18 @@ export function renderRadarChart(
     ctx.setLineDash([]);
 
     // 데이터 포인트
-    for (let i = 0; i < n; i++) {
-      const [px, py] = pts[i];
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(px, py, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-      ctx.fill();
+    if (look.dotR > 0) {
+      for (let i = 0; i < n; i++) {
+        const [px, py] = pts[i];
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(px, py, look.dotHalo, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(px, py, look.dotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 
@@ -197,10 +219,10 @@ export function renderRadarChart(
     const plotH = availH;
 
     const items = data.series.map((s, i) => {
-      const style = LINE_STYLES[i % LINE_STYLES.length];
+      const style = SERIES[i % SERIES.length];
       return {
         type: 'line' as const,
-        fillStyle: GRAY_SHADES[i % GRAY_SHADES.length],
+        fillStyle: style.color,
         label: s.label,
         dash: style.dash,
         lineWidth: style.width,
@@ -210,7 +232,7 @@ export function renderRadarChart(
       ctx, fonts: options, items, position: legendPos,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: fs.dataLabel * 0.85 + 5,
+      fontSize: legendSize,
       bottomOffset: 30,
     });
   }

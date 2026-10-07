@@ -1,10 +1,12 @@
 // © 2026 김용현
 import { type CubeGraphData, type GraphOptions } from '../types/index';
-import { clearCanvas, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle, leaderOf } from '../canvas/style';
+import { Obstacles, inflate } from '../canvas/avoid';
+import type { LabelBox } from '../canvas/labels';
 
 const LOOK = {
   classic: { axisW: 1.5, head: 10, backW: 1.5, backColor: '#999', backDash: [6, 5], pointR: 14, pointFill: '#000', pointStroke: 0 },
@@ -132,12 +134,8 @@ export function renderCubeGraph(
   drawAxes(ctx, data, cx, cy, scale, w, h, options, fs, fit.names, fit.nameSize);
 
   // 데이터 포인트
-  // 큐브 중심 (2D)
-  const cubeCenter2D = project(0.5, 0.5, 0.5, cx, cy, scale);
-
   for (const pt of data.points) {
-    // 라벨 매핑: 사용자 X=오른쪽(project의 z), Z=깊이(project의 x)
-    const [px, py] = project(pt.z, pt.y, pt.x, cx, cy, scale);
+    const { px, py, anchor, lx, ly } = pointLabelAt(ctx, pt, cx, cy, scale, w, h, options);
 
     // 포인트 (채운 원, 이전 크기)
     ctx.fillStyle = look.pointFill;
@@ -150,26 +148,6 @@ export function renderCubeGraph(
       ctx.stroke();
     }
 
-    // 유도선 방향: 자동(큐브 중심에서 바깥으로) + 수동 오프셋
-    let autoDx = px - cubeCenter2D[0];
-    let autoDy = py - cubeCenter2D[1];
-    const len = Math.sqrt(autoDx * autoDx + autoDy * autoDy) || 1;
-    autoDx = (autoDx / len) * 40;
-    autoDy = (autoDy / len) * 40;
-
-    const dx = autoDx + pt.labelDx;
-    const dy = autoDy + pt.labelDy;
-
-    // 점 이름은 유도선 끝에 붙는다 — 캔버스를 넘으면 이름과 유도선 끝을
-    // **함께** 안으로 민다. 유도선이 그대로 점을 가리키므로 어느 점의
-    // 이름인지가 흐려지지 않는다. (「서울특별시 강남구」가 왼쪽으로 53.4px
-    // 넘던 자리다. 들어가 있으면 좌표가 한 픽셀도 안 움직인다.)
-    ctx.font = textFont(options, 'region', textSize(options, 'region', fs.dataLabel + 10));
-    ctx.textAlign = dx >= 0 ? 'left' : 'right';
-    ctx.textBaseline = 'middle';
-    const anchor = nudgeInside(ctx, pt.label, px + dx + (dx >= 0 ? 4 : -4), py + dy, w, h);
-    const lx = anchor.x - (dx >= 0 ? 4 : -4);
-    const ly = anchor.y;
 
     // 유도선
     ctx.strokeStyle = '#000';
@@ -221,6 +199,37 @@ export function renderCubeGraph(
   });
 }
 
+type CubePoint = CubeGraphData['points'][number];
+
+/**
+ * 점 이름 자리 — 유도선 방향은 자동(큐브 중심에서 바깥으로 40px) + 수동 오프셋.
+ * 점 이름은 유도선 끝에 붙는다 — 캔버스를 넘으면 이름과 유도선 끝을
+ * **함께** 안으로 민다. 유도선이 그대로 점을 가리키므로 어느 점의
+ * 이름인지가 흐려지지 않는다. (「서울특별시 강남구」가 왼쪽으로 53.4px
+ * 넘던 자리다. 들어가 있으면 좌표가 한 픽셀도 안 움직인다.)
+ * 글꼴·정렬을 ctx 에 걸어 둔 채로 돌려준다.
+ */
+function pointLabelAt(
+  ctx: CanvasRenderingContext2D, pt: CubePoint,
+  cx: number, cy: number, scale: number, w: number, h: number, options: GraphOptions,
+) {
+  // 라벨 매핑: 사용자 X=오른쪽(project의 z), Z=깊이(project의 x)
+  const [px, py] = project(pt.z, pt.y, pt.x, cx, cy, scale);
+  const center = project(0.5, 0.5, 0.5, cx, cy, scale);
+  let autoDx = px - center[0];
+  let autoDy = py - center[1];
+  const len = Math.sqrt(autoDx * autoDx + autoDy * autoDy) || 1;
+  autoDx = (autoDx / len) * 40;
+  autoDy = (autoDy / len) * 40;
+  const dx = autoDx + pt.labelDx;
+  const dy = autoDy + pt.labelDy;
+  ctx.font = textFont(options, 'region', textSize(options, 'region', options.fontSize.dataLabel + 10));
+  ctx.textAlign = dx >= 0 ? 'left' : 'right';
+  ctx.textBaseline = 'middle';
+  const anchor = nudgeInside(ctx, pt.label, px + dx + (dx >= 0 ? 4 : -4), py + dy, w, h);
+  return { px, py, anchor, lx: anchor.x - (dx >= 0 ? 4 : -4), ly: anchor.y };
+}
+
 function drawArrow(
   ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, headLen: number,
   stopAtHead: boolean,
@@ -252,6 +261,10 @@ interface AxisText {
   baseline: CanvasTextBaseline;
   /** 축 이름인지(`name`) 낮음·높음 표시인지(`dir`) — 글꼴이 다르다 */
   kind: 'name' | 'dir';
+  /** 첫 자리가 모서리·다른 글자에 걸리면 차례로 시도할 다른 자리 (exam) */
+  alts?: Pick<AxisText, 'x' | 'y' | 'align' | 'baseline'>[];
+  /** 어느 자리도 선을 못 피했다 — 글자 뒤를 흰 상자로 지운다 */
+  knockout?: boolean;
 }
 
 /** 축 이름의 줄 간격 (글꼴 크기 대비) */
@@ -278,28 +291,56 @@ function axisTexts(
 
   if (spread) {
     // 원점에서 세 모서리가 갈라진다 — 위(세로)·오른쪽(가로)·왼쪽 아래(깊이).
-    // 낮음이 서로 다르면 셋을 그 세 틈에 하나씩 둔다: 세로축 낮음은 세로 모서리 왼쪽 위,
-    // 가로축 낮음은 가로 모서리 아래 오른쪽, 깊이축 낮음은 깊이 모서리 왼쪽(모서리에서
-    // 글자 반 높이 ÷ tan35° 만큼 비켜). 깊이축 높음은 깊이 끝 꼭짓점 아래 오른쪽 —
-    // 그 왼쪽에는 축 이름이 온다.
+    // 높음은 그 축의 끝 꼭짓점 바로 곁, 낮음은 원점 바로 곁에 둔다(2026_06 korgeo q18:
+    // 가로 높음은 꼭짓점 위 오른쪽, 깊이 높음은 앞 꼭짓점 아래 오른쪽, 낮음은 원점 아래 오른쪽).
+    // 자리마다 후보를 몇 개 두고, 모서리·축·다른 글자에 안 걸리는 첫 후보를 placeAxisTexts 가 고른다.
     // 낮음 셋이 같은 글이면 시험지처럼 원점 오른쪽 아래에 하나만 둔다(2026_06 korgeo q18 «(낮음)»).
     const depthAt = project(0.3, 0, 0, cx, cy, scale);
     const lows = [data.xAxis.lowLabel, data.yAxis.lowLabel, data.zAxis.lowLabel];
     const shared = lows.every((l) => l === lows[0]);
+    type Spot = Pick<AxisText, 'x' | 'y' | 'align' | 'baseline'>;
+    const spot = (at: [number, number], off: { x: number; y: number }, dx: number, dy: number,
+      align: CanvasTextAlign, baseline: CanvasTextBaseline): Spot =>
+      ({ x: at[0] + dx + off.x, y: at[1] + dy + off.y, align, baseline });
+    const dir = (label: string, spots: Spot[]): AxisText =>
+      ({ lines: [label], ...spots[0], alts: spots.slice(1), kind: 'dir' });
+    const lo = (off: { x: number; y: number }) => [
+      spot(origin, off, 12, 8, 'left', 'top'),
+      spot(origin, off, -10, -8, 'right', 'bottom'),
+      spot(origin, off, 12, -8, 'left', 'bottom'),
+    ];
     const lowTexts: AxisText[] = shared
-      ? [{ lines: [lows[0]], x: origin[0] + 12 + data.xAxis.lowOffset.x, y: origin[1] + 8 + data.xAxis.lowOffset.y, align: 'left', baseline: 'top', kind: 'dir' }]
+      ? [dir(lows[0], lo(data.xAxis.lowOffset))]
       : [
-        { lines: [data.xAxis.lowLabel], x: origin[0] + 16 + data.xAxis.lowOffset.x, y: origin[1] + 10 + data.xAxis.lowOffset.y, align: 'left', baseline: 'top', kind: 'dir' },
-        { lines: [data.yAxis.lowLabel], x: origin[0] - 10 + data.yAxis.lowOffset.x, y: origin[1] - 6 + data.yAxis.lowOffset.y, align: 'right', baseline: 'bottom', kind: 'dir' },
-        { lines: [data.zAxis.lowLabel], x: depthAt[0] - 30 + data.zAxis.lowOffset.x, y: depthAt[1] + data.zAxis.lowOffset.y, align: 'right', baseline: 'middle', kind: 'dir' },
+        dir(data.xAxis.lowLabel, [spot(origin, data.xAxis.lowOffset, 16, 10, 'left', 'top'), spot(origin, data.xAxis.lowOffset, 16, -8, 'left', 'bottom')]),
+        dir(data.yAxis.lowLabel, [spot(origin, data.yAxis.lowOffset, -10, -6, 'right', 'bottom'), spot(origin, data.yAxis.lowOffset, 10, -40, 'left', 'bottom')]),
+        dir(data.zAxis.lowLabel, [spot(depthAt, data.zAxis.lowOffset, -30, 0, 'right', 'middle'), spot(depthAt, data.zAxis.lowOffset, 30, 12, 'left', 'middle')]),
       ];
     return [
       { lines: names.z, x: xEnd[0] - 6, y: xEnd[1] + 20, align: 'right', baseline: 'middle', kind: 'name' },
-      { lines: [data.zAxis.highLabel], x: zHighPos[0] + 14 + data.zAxis.highOffset.x, y: zHighPos[1] + 10 + data.zAxis.highOffset.y, align: 'left', baseline: 'top', kind: 'dir' },
       { lines: names.y, x: yEnd[0], y: yEnd[1] - 10, align: 'center', baseline: 'bottom', kind: 'name' },
-      { lines: [data.yAxis.highLabel], x: yHigh[0] + 6 + data.yAxis.highOffset.x, y: yHigh[1] - 20 + data.yAxis.highOffset.y, align: 'left', baseline: 'middle', kind: 'dir' },
       { lines: names.x, x: zEnd[0] + 6, y: zEnd[1], align: 'left', baseline: 'middle', kind: 'name' },
-      { lines: [data.xAxis.highLabel], x: zHigh[0] + data.xAxis.highOffset.x, y: zHigh[1] + 14 + data.xAxis.highOffset.y, align: 'center', baseline: 'top', kind: 'dir' },
+      // 가로축 높음 — 끝 꼭짓점 위 오른쪽 (축과 세로 모서리 사이)
+      dir(data.xAxis.highLabel, [
+        spot(zHigh, data.xAxis.highOffset, 8, -8, 'left', 'bottom'),
+        // 축 이름이 화살촉 바로 뒤에 붙어 첫 자리를 막으면 — 꼭짓점 왼쪽 위(뒷면 안), 조금 더 위
+        spot(zHigh, data.xAxis.highOffset, -8, -8, 'right', 'bottom'),
+        spot(zHigh, data.xAxis.highOffset, 8, -26, 'left', 'bottom'),
+        spot(zHigh, data.xAxis.highOffset, 8, 10, 'left', 'top'),
+        spot(zHigh, data.xAxis.highOffset, 0, 14, 'center', 'top'),
+      ]),
+      // 세로축 높음 — 끝 꼭짓점 위, 축 오른쪽
+      dir(data.yAxis.highLabel, [
+        spot(yHigh, data.yAxis.highOffset, 8, -6, 'left', 'bottom'),
+        spot(yHigh, data.yAxis.highOffset, -8, -6, 'right', 'bottom'),
+        spot(yHigh, data.yAxis.highOffset, 6, -20, 'left', 'middle'),
+      ]),
+      // 깊이축 높음 — 앞 꼭짓점 아래 오른쪽 (그 왼쪽에는 축 이름이 온다)
+      dir(data.zAxis.highLabel, [
+        spot(zHighPos, data.zAxis.highOffset, 14, 10, 'left', 'top'),
+        spot(zHighPos, data.zAxis.highOffset, 14, -8, 'left', 'bottom'),
+        spot(zHighPos, data.zAxis.highOffset, -12, -8, 'right', 'bottom'),
+      ]),
       ...lowTexts,
     ];
   }
@@ -345,7 +386,7 @@ function fitCubeScale(
   topPad: number, availH: number,
   maxScale: number,
   fs: GraphOptions['fontSize'],
-  options: FontOptions,
+  options: GraphOptions,
 ): { scale: number; names: AxisNameLines; nameSize: number } {
   ctx.save();
 
@@ -357,7 +398,9 @@ function fitCubeScale(
 
   const fits = (s: number) => {
     const [cx, cy] = centerAt(w, topPad, availH, s);
-    return axisTexts(data, cx, cy, s, names, spread).every((t) => {
+    const texts = placeAxisTexts(ctx, data, cx, cy, s, names, spread, options,
+      { name: makeNameFont(nameSize), dir: dirFont, lineH: nameSize * NAME_LINE_RATIO }, w, h);
+    return texts.every((t) => {
       ctx.font = t.kind === 'name' ? makeNameFont(nameSize) : dirFont;
       ctx.textAlign = t.align;
       ctx.textBaseline = t.baseline;
@@ -380,11 +423,12 @@ function fitCubeScale(
     const room = (t: AxisText) => (t.align === 'left' ? w - EDGE - t.x
       : t.align === 'right' ? t.x - EDGE
         : 2 * Math.min(t.x - EDGE, w - EDGE - t.x));
-    const at = axisTexts(data, cx, cy, maxScale, names, spread);
+    // 이름 자리 셋 — 두 양식 모두 z·y·x 순서다
+    const at = axisTexts(data, cx, cy, maxScale, names, spread).filter((t) => t.kind === 'name');
     names = {
       z: wrapToWidth(ctx, data.zAxis.name, Math.max(30, room(at[0]))),
-      y: wrapToWidth(ctx, data.yAxis.name, Math.max(30, room(at[2]))),
-      x: wrapToWidth(ctx, data.xAxis.name, Math.max(30, room(at[4]))),
+      y: wrapToWidth(ctx, data.yAxis.name, Math.max(30, room(at[1]))),
+      x: wrapToWidth(ctx, data.xAxis.name, Math.max(30, room(at[2]))),
     };
     scale = largestFitting(20, maxScale, fits);
   }
@@ -410,7 +454,7 @@ function drawAxes(
   data: CubeGraphData,
   cx: number, cy: number, scale: number,
   w: number, h: number,
-  options: FontOptions,
+  options: GraphOptions,
   fs: GraphOptions['fontSize'],
   names: AxisNameLines,
   nameSize: number,
@@ -444,13 +488,106 @@ function drawAxes(
   // 배율을 이미 맞췄으므로 여기서 미는 일은 거의 없다. 사용자가 준 오프셋이
   // 캔버스 밖을 가리키는 경우를 위한 마지막 안전장치다.
   ctx.fillStyle = '#000';
-  for (const t of axisTexts(data, cx, cy, scale, names, byStyle(options, { classic: false, exam: true }))) {
+  const lineH = nameSize * NAME_LINE_RATIO;
+  const texts = placeAxisTexts(ctx, data, cx, cy, scale, names, byStyle(options, { classic: false, exam: true }),
+    options, { name: nameFont, dir: dirFont, lineH }, w, h);
+  for (const t of texts) {
     if (t.lines.every((l) => !l)) continue;
     ctx.font = t.kind === 'name' ? nameFont : dirFont;
     ctx.textAlign = t.align;
     ctx.textBaseline = t.baseline;
-    const lineH = nameSize * NAME_LINE_RATIO;
     const at = nudgeLinesInside(ctx, t.lines, t.x, t.y, lineH, w, h);
+    if (t.knockout) {
+      const b = inflate(textBox(ctx, { ...t, ...at }, lineH), 3);
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+      ctx.restore();
+    }
     fillLines(ctx, t.lines, at.x, at.y, lineH);
   }
+}
+
+/** 글꼴을 걸어 둔 채로 부른다 — 글자 잉크 상자 */
+function textBox(ctx: CanvasRenderingContext2D, t: AxisText, lineH: number): LabelBox {
+  ctx.textAlign = t.align;
+  ctx.textBaseline = t.baseline;
+  const es = t.lines.map((l) => textExtent(ctx, l));
+  const half = ((t.lines.length - 1) * lineH) / 2;
+  return {
+    left: t.x - Math.max(...es.map((e) => e.left)),
+    right: t.x + Math.max(...es.map((e) => e.right)),
+    top: t.y - half - Math.max(...es.map((e) => e.up)),
+    bottom: t.y + half + Math.max(...es.map((e) => e.down)),
+  };
+}
+
+/**
+ * 축 둘레 글자의 최종 자리. exam 의 낮음·높음은 후보(`alts`) 가운데 모서리·축·점·
+ * 다른 글자에 덜 걸리는 것을 고른다 — 앞 후보일수록 조금 낫게 친다. 어느 후보도
+ * 선을 못 피하면 그 자리에 두고 글자 뒤를 흰 상자로 지운다(`knockout`).
+ * classic 은 후보가 없어 axisTexts 그대로다.
+ */
+function placeAxisTexts(
+  ctx: CanvasRenderingContext2D,
+  data: CubeGraphData,
+  cx: number, cy: number, scale: number,
+  names: AxisNameLines,
+  spread: boolean,
+  options: GraphOptions,
+  fonts: { name: string; dir: string; lineH: number },
+  w: number, h: number,
+): AxisText[] {
+  const texts = axisTexts(data, cx, cy, scale, names, spread);
+  if (!spread) return texts;
+  ctx.save();
+  const look = byStyle(options, LOOK);
+  const ob = new Obstacles();
+  const v2 = V.map(([vx, vy, vz]) => project(vx, vy, vz, cx, cy, scale));
+  const edgePad = styleOf(options).line.axis / 2 + 3;
+  for (const [a, b] of EDGES) ob.addSegment(v2[a][0], v2[a][1], v2[b][0], v2[b][1], edgePad);
+  // 축 화살표 — 굵은 선 + 촉
+  const ext = 1.25;
+  const arrowPad = look.axisW / 2 + 3;
+  for (const [s0, e0] of [
+    [[1, 0, 0], [ext, 0, 0]], [[0, 1, 0], [0, ext, 0]], [[0, 0, 1], [0, 0, ext]],
+  ] as [number, number, number][][]) {
+    const a = project(s0[0], s0[1], s0[2], cx, cy, scale);
+    const b = project(e0[0], e0[1], e0[2], cx, cy, scale);
+    ob.addSegment(a[0], a[1], b[0], b[1], arrowPad);
+    // 촉은 축보다 넓다 — 끝에 촉 크기만 한 상자
+    const r = look.head * 0.45;
+    ob.addBox({ left: b[0] - r, right: b[0] + r, top: b[1] - r, bottom: b[1] + r }, 2);
+  }
+  for (const pt of data.points) {
+    const { px, py, anchor, lx, ly } = pointLabelAt(ctx, pt, cx, cy, scale, w, h, options);
+    ob.addCircle(px, py, look.pointR + 3);
+    // 점 이름과 유도선도 자리를 차지한다 — 점 이름은 이 뒤에 그려진다
+    if (pt.label) ob.addBox(textBox(ctx, { lines: [pt.label], x: anchor.x, y: anchor.y, align: ctx.textAlign, baseline: 'middle', kind: 'dir' }, 0), 3);
+    ob.addSegment(px, py, lx, ly, 3);
+  }
+  const boxOf = (t: AxisText) => {
+    ctx.font = t.kind === 'name' ? fonts.name : fonts.dir;
+    return textBox(ctx, t, fonts.lineH);
+  };
+  for (const t of texts) if (t.kind === 'name' && t.lines.some((l) => l)) ob.addBox(boxOf(t), 4);
+
+  const out = texts.map((t) => {
+    if (t.kind !== 'dir' || !t.alts || t.lines.every((l) => !l)) return t;
+    let best = t;
+    let bestCost = Infinity;
+    let bestLines = 0;
+    [t, ...t.alts].forEach((spot, i) => {
+      const cand: AxisText = { ...t, ...spot };
+      const b = boxOf(cand);
+      const outside = b.left < EDGE || b.right > w - EDGE || b.top < EDGE || b.bottom > h - EDGE;
+      const lines = ob.segmentHits(b);
+      const cost = (outside ? 1000 : 0) + (lines + ob.boxHits(b)) * 100 + i;
+      if (cost < bestCost) { bestCost = cost; best = cand; bestLines = lines; }
+    });
+    ob.addBox(boxOf(best), 4);
+    return { ...best, alts: undefined, knockout: bestLines > 0 };
+  });
+  ctx.restore();
+  return out;
 }

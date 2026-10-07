@@ -12,7 +12,7 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
@@ -89,8 +89,9 @@ export function renderCategoryDotGraph(
       let b = 70;
       if (showLegend && legendPos === 'bottom') b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter(f => f.trim()).length * 22;
+      // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel * 0.85,
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
       return b;
     })(),
     left: 130,

@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type RadarGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle } from '../canvas/style';
@@ -67,8 +67,7 @@ export function renderRadarChart(
     bottomPad = Math.max(bottomPad, measureBottomLegend(
       ctx, legendLabels, legendSize, w - leftPad - rightPad, options, 'line', 30));
   }
-  if (options.source) bottomPad += 25;
-  bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
+  bottomPad += sourceFootnoteReserve(options, fs.dataLabel, (options.source ? 25 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
 
   const availW = w - leftPad - rightPad;
   const availH = h - topPad - bottomPad;

@@ -186,6 +186,38 @@ export function drawSourceAndFootnote({
   ctx.restore();
 }
 
+/**
+ * 출처·각주 묶음이 캔버스 아래에서 차지하는 높이 — 렌더러가 아래 여백에 더할 몫.
+ *
+ * classic 은 렌더러마다 1.7.0 상수(출처 30 · 각주 줄마다 22 …)를 `classic` 으로 넘겨
+ * 그대로 돌려받는다 — 골든이 바이트 그대로여야 한다.
+ * exam 은 글자가 커서 상수로는 가로축 숫자·축 이름을 덮는다. drawSourceAndFootnote 가
+ * 실제로 쓰는 크기(같은 `fontSize` 인자)로 줄 높이를 잰다:
+ * 출처 줄 = 출처 글자 + 8, 각주 줄 = 각주 글자 + 4, 각주 묶음은 마지막 줄 글자 높이만큼
+ * 더 올라가므로 한 줄 몫을 더 세고, 바닥 6px·윗틈 4px 를 더한다. `sourceLeft` 를 주면 각주 아래 «(연도) … (출처)» 한 줄.
+ * `draws.reserveSource` 는 출처 글이 없어도 한 줄을 비워 둔다(트리맵 패널 맞춤).
+ */
+export function sourceFootnoteReserve(
+  o: LabelFonts & Pick<GraphOptions, 'source' | 'footnotes'>,
+  fontSize: number,
+  classic: number,
+  /** drawSourceAndFootnote 에 넘기는 것과 같은 값 — 넘기지 않는 렌더러는 비워 둔다 */
+  draws: { sourceLeft?: string; sourceInline?: boolean; reserveSource?: boolean } = {},
+): number {
+  const t = styleOf(o);
+  if (t.name === 'classic') return classic;
+  const notes = o.footnotes.filter((f) => f.trim()).length;
+  const srcLine = textSize(o, 'source', fontSize) + 8;
+  const noteLine = textSize(o, 'footnote', fontSize * 0.9) + 4;
+  const inline = !draws.sourceLeft && !!(draws.sourceInline ?? t.sourceInline) && notes > 0;
+  let b = 0;
+  if (draws.sourceLeft) b += Math.max(srcLine, textSize(o, 'year', fontSize) + 8);
+  else if ((o.source && !inline) || (draws.reserveSource && notes === 0)) b += srcLine;
+  // 묶음 윗변은 바닥에서 6 + 줄 수 × 줄 높이 + 글자 높이 — 그 위로 4px 더 띄운다
+  if (notes > 0) b += (notes + 1) * noteLine + 6;
+  return b;
+}
+
 // ── 겹침 회피 라벨 배치 ─────────────────────────────────────
 //
 // 점이 붙어 있으면 라벨끼리, 또는 라벨과 점이 겹쳐 읽을 수 없게 된다.

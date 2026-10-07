@@ -9,7 +9,7 @@
 import { type DataTableData, type DataTableRow, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, type FontOptions } from '../canvas/renderer';
 import { styleOf, byStyle } from '../canvas/style';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
 const HEADER_FILL = '#d9d9d9';
 /** 칸 높이 (글자 크기 기준) */
@@ -83,9 +83,9 @@ export function renderDataTable(
   // 각주 블록은 마지막 줄의 글자 높이만큼 위로 더 올라간다 (drawSourceAndFootnote).
   // 그 몫을 안 빼면 표 마지막 줄과 겹친다.
   const footCount = options.footnotes.filter((f) => f.trim()).length;
-  const footH =
+  const footH = sourceFootnoteReserve(options, options.fontSize.dataLabel,
     (footCount > 0 ? footCount * 22 + options.fontSize.dataLabel + 12 : 0) +
-    (options.source ? options.fontSize.dataLabel + 4 : 0);
+    (options.source ? options.fontSize.dataLabel + 4 : 0));
 
   // 항목 이름이 길면 표가 캔버스를 넘는다. 그럴 때는 표 전체를 줄여 넣는다 —
   // 잘리는 것보다 작아지는 편이 낫다. (MatrixTable 과 같은 규칙)

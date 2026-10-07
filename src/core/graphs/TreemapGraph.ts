@@ -9,7 +9,7 @@
 import { type TreemapGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { styleOf, byStyle } from '../canvas/style';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
 const LOOK = {
   classic: { cellLine: 1 },
@@ -338,9 +338,10 @@ export function renderTreemapGraph(
   // reserveSourceSpace 이면 출처 글이 없어도 한 줄만큼 비워 둔다 — 패널을
   // 나란히 놓을 때 출처가 있는 패널만 상자가 짧아지는 것을 막는다.
   const hasSourceLine = !!options.source || !!data.reserveSourceSpace;
-  const footH =
+  const footH = sourceFootnoteReserve(options, options.fontSize.dataLabel,
     (footCount > 0 ? footCount * 22 + options.fontSize.dataLabel + 12 : 0) +
-    (hasSourceLine ? options.fontSize.dataLabel + 4 : 0);
+    (hasSourceLine ? options.fontSize.dataLabel + 4 : 0),
+    { reserveSource: !!data.reserveSourceSpace });
 
   const frame: TreemapRect = {
     x: 20,

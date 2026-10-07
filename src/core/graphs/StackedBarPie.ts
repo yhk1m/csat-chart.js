@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
-import { drawTitle, drawSourceAndFootnote, inkText } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { EDGE, nudgeInside } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
@@ -72,8 +72,10 @@ function renderStackedBar(
       let b = isVertical ? 70 : 60;
       if (showLegend && legendPos === 'bottom') b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter(f => f.trim()).length * 22;
+      // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel,
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22,
+        { sourceLeft: options.sourceLeft });
       return b;
     })(),
     left: isVertical ? vLeft : 100,
@@ -356,8 +358,10 @@ function renderPieChart(
       let b = 50;
       if (showLegend && legendPos === 'bottom') b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter(f => f.trim()).length * 22;
+      // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel,
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22,
+        { sourceLeft: options.sourceLeft });
       return b;
     })(),
     left: 60,

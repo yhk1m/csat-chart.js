@@ -2,7 +2,7 @@
 import { type AbsBarGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { drawYAxis } from '../canvas/axes';
-import { drawTitle, drawSourceAndFootnote, labelStride, widestLabel, inkText } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, labelStride, widestLabel, inkText } from '../canvas/labels';
 import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
@@ -83,8 +83,9 @@ export function renderAbsBarGraph(
       // 플롯 안에 범례를 그릴 때는 아래에 자리를 비워 둘 이유가 없다
       if (showLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter(f => f.trim()).length * 22;
+      // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel,
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
       return b;
     })(),
     left: padLeft,

@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type CubeGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize, type FontOptions } from '../canvas/renderer';
-import { drawSourceAndFootnote } from '../canvas/labels';
+import { drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, MIN_SCALE, drawFloatingLabel, fillLines, largestFitting, nudgeInside, nudgeLinesInside, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle, leaderOf } from '../canvas/style';
 
@@ -80,8 +80,7 @@ export function renderCubeGraph(
 
   const topPad = options.title ? 100 : 60;
   let bottomPad = 40;
-  if (options.source) bottomPad += 30;
-  bottomPad += options.footnotes.filter(f => f.trim()).length * 22;
+  bottomPad += sourceFootnoteReserve(options, fs.dataLabel, (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
 
   const availW = w - 240;
   const availH = h - topPad - bottomPad;
@@ -206,8 +205,17 @@ export function renderCubeGraph(
   // Z축 이름/높음 라벨 아래 기준
   const zAxisEnd = project(1.25, 0, 0, cx, cy, scale);
   const zHighRef = project(1, 0, 0, cx, cy, scale);
-  const sourceY = Math.max(zAxisEnd[1] + 20 + fs.axisLabel, zHighRef[1] + 10 + fs.axisLabel * 0.9) + 47;
-  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: sourceY, source: options.source, footnotes: options.footnotes, fontSize: fs.dataLabel });
+  const labelBottom = Math.max(zAxisEnd[1] + 20 + fs.axisLabel, zHighRef[1] + 10 + fs.axisLabel * 0.9);
+  // classic 은 라벨 아래 47px 를 묶음의 바닥으로 잡는다(1.7.0). 각주가 여러 줄이면 묶음이 위로
+  // 자라 Z축 라벨을 덮으므로, exam 은 라벨 바로 아래를 묶음의 **위**로 잡고 캔버스 폭을 쓴다.
+  const sourceY = byStyle(options, {
+    classic: labelBottom + 47,
+    exam: Math.min(h, labelBottom + 6 + sourceFootnoteReserve(options, fs.dataLabel, 0)),
+  });
+  drawSourceAndFootnote({
+    ctx, fonts: options, plotX, plotW, height: sourceY, source: options.source, footnotes: options.footnotes,
+    fontSize: fs.dataLabel, canvasWidth: byStyle(options, { classic: undefined, exam: w }),
+  });
 }
 
 function drawArrow(

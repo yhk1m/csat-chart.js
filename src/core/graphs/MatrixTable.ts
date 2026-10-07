@@ -6,7 +6,7 @@
 import { type MatrixTableData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { byStyle } from '../canvas/style';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
 const NAME_FILL = '#d9d9d9';
 /** 칸은 서로 붙지 않는다 — 원본은 칸마다 떨어진 상자다 (글자 크기의 0.2배) */
@@ -64,9 +64,9 @@ export function renderMatrixTable(
   // 각주 블록은 마지막 줄의 글자 높이만큼 위로 더 올라간다 (drawSourceAndFootnote).
   // 그 몫을 안 빼면 표 마지막 줄과 겹친다.
   const footCount = options.footnotes.filter((f) => f.trim()).length;
-  const footH =
+  const footH = sourceFootnoteReserve(options, options.fontSize.dataLabel,
     (footCount > 0 ? footCount * 22 + options.fontSize.dataLabel + 12 : 0) +
-    (options.source ? options.fontSize.dataLabel + 4 : 0);
+    (options.source ? options.fontSize.dataLabel + 4 : 0));
   const top = options.title ? 100 : 30;
 
   // 이름을 가리지 않으면(실제 지명) 칸이 넓어져 캔버스를 넘는다.

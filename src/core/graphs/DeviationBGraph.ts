@@ -2,7 +2,7 @@
 // 모드 B — 지역별 편차 (비교형)
 import { type DeviationBData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawFloatingLabel } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
@@ -54,8 +54,9 @@ export function renderDeviationBGraph(
       let b = 60;
       if (showLegend && legendPos === 'bottom') b += 60;
       b = Math.max(b, legendReserve);
-      if (options.source) b += 30;
-      b += options.footnotes.filter(f => f.trim()).length * 22;
+      // 출처·각주 — classic 은 1.7.0 상수, exam 은 글자 크기로 잰다
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel,
+        (options.source ? 30 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
       return b;
     })(),
     left: 130,
@@ -224,7 +225,9 @@ export function renderDeviationBGraph(
   }
 
   drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: options.fontSize.title, canvasWidth: w });
-  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel });
+  drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel,
+    // exam 은 각주를 캔버스 끝에서 끝까지 — 플롯 폭에 담으면 둘째 줄부터 글자가 줄어든다
+    canvasWidth: byStyle(options, { classic: undefined, exam: w }) });
 }
 
 function drawDevBYAxis(

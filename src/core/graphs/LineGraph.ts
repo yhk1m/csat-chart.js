@@ -18,6 +18,7 @@ import { drawYAxis, xTickLabelAt } from '../canvas/axes';
 import {
   drawTitle,
   drawSourceAndFootnote,
+  sourceFootnoteReserve,
   LabelPlacer,
   labelStride,
   widestLabel,
@@ -118,14 +119,11 @@ export function renderLineGraph(
       if (useLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;
       b = Math.max(b, legendReserve);
       const notes = options.footnotes.filter((f) => f.trim()).length;
-      // 출처·각주 한 줄 높이 — exam 은 글자가 커서 1.7.0 상수(30·22)로는 가로축 숫자를 덮는다
-      const srcLine = byStyle(options, { classic: 30, exam: textSize(options, 'source', options.fontSize.dataLabel) + 8 });
-      const noteLine = byStyle(options, { classic: 22, exam: textSize(options, 'footnote', options.fontSize.dataLabel * 0.9) + 4 });
-      // 출처를 각주와 같은 줄에 두면(sourceInline) 줄이 하나 줄어든다
-      if (options.source && !((options.sourceInline ?? t.sourceInline) && notes > 0)) b += srcLine;
-      b += notes * noteLine;
-      // 각주 묶음은 마지막 줄 글자 높이만큼 더 올라간다 (drawSourceAndFootnote) — exam 만 그 몫을 센다
-      if (notes > 0) b += byStyle(options, { classic: 0, exam: noteLine });
+      // 출처·각주 — exam 은 글자 크기로 잰다(1.7.0 상수 30·22 로는 가로축 숫자를 덮는다)
+      const inline = (options.sourceInline ?? t.sourceInline) && notes > 0;
+      b += sourceFootnoteReserve(options, options.fontSize.dataLabel * 0.85,
+        (options.source && !inline ? 30 : 0) + notes * 22,
+        { sourceInline: options.sourceInline });
       return b;
     })(),
     left: 130,

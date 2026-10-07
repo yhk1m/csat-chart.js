@@ -3,7 +3,7 @@ import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
-import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
 
 const LOOK = {
@@ -113,15 +113,27 @@ function renderNormal(
 
   const yName = measureYAxisName(ctx, data, w, h, yMin, yMax, yStep, fs, options);
 
+  // 가로축에서 축 이름 윗변까지. classic 은 1.7.0 의 40. exam 은 눈금 숫자가 커서
+  // 40 이면 「X축」 이 숫자를 밟는다 — 숫자 잉크 아래(글자 0.3 만큼 띄움)로 민다.
+  const xNameOff = (() => {
+    ctx.save();
+    ctx.font = textFont(options, 'tick', tickPx);
+    const at = xTickLabelAt(ctx, options, 0, dir.x);
+    ctx.restore();
+    return at ? Math.max(40, at.y + tickPx * 0.3) : 40;
+  })();
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: legendW > 0 ? legendW + 40 : Math.max(60, examUnitW + 34),
     bottom: (() => {
-      let b = 90;
+      // 축 이름을 민 만큼 아래 여백도 늘린다
+      let b = 90 + (xNameOff - 40);
       const notes = options.footnotes.filter(f => f.trim()).length;
       // 출처를 각주와 같은 줄에 두면(sourceInline) 줄이 하나 줄어든다
-      if (options.source && !(options.sourceInline && notes > 0)) b += 30;
-      b += notes * 22;
+      b += sourceFootnoteReserve(options, fs.dataLabel,
+        (options.source && !(options.sourceInline && notes > 0) ? 30 : 0) + notes * 22,
+        { sourceInline: options.sourceInline });
       return b;
     })(),
     // 130 은 「Y축」 정도를 담을 만큼이다. 이름이 길면 그만큼 더 비운다 —
@@ -249,7 +261,7 @@ function renderNormal(
   // X축 라벨 (하단 중앙) — 플롯 가운데에 놓이므로 캔버스 양쪽으로 넘칠 수 있다
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  drawFloatingLabel(ctx, data.xLabel, plotX + plotW / 2, plotY + plotH + 40, w, h,
+  drawFloatingLabel(ctx, data.xLabel, plotX + plotW / 2, plotY + plotH + xNameOff, w, h,
     axisPx, (size) => textFont(options, 'axisName', size));
   ctx.font = textFont(options, 'axisName', axisPx);
 
@@ -267,7 +279,7 @@ function renderNormal(
       ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.axisLabel));
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillText(data.xUnit, plotX + plotW + 10, plotY + plotH + 40);
+      ctx.fillText(data.xUnit, plotX + plotW + 10, plotY + plotH + xNameOff);
     }
   }
 
@@ -335,8 +347,9 @@ function renderDeviation(
       let b = 90;
       const notes = options.footnotes.filter(f => f.trim()).length;
       // 출처를 각주와 같은 줄에 두면(sourceInline) 줄이 하나 줄어든다
-      if (options.source && !(options.sourceInline && notes > 0)) b += 30;
-      b += notes * 22;
+      b += sourceFootnoteReserve(options, fs.dataLabel,
+        (options.source && !(options.sourceInline && notes > 0) ? 30 : 0) + notes * 22,
+        { sourceInline: options.sourceInline });
       return b;
     })(),
     left: 130,

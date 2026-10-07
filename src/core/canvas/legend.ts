@@ -9,10 +9,11 @@ import type { StyleName } from '../types/common';
  * 1.7.0 범례 선 견본이 계열 선·표지 토큰과 달랐던 값 — classic 에서만 둔다.
  * exam 은 비워 두어 `t.line.series`·`t.marker.r` 를 그대로 쓴다(견본 = 그림 속 계열).
  */
-const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number; rightMaxRatio: number }> = {
-  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity },
+const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number; rightMaxRatio: number; belowPlot: number }> = {
+  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity, belowPlot: 50 },
   // 오른쪽 범례는 캔버스 폭의 40% 까지 — 넘는 이름은 글꼴을 줄여 담는다 (exam 글자가 커서 플롯이 사라졌다)
-  exam: { rightMaxRatio: 0.4 },
+  // 아래 범례 상자는 플롯 바닥에서 belowPlot 만큼 — exam 의 큰 「(가)」 괄호가 상자 윗변에 닿아 8 더 내린다
+  exam: { rightMaxRatio: 0.4, belowPlot: 58 },
 };
 
 export interface LegendItem {
@@ -349,7 +350,7 @@ export function measureBottomLegend(
   /** 글꼴 옵션. `options` 를 그대로 넘긴다 (선택 인자 앞에 둔 이유는 위 참고). */
   fonts: FontOptions,
   iconType: 'rect' | 'circle' | 'line' | ('rect' | 'circle' | 'line')[] = 'rect',
-  bottomOffset = 50,
+  bottomOffset = byStyle(fonts, LOOK).belowPlot,
 ): number {
   if (labels.length === 0) return 0;
   const lg = styleOf(fonts).legend;
@@ -365,7 +366,7 @@ export function drawLegend({
   plotX, plotY, plotW, plotH,
   canvasW, canvasH,
   fontSize, fonts,
-  bottomOffset = 50,
+  bottomOffset = byStyle(fonts, LOOK).belowPlot,
   rightGap = 20,
 }: LegendParams): number {
   if (items.length === 0) return 0;

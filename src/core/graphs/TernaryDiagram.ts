@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { type TernaryGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
-import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle, labelPlace, tickDirOf } from '../canvas/style';
 
@@ -49,8 +49,8 @@ export function renderTernaryGraph(
   const tickSpace = look.tickLen + textSize(options, 'tick', options.fontSize.tick) + 10;
   const axisLabelSpace = options.fontSize.axisLabel * 1.3 + 30;
   let bottomExtra = tickSpace + axisLabelSpace;
-  if (options.source) bottomExtra += options.fontSize.dataLabel + 10;
-  bottomExtra += options.footnotes.filter(f => f.trim()).length * 22;
+  bottomExtra += sourceFootnoteReserve(options, options.fontSize.dataLabel,
+    (options.source ? options.fontSize.dataLabel + 10 : 0) + options.footnotes.filter(f => f.trim()).length * 22);
 
   const padding: Padding = {
     top: options.title ? 80 : 50,

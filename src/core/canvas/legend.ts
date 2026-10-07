@@ -58,6 +58,55 @@ export interface InsideLegendParams {
   fonts: FontOptions;
   /** 이 사각형들과 겹치는 모서리는 피한다 (막대·점 등이 가려지면 안 된다) */
   avoid?: { x0: number; y0: number; x1: number; y1: number }[];
+  /** 상자 왼쪽 위를 이 자리로 못 박는다 — 부르는 쪽이 빈자리를 이미 골랐을 때 (corner·avoid 는 안 본다) */
+  at?: { x: number; y: number };
+}
+
+/** 플롯 안 범례 상자의 모서리와 플롯 사이 */
+const INSIDE_MARGIN = 8;
+
+/**
+ * 플롯 안 범례 상자의 크기. 상자가 플롯보다 넓어지면 이름을 자르는 대신 글꼴을 줄여
+ * 폭을 맞춘다 — 그 줄인 글꼴(`font`·`fontSize`)도 함께 돌려준다.
+ */
+export function insideLegendSize(
+  ctx: CanvasRenderingContext2D, items: LegendItem[], fontSize: number, font: string, fonts: FontOptions, plotW: number,
+): { boxW: number; boxH: number; fontSize: number; font: string; swatch: number; maxIconW: number; rowH: number } {
+  const padX = 8;
+  ctx.save();
+  const sizeOf = (fs: number) => {
+    // 줄이지 않은 경우엔 받은 글꼴 문자열을 그대로 쓴다 (같은 값을 다시 조립하지 않는다)
+    ctx.font = fs === fontSize ? font : withFontSize(font, fs);
+    const swatch = fs * styleOf(fonts).legend.insideSwatchRatio;
+    const maxIconW = Math.max(...items.map((i) => (i.type === 'line' ? swatch * 2 : swatch)));
+    const maxLabelW = Math.max(...items.map((i) => ctx.measureText(i.label).width));
+    return { swatch, maxIconW, boxW: padX * 2 + maxIconW + 8 + maxLabelW, rowH: fs * 1.5 };
+  };
+  let fs = fontSize;
+  let size = sizeOf(fs);
+  const avail = plotW - INSIDE_MARGIN * 2;
+  while (fs > MIN_LEGEND_FONT && size.boxW > avail) {
+    fs = Math.max(MIN_LEGEND_FONT, fs - 0.5);
+    size = sizeOf(fs);
+  }
+  ctx.restore();
+  return { ...size, boxH: size.rowH * items.length + 8, fontSize: fs, font: fs === fontSize ? font : withFontSize(font, fs) };
+}
+
+/** 플롯 안 모서리 자리 — 상자 왼쪽 위 */
+export function insideLegendSpot(
+  c: InsideLegendCorner, plotX: number, plotY: number, plotW: number, plotH: number, boxW: number, boxH: number,
+): { x: number; y: number } {
+  return {
+    x: c.endsWith('right') ? plotX + plotW - boxW - INSIDE_MARGIN : plotX + INSIDE_MARGIN,
+    y: c.startsWith('top') ? plotY + INSIDE_MARGIN : plotY + plotH - boxH - INSIDE_MARGIN,
+  };
+}
+
+/** 1순위 모서리부터 네 모서리 */
+export function cornerOrder(corner: InsideLegendCorner): InsideLegendCorner[] {
+  const others: InsideLegendCorner[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
+  return [corner, ...others.filter((c) => c !== corner)];
 }
 
 /**
@@ -82,46 +131,23 @@ function withFontSize(font: string, size: number): string {
  * 막대나 점이 가려지면 안 되기 때문이다.
  */
 export function drawInsideLegend({
-  ctx, items, corner, plotX, plotY, plotW, plotH, canvasW, canvasH, fontSize, font, fonts, avoid = [],
+  ctx, items, corner, plotX, plotY, plotW, plotH, canvasW, canvasH, fontSize, font, fonts, avoid = [], at,
 }: InsideLegendParams): void {
   if (items.length === 0) return;
 
-  ctx.save();
-  ctx.font = font;
-
   const padX = 8;
-  const margin = 8;
   // 상자가 플롯보다 넓어지면 그 자리에서 시작점이 플롯 밖으로 밀려난다.
-  // 이름을 자르는 대신 글꼴을 줄여 폭을 맞춘다.
-  const sizeOf = (fs: number) => {
-    // 줄이지 않은 경우엔 받은 글꼴 문자열을 그대로 쓴다 (같은 값을 다시 조립하지 않는다)
-    ctx.font = fs === fontSize ? font : withFontSize(font, fs);
-    const swatch = fs * styleOf(fonts).legend.insideSwatchRatio;
-    const maxIconW = Math.max(...items.map((i) => (i.type === 'line' ? swatch * 2 : swatch)));
-    const maxLabelW = Math.max(...items.map((i) => ctx.measureText(i.label).width));
-    return { swatch, maxIconW, boxW: padX * 2 + maxIconW + 8 + maxLabelW, rowH: fs * 1.5 };
-  };
-  let fs = fontSize;
-  let size = sizeOf(fs);
-  const avail = plotW - margin * 2;
-  while (fs > MIN_LEGEND_FONT && size.boxW > avail) {
-    fs = Math.max(MIN_LEGEND_FONT, fs - 0.5);
-    size = sizeOf(fs);
-  }
-  const { swatch, maxIconW, boxW, rowH } = size;
-  const boxH = rowH * items.length + 8;
+  // 이름을 자르는 대신 글꼴을 줄여 폭을 맞춘다 (insideLegendSize).
+  const size = insideLegendSize(ctx, items, fontSize, font, fonts, plotW);
+  ctx.save();
+  ctx.font = size.font;
+  const { swatch, maxIconW, boxW, rowH, boxH } = size;
 
-  const spotAt = (c: InsideLegendCorner) => ({
-    x: c.endsWith('right') ? plotX + plotW - boxW - margin : plotX + margin,
-    y: c.startsWith('top') ? plotY + margin : plotY + plotH - boxH - margin,
-  });
-  const others: InsideLegendCorner[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
-  const order = [corner, ...others.filter((c) => c !== corner)];
-  const spots = order.map(spotAt);
+  const spots = cornerOrder(corner).map((c) => insideLegendSpot(c, plotX, plotY, plotW, plotH, boxW, boxH));
   const clear = (s: { x: number; y: number }) => !avoid.some(
     (b) => b.x0 < s.x + boxW && b.x1 > s.x && b.y0 < s.y + boxH && b.y1 > s.y
   );
-  const picked = spots.find(clear) ?? spots[0];
+  const picked = at ?? spots.find(clear) ?? spots[0];
   // 글꼴을 바닥까지 줄여도 안 들어가는 경우가 남는다 — 그때도 캔버스 밖으로는 안 내보낸다
   const spot = {
     x: Math.max(1, Math.min(picked.x, canvasW - boxW - 1)),

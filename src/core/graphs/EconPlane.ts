@@ -25,7 +25,8 @@ import { byStyle, labelPlace, type TextPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, drawFloatingLabel, nudgeInside, wrapToWidth } from '../canvas/fit';
 import { drawFloatingRich, fillRich, nudgeRichInside, richWidth } from '../canvas/subscript';
-import { drawInsideLegend, type LegendItem } from '../canvas/legend';
+import { drawInsideLegend, insideLegendSize, insideLegendSpot, cornerOrder, type LegendItem } from '../canvas/legend';
+import { recordingCtx } from '../canvas/avoid';
 
 /** 축이 자료 칸 바깥으로 내미는 길이(px). 화살촉이 이 끝에 붙는다 */
 const ARROW_EXT = 26;
@@ -37,6 +38,8 @@ const HEAD_HALF = 6;
 const LABEL_GAP = 13;
 /** 세로축 이름이 여러 줄일 때의 줄 간격 배율 */
 const NAME_LINE_H = 1.15;
+/** exam: 플롯 아래로 나간 범례 상자의 위아래 틈 (합) */
+const LEGEND_BELOW_GAP = 24;
 
 /**
  * 선 굵기·점 크기·점선 무늬.
@@ -235,6 +238,28 @@ function drawBreakMark(ctx: CanvasRenderingContext2D, x: number, y: number, vert
   ctx.restore();
 }
 
+/**
+ * 범례 상자를 어떻게 다루는가.
+ * - `inside` — 1.7.0 그대로: 플롯 안 모서리, 계열 꼭짓점·생략 기호만 피한다 (classic)
+ * - `skip`   — 그리지 않는다. 부르는 쪽이 다 그린 그림을 보고 빈 모서리를 고른다 (exam 첫 그림)
+ * - `below`  — 빈 모서리가 없다. 플롯 아래(가로축 숫자 밑)에 자리를 비워 거기 둔다 (exam)
+ */
+type LegendMode = { legend: 'inside' } | { legend: 'skip'; gridCtx: CanvasRenderingContext2D } | { legend: 'below'; boxH: number };
+
+/** 그림을 다 그린 뒤 범례를 놓는 데 필요한 것 */
+interface EconFrame {
+  plotX: number; plotY: number; plotW: number; plotH: number;
+  items: LegendItem[];
+  legendPx: number;
+  legendFont: string;
+}
+
+/**
+ * exam: 범례 상자는 곡선·점·이름·유도선을 덮지 않는다. 범례 없이 한 번 그리며 그은 것을
+ * 모으고(recordingCtx), 네 모서리를 1순위부터 대어 아무것도 안 덮는 첫 자리에 둔다.
+ * 빈 모서리가 없으면 플롯을 줄여 아래에 자리를 내고 다시 그린다.
+ * classic 과 범례 없는 그림은 1.7.0 그대로 한 번에 그린다.
+ */
 export function renderEconPlane(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -242,6 +267,38 @@ export function renderEconPlane(
   data: EconPlaneData,
   options: GraphOptions,
 ) {
+  const avoidContent = byStyle(options, { classic: false, exam: true });
+  if (!avoidContent || !data.legend || seriesOf(data).length === 0) {
+    drawEconPlane(ctx, w, h, data, options, { legend: 'inside' });
+    return;
+  }
+  const rec = recordingCtx(ctx);
+  // 격자는 장애물로 세지 않는다 — 범례 상자는 격자 위에 앉아도 된다
+  const f = drawEconPlane(rec.ctx, w, h, data, options, { legend: 'skip', gridCtx: ctx });
+  const tctx = textCtx(ctx, options);
+  const size = insideLegendSize(tctx, f.items, f.legendPx, f.legendFont, options, f.plotW);
+  const free = cornerOrder(data.legend)
+    .map((c) => insideLegendSpot(c, f.plotX, f.plotY, f.plotW, f.plotH, size.boxW, size.boxH))
+    .find((s) => rec.obstacles.hits({ left: s.x, right: s.x + size.boxW, top: s.y, bottom: s.y + size.boxH }) === 0);
+  if (free) {
+    drawInsideLegend({
+      ctx: tctx, items: f.items, corner: data.legend, at: free,
+      plotX: f.plotX, plotY: f.plotY, plotW: f.plotW, plotH: f.plotH, canvasW: w, canvasH: h,
+      fontSize: f.legendPx, font: f.legendFont, fonts: options,
+    });
+    return;
+  }
+  drawEconPlane(ctx, w, h, data, options, { legend: 'below', boxH: size.boxH });
+}
+
+function drawEconPlane(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  data: EconPlaneData,
+  options: GraphOptions,
+  mode: LegendMode,
+): EconFrame {
   // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
   ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
@@ -313,6 +370,8 @@ export function renderEconPlane(
     ),
     bottom: tickPx + 24 + bottomText,
   };
+  // 범례를 플롯 아래에 둘 자리 (가로축 숫자 밑)
+  if (mode.legend === 'below') padding.bottom += mode.boxH + LEGEND_BELOW_GAP;
 
   const plotX = padding.left;
   const plotY = padding.top;
@@ -334,27 +393,29 @@ export function renderEconPlane(
   if (data.grid) {
     const xEnd = data.xAxis.ticks.length > 0 ? toX(Math.max(...data.xAxis.ticks)) : plotX + plotW;
     const yEnd = data.yAxis.ticks.length > 0 ? toY(Math.max(...data.yAxis.ticks)) : plotY;
-    ctx.save();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = look.guide;
-    ctx.setLineDash(dash);
+    // 범례 자리를 고를 때는 격자를 장애물로 세지 않는다 — 기록하지 않는 ctx 에 긋는다
+    const g = mode.legend === 'skip' ? mode.gridCtx : ctx;
+    g.save();
+    g.strokeStyle = '#000';
+    g.lineWidth = look.guide;
+    g.setLineDash(dash);
     for (const v of data.xAxis.ticks) {
       if (v === 0) continue;
       const x = toX(v);
-      ctx.beginPath();
-      ctx.moveTo(x, axY);
-      ctx.lineTo(x, yEnd);
-      ctx.stroke();
+      g.beginPath();
+      g.moveTo(x, axY);
+      g.lineTo(x, yEnd);
+      g.stroke();
     }
     for (const v of data.yAxis.ticks) {
       if (v === 0) continue;
       const y = toY(v);
-      ctx.beginPath();
-      ctx.moveTo(axX, y);
-      ctx.lineTo(xEnd, y);
-      ctx.stroke();
+      g.beginPath();
+      g.moveTo(axX, y);
+      g.lineTo(xEnd, y);
+      g.stroke();
     }
-    ctx.restore();
+    g.restore();
   }
 
   // ── 유도선 ───────────────────────────────────────────────────────
@@ -679,25 +740,37 @@ export function renderEconPlane(
   // 실물의 상자는 축 화살촉 바깥 오른쪽 아래에 선다. 800×600 한 장에서는 그
   // 자리가 캔버스 밖이라, 플롯 **안쪽** 모서리에 놓는다 — 자료에 막히면
   // 나머지 세 모서리를 차례로 보는 공용 배치기를 그대로 쓴다.
-  if (data.legend && series.length > 0) {
-    const items: LegendItem[] = series.map((s) => ({
-      type: 'line',
-      fillStyle: '#000',
-      strokeStyle: '#000',
-      label: s.label,
-      dash: s.dashed ? look.thickDash : [],
-      lineWidth: look.legendLine,
-      marker: s.marker,
-      hollow: s.hollow,
-    }));
+  const items: LegendItem[] = series.map((s) => ({
+    type: 'line',
+    fillStyle: '#000',
+    strokeStyle: '#000',
+    label: s.label,
+    dash: s.dashed ? look.thickDash : [],
+    lineWidth: look.legendLine,
+    marker: s.marker,
+    hollow: s.hollow,
+  }));
+  const legendPx = textSize(options, 'legend', fs.axisLabel * 0.8);
+  const legendFont = textFont(options, 'legend', legendPx, { weight: 'normal', role: options.fontFamily ?? 'serif' });
+  if (data.legend && series.length > 0 && mode.legend === 'below') {
+    // 가로축 숫자 밑, 플롯 오른쪽 끝에 맞춘다. 네 사분면이면 아래 화살촉 밑이다
+    const size = insideLegendSize(ctx, items, legendPx, legendFont, options, plotW);
+    const top = Math.max(axY + 10 + tickPx, four ? plotY + plotH + ARROW_EXT : 0) + LEGEND_BELOW_GAP / 2;
+    drawInsideLegend({
+      ctx, items, corner: data.legend, at: { x: plotX + plotW - size.boxW, y: top },
+      plotX, plotY, plotW, plotH, canvasW: w, canvasH: h,
+      fontSize: legendPx, font: legendFont, fonts: options,
+    });
+  }
+  if (data.legend && series.length > 0 && mode.legend === 'inside') {
     drawInsideLegend({
       ctx,
       items,
       corner: data.legend,
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
-      fontSize: textSize(options, 'legend', fs.axisLabel * 0.8),
-      font: textFont(options, 'legend', textSize(options, 'legend', fs.axisLabel * 0.8), { weight: 'normal', role: options.fontFamily ?? 'serif' }),
+      fontSize: legendPx,
+      font: legendFont,
       fonts: options,
       // 기호가 상자에 덮이지 않게 꼭짓점 둘레를 피할 자리로 넘긴다
       avoid: [
@@ -724,4 +797,5 @@ export function renderEconPlane(
     fonts: options,
     canvasWidth: w,
   });
+  return { plotX, plotY, plotW, plotH, items, legendPx, legendFont };
 }

@@ -311,7 +311,7 @@ export function renderLineGraph(
   if (data.labelPlacement === 'lineEnd') {
     ctx.fillStyle = '#000';
     ctx.font = textFont(options, 'category', endSize);
-    const placer = new LabelPlacer();
+    const placer = new LabelPlacer(t.leader);
     const lineHeight = endSize * 1.1;
     const columnX = plotX + plotW + 10;
     const bounds = {

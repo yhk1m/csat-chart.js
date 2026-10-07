@@ -92,8 +92,12 @@ export interface StyleTokens {
     iconGap: number;
     /** 플롯 안 범례 사각 견본 = 글자 크기 × 이 값 (1.7.0 0.95) */
     insideSwatchRatio: number;
+    /** 사각 견본 테두리 (1.7.0 1px) */
+    swatchLine: number;
   };
   marker: { r: number; stroke: number };
+  /** 자리를 못 찾은 라벨을 점에 잇는 유도선 (LabelPlacer) */
+  leader: { color: string; width: number };
   seriesDash: Record<LineStyle, number[]>;
   /** 누적 채움 순서. 'pattern:<이름>' 은 패턴 */
   fills: string[];
@@ -164,8 +168,10 @@ export const classicStyle: StyleTokens = {
     lineIcon: 36,
     iconGap: 10,
     insideSwatchRatio: 0.95,
+    swatchLine: 1,
   },
   marker: { r: 4.5, stroke: 1.5 },
+  leader: { color: '#666', width: 0.8 },
   seriesDash: LINE_DASH,
   fills: [
     '#333', '#999', '#666', '#fff',
@@ -233,8 +239,10 @@ export const examStyle: StyleTokens = {
     lineIcon: 112,      // 23pt
     iconGap: 14,        // 1.9–3.7pt
     insideSwatchRatio: 0.86, // 6.2 / 7.2
+    swatchLine: 1.75,   // ≈ 막대 테두리 0.36pt
   },
   marker: { r: 6.8, stroke: 1.75 }, // 지름 2.8pt, 외곽 0.36pt
+  leader: { color: '#000', width: 1.45 }, // ≈ 격자·유도선 0.30pt
   seriesDash: {
     solid: [],
     dashed: [15, 6.8],             // 3.1/1.4pt

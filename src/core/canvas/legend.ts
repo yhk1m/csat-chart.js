@@ -2,7 +2,7 @@
 // 공통 범례 렌더링
 import { type LegendPosition, type InsideLegendCorner } from '../types/index';
 import { textFont, type FontOptions } from './renderer';
-import { styleOf } from './style';
+import { styleOf, type StyleTokens } from './style';
 
 export interface LegendItem {
   type: 'rect' | 'circle' | 'line';
@@ -126,7 +126,7 @@ export function drawInsideLegend({
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const cy = spot.y + 4 + rowH * (i + 0.5);
-    drawInsideIcon(ctx, item, spot.x + padX, cy, swatch);
+    drawInsideIcon(ctx, item, spot.x + padX, cy, swatch, styleOf(fonts));
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -141,7 +141,8 @@ function drawInsideIcon(
   item: LegendItem,
   x: number,
   cy: number,
-  size: number
+  size: number,
+  t: StyleTokens,
 ) {
   if (item.type === 'line') {
     const w = size * 2;
@@ -155,7 +156,7 @@ function drawInsideIcon(
     ctx.setLineDash([]);
 
     ctx.fillStyle = item.hollow ? '#fff' : item.fillStyle;
-    if (item.hollow) ctx.lineWidth = 1.5;
+    if (item.hollow) ctx.lineWidth = t.marker.stroke;
     const r = size * 0.3;
     if (item.marker === 'square') {
       ctx.fillRect(x + w / 2 - r, cy - r, r * 2, r * 2);
@@ -172,7 +173,7 @@ function drawInsideIcon(
   ctx.fillStyle = item.fillStyle;
   ctx.fillRect(x, cy - size / 2, size, size);
   ctx.strokeStyle = item.strokeStyle ?? '#000';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = t.legend.swatchLine;
   ctx.strokeRect(x, cy - size / 2, size, size);
 }
 
@@ -393,7 +394,7 @@ export function drawLegend({
       for (const { index, width } of row) {
         const item = items[index];
         const iSize = iconWidthOf(item);
-        drawIcon(ctx, item, cx, cy, iSize);
+        drawIcon(ctx, item, cx, cy, iSize, lg.swatchLine);
         ctx.font = textFont(fonts, 'legend', layout.fontSize);
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
@@ -428,7 +429,7 @@ export function drawLegend({
     for (const item of items) {
       const ix = boxX + padding;
       const iSize = iconWidthOf(item);
-      drawIcon(ctx, item, ix, cy, iSize);
+      drawIcon(ctx, item, ix, cy, iSize, lg.swatchLine);
       ctx.font = textFont(fonts, 'legend', fontSize);
       ctx.fillStyle = '#000';
       ctx.textAlign = 'left';
@@ -446,18 +447,19 @@ function drawIcon(
   item: LegendItem,
   x: number,
   cy: number,
-  size: number
+  size: number,
+  swatchLine: number,
 ) {
   if (item.type === 'rect') {
     ctx.fillStyle = item.fillStyle;
     ctx.fillRect(x, cy - size / 2, size, size);
     if (item.bordered) {
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = swatchLine;
       ctx.strokeRect(x, cy - size / 2, size, size);
     } else if (item.strokeStyle) {
       ctx.strokeStyle = item.strokeStyle;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = swatchLine;
       ctx.strokeRect(x, cy - size / 2, size, size);
     }
   } else if (item.type === 'circle') {

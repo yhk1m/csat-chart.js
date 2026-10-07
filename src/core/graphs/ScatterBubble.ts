@@ -510,7 +510,7 @@ function drawPoints(
 
   // 라벨이 서로/점과 겹치지 않게 자리를 잡는다.
   // 점을 먼저 전부 등록해야 라벨이 다른 점 위에 얹히지 않는다.
-  const placer = new LabelPlacer();
+  const placer = new LabelPlacer(styleOf(options).leader);
   if (bounds) {
     for (const pt of data.points) {
       const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : look.dotR;

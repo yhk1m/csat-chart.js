@@ -200,6 +200,12 @@ export interface LabelBox {
 /** 이미 자리를 차지한 영역들을 모아 두고 충돌을 판정한다 */
 export class LabelPlacer {
   private used: LabelBox[] = [];
+  private readonly leader: StyleTokens['leader'];
+
+  /** @param leader 자리를 못 찾았을 때 긋는 유도선 — `styleOf(options).leader` */
+  constructor(leader: StyleTokens['leader']) {
+    this.leader = leader;
+  }
 
   /** 점 자체도 자리를 차지한다 — 라벨이 점 위에 얹히지 않게 미리 등록한다 */
   reserve(box: LabelBox) {
@@ -313,8 +319,8 @@ export class LabelPlacer {
     this.used.push(box);
 
     ctx.save();
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = this.leader.color;
+    ctx.lineWidth = this.leader.width;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(far.x + w / 2, far.y + h / 2);

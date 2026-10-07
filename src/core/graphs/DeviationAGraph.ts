@@ -171,6 +171,12 @@ export function renderDeviationAGraph(
       ctx.stroke();
     }
   }
+  // exam: 글자가 커서 «10 11 12» 가 칸보다 넓으면 서로 붙는다 — 칸 폭에 맞춰 줄인다(바닥 0.7배)
+  if (byStyle(options, { classic: false, exam: true })) {
+    const makeTick = (size: number) => textFont(options, 'tick', size);
+    const labels = indices.slice(0, totalSlots).map((k) => MONTH_LABELS[k]);
+    ctx.font = makeTick(shrinkToWidth(ctx, labels, tickFs, slotW - 6, makeTick));
+  }
   for (let s = 0; s < totalSlots; s++) {
     const cx = plotX + slotW * s + slotW / 2;
     ctx.fillText(MONTH_LABELS[indices[s]], cx, monthY);

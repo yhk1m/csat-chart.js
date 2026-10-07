@@ -1,5 +1,5 @@
 // © 2026 김용현
-import { textFont, textSize, type FontOptions } from './renderer';
+import { currentMeasurer, textFont, textSize, type FontOptions } from './renderer';
 import { styleOf, type StyleTokens } from './style';
 import type { GraphOptions } from '../types/common';
 
@@ -119,14 +119,23 @@ export function drawSourceAndFootnote({
   // 출처가 줄의 절반을 넘게 차지하면 각주 자리가 남지 않는다 — 그때는 따로 한 줄
   ctx.font = textFont(fonts, 'source', srcSize);
   const inlineFits = !source || ctx.measureText(source).width + 16 <= available * 0.5;
-  const inlineSource = !!(sourceInline ?? t.sourceInline) && !!source && !sourceBelow && filtered.length > 0
+  const wantsInline = !!(sourceInline ?? t.sourceInline) && !!source && !sourceBelow && filtered.length > 0
     && inlineFits;
+  // exam: 마지막 각주와 출처가 제 크기로 한 줄에 안 들어가면 각주를 줄이지 않고 출처를 각주
+  // 아래 줄 오른쪽 끝으로 내린다 (sourceFootnoteReserve 가 같은 판정으로 한 줄을 비운다)
+  const sourceUnder = wantsInline && t.name === 'exam'
+    && !inlineLineFits(ctx, fonts, source, t.footnoteMark(filtered.length - 1) + filtered[filtered.length - 1],
+      srcSize, noteSize, available);
+  const inlineSource = wantsInline && !sourceUnder;
   const sourceH = (source || sourceLeft) && !inlineSource ? srcSize + 4 : 0;
-  let y = height - 6 - totalFootnoteH - (sourceBelow ? sourceH : 0);
+  let y = height - 6 - totalFootnoteH - (sourceBelow || sourceUnder ? sourceH : 0);
+  // 각주는 글자 아래끝(bottom)에 맞춰 찍으므로 묶음이 한 줄 높다 — 아래 출처 줄과의 사이가 빈 줄
+  // 하나만큼 벌어졌다(겹침 비교 stacked: 9.3pt ↔ 시험지 4.6pt). exam 은 그 한 줄을 내린다
+  if ((sourceBelow || sourceUnder) && t.name === 'exam' && filtered.length > 0) y += noteSize + 4;
 
   const sourceFont = (size: number) => textFont(fonts, 'source', size);
 
-  if (source && !sourceBelow && !inlineSource) {
+  if (source && !sourceBelow && !inlineSource && !sourceUnder) {
     ctx.fillStyle = t.ink.source;
     const size = fitFontSize(ctx, source, srcSize, available, sourceFont);
     ctx.font = sourceFont(size);
@@ -168,6 +177,15 @@ export function drawSourceAndFootnote({
     ctx.fillText(source, rightX, lastFootnoteY, inlineSourceW > 0 ? inlineSourceW : undefined);
   }
 
+  if (sourceUnder) {
+    ctx.fillStyle = t.ink.source;
+    const size = fitFontSize(ctx, source, srcSize, available, sourceFont);
+    ctx.font = sourceFont(size);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(source, rightX, height - 6, available > 0 ? available : undefined);
+  }
+
   // 각주 아래 출처 줄 — 왼쪽에 자료 연도, 오른쪽에 출처 기관
   if (sourceBelow) {
     const yearFont = (size: number) => textFont(fonts, 'year', size);
@@ -187,6 +205,20 @@ export function drawSourceAndFootnote({
   }
 
   ctx.restore();
+}
+
+/** 마지막 각주와 출처가 제 크기로 한 줄(사이 16px)에 들어가는가 */
+function inlineLineFits(
+  ctx: CanvasRenderingContext2D, fonts: LabelFonts, source: string, lastNote: string,
+  srcSize: number, noteSize: number, available: number,
+): boolean {
+  ctx.save();
+  ctx.font = textFont(fonts, 'source', srcSize);
+  const sw = ctx.measureText(source).width;
+  ctx.font = textFont(fonts, 'footnote', noteSize);
+  const nw = ctx.measureText(lastNote).width;
+  ctx.restore();
+  return nw + 16 + sw <= available;
 }
 
 /**
@@ -213,11 +245,26 @@ export function sourceFootnoteReserve(
   const srcLine = textSize(o, 'source', fontSize) + 8;
   const noteLine = textSize(o, 'footnote', fontSize * 0.9) + 4;
   const inline = !draws.sourceLeft && !!(draws.sourceInline ?? t.sourceInline) && notes > 0;
+  // 같은 줄에 안 들어가 출처가 각주 아래로 내려가는 경우 (drawSourceAndFootnote 의 sourceUnder).
+  // 렌더러는 출처·각주를 캔버스 좌우 끝(EDGE_MARGIN)까지 쓴다 — 그 폭으로 잰다
+  const { ctx, width } = currentMeasurer();
+  const filtered = o.footnotes.filter((f) => f.trim());
+  const avail = width - EDGE_MARGIN * 2;
+  let under = false;
+  if (inline && !!o.source && !!ctx && width > 0) {
+    ctx.save();
+    ctx.font = textFont(o, 'source', textSize(o, 'source', fontSize));
+    const half = ctx.measureText(o.source).width + 16 <= avail * 0.5;
+    ctx.restore();
+    under = !half || !inlineLineFits(ctx, o, o.source, t.footnoteMark(notes - 1) + filtered[notes - 1],
+      textSize(o, 'source', fontSize), textSize(o, 'footnote', fontSize * 0.9), avail);
+  }
   let b = 0;
   if (draws.sourceLeft) b += Math.max(srcLine, textSize(o, 'year', fontSize) + 8);
-  else if ((o.source && !inline) || (draws.reserveSource && notes === 0)) b += srcLine;
-  // 묶음 윗변은 바닥에서 6 + 줄 수 × 줄 높이 + 글자 높이 — 그 위로 4px 더 띄운다
-  if (notes > 0) b += (notes + 1) * noteLine + 6;
+  else if ((o.source && (!inline || under)) || (draws.reserveSource && notes === 0)) b += srcLine;
+  // 묶음 윗변은 바닥에서 6 + 줄 수 × 줄 높이 + 글자 높이 — 그 위로 4px 더 띄운다.
+  // 출처 줄이 각주 아래에 오면 각주 묶음을 한 줄 내려 그린다(drawSourceAndFootnote) — 그만큼 덜 비운다
+  if (notes > 0) b += (draws.sourceLeft || under ? notes : notes + 1) * noteLine + 6;
   return b;
 }
 

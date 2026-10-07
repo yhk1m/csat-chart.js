@@ -90,6 +90,13 @@ export function getFont(
 /** 잴 때 쓰는 기준 크기 — 비율만 남기므로 글꼴마다 한 번 잰다. 작은 크기는 높이가 정수 px 로 반올림돼(@napi-rs/canvas) 크게 잰다 */
 const DIGIT_REF_PX = 1000;
 let measurer: CanvasRenderingContext2D | null = null;
+/** 지금 그리는 그림의 논리 폭 — clearCanvas 가 건다 (배율을 건 캔버스의 canvas.width 와 다를 수 있다) */
+let measureWidth = 0;
+
+/** 지금 그리는 그림의 잴 ctx·논리 폭. 그리기 밖이면 ctx 가 null */
+export function currentMeasurer(): { ctx: CanvasRenderingContext2D | null; width: number } {
+  return { ctx: measurer, width: measureWidth };
+}
 /** `${weight} 1000px ${stack}` → 숫자 높이 / 크기. 0 = 잴 수 없음 */
 const digitRatio = new Map<string, number>();
 
@@ -180,6 +187,7 @@ export function textFont(o: FontOptions, place: TextPlace, size: number, legacy:
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {
   setFontMeasurer(ctx);
+  measureWidth = w;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, w, h);
 }

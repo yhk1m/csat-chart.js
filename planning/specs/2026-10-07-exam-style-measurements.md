@@ -397,3 +397,17 @@ Garamond 는 약 14% 작아 보인다. 작업 14 는 크기 보정을 하지 않
 → `EXAM_NUMERAL_STACK = "'Garamond', 'Times New Roman'"`. 사용자 검토(작업 28)에서 바뀔 수 있다.
 (계획의 «Windows 기본 1등 → 전체 1등 → Times» 규칙 대신 눈으로 본 순서를 따랐다 — Windows 기본
 1등 Palatino 는 넓고 굵어 빼고, Garamond 가 없는 PC 는 Times 로 넘어간다.)
+
+**한 글줄 안 글꼴 섞임 (2026-10-08, 작업 15).** 숫자 글꼴(한글 없음)을 앞에 둔 글꼴 목록이 글자마다
+다음 글꼴로 넘어가는지 — `(통계청)` = 세리프 괄호 + 고딕 한글.
+- @napi-rs/canvas 1.0.3(이 PC): ✔ — 30px `(통계청)` 폭 = 괄호(숫자 글꼴) + `통계청`(HYGothic-Medium).
+  Garamond 107.49 = 107.49, Times New Roman 109.98 = 109.98 (HY중고딕만 114.96).
+  `test/core/font-fallback.test.ts` 가 지킨다(두 글꼴이 없는 기계에서는 건너뛴다).
+- Chrome 154.0.8037.98 (헤드리스, `--disable-gpu`): ✔ — 40px `(2023 통계청)` 섞음 = 부분 합
+  (Garamond 218.72, Times 227.04, 고딕만 235.20).
+- Edge 154.0.4258.62 (헤드리스): ✔ — 값이 Chrome 과 같다.
+- Firefox: 이 PC 에 없음 — 확인 못 함.
+- 창을 띄운 브라우저에서 눈으로 보는 확인(첫 줄 괄호가 둘째 줄 괄호와 같은 꼴인가)은 사용자 몫 —
+  `planning/specs/exam-samples/_work/fallback.html`. 헤드리스 화면에서는 같은 꼴로 보였다.
+  같은 크기에서 Garamond 숫자가 한글보다 눈에 띄게 작다(위 «숫자 높이» 주의).
+→ 글자 단위 대체가 되므로 `fillMixed` 갈래(작업 15 Step 3)는 쓰지 않는다.

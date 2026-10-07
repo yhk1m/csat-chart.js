@@ -85,6 +85,12 @@ interface SourceFootnoteParams {
   canvasWidth?: number;
 }
 
+/**
+ * exam: 각주 묶음과 그 아래 출처 줄 사이에 빈 줄 대신 남기는 몫(px). 시험지 잉크 틈 4.6pt
+ * (2027_09 korgeo q14 각주 ↔ «(2024) … (행정안전부)») 에 맞춘 값.
+ */
+const BELOW_GAP = 16;
+
 /** 출처·각주를 캔버스 좌우 끝에서 얼마나 띄울지 */
 const EDGE_MARGIN = 10;
 
@@ -130,8 +136,8 @@ export function drawSourceAndFootnote({
   const sourceH = (source || sourceLeft) && !inlineSource ? srcSize + 4 : 0;
   let y = height - 6 - totalFootnoteH - (sourceBelow || sourceUnder ? sourceH : 0);
   // 각주는 글자 아래끝(bottom)에 맞춰 찍으므로 묶음이 한 줄 높다 — 아래 출처 줄과의 사이가 빈 줄
-  // 하나만큼 벌어졌다(겹침 비교 stacked: 9.3pt ↔ 시험지 4.6pt). exam 은 그 한 줄을 내린다
-  if ((sourceBelow || sourceUnder) && t.name === 'exam' && filtered.length > 0) y += noteSize + 4;
+  // 하나만큼 벌어졌다(겹침 비교 stacked: 9.3pt ↔ 시험지 4.6pt). exam 은 그 한 줄에서 BELOW_GAP 만 남긴다
+  if ((sourceBelow || sourceUnder) && t.name === 'exam' && filtered.length > 0) y += noteSize + 4 - BELOW_GAP;
 
   const sourceFont = (size: number) => textFont(fonts, 'source', size);
 
@@ -264,7 +270,7 @@ export function sourceFootnoteReserve(
   else if ((o.source && (!inline || under)) || (draws.reserveSource && notes === 0)) b += srcLine;
   // 묶음 윗변은 바닥에서 6 + 줄 수 × 줄 높이 + 글자 높이 — 그 위로 4px 더 띄운다.
   // 출처 줄이 각주 아래에 오면 각주 묶음을 한 줄 내려 그린다(drawSourceAndFootnote) — 그만큼 덜 비운다
-  if (notes > 0) b += (draws.sourceLeft || under ? notes : notes + 1) * noteLine + 6;
+  if (notes > 0) b += draws.sourceLeft || under ? notes * noteLine + 6 + BELOW_GAP : (notes + 1) * noteLine + 6;
   return b;
 }
 

@@ -134,6 +134,14 @@ describe('괄호 크기·자리', () => {
     expect(calls[0].font).toBe(`bold ${p}px 'PARENFONT'`);
   });
 
+  it('refScale — 숫자 자리처럼 키운 px 면 괄호는 요청 크기(px × refScale)의 한글에 맞춘다', () => {
+    const { ctx, calls } = fakeCtx();
+    fillMixed(ctx, '(2024)', 0, 0, PAREN, undefined, false, 0.8);
+    // 한글 = 28px 에서 위 22.4·아래 2.8 → 높이 25.2, 괄호 35px 높이 33.25
+    const size = parseFloat(/([\d.]+)px/.exec(calls[0].font)![1]);
+    expect(size).toBeCloseTo(35 * PAREN_HEIGHT * 25.2 / 33.25, 9);
+  });
+
   it('잉크 위·아래는 조각 중 가장 큰 것 (괄호는 옮긴 자리로)', () => {
     const { ctx } = fakeCtx();
     const m = measureMixed(ctx, '(가)', PAREN);

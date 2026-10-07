@@ -141,6 +141,22 @@ export function numeralSize(
   return r > 0 ? Math.round((size * target / r) * 100) / 100 : size;
 }
 
+/**
+ * numeralSize 의 거꾸로 — 숫자 높이 맞추기로 키운 px 에서 요청 크기를 되찾는다.
+ * 괄호(parens.ts)는 요청 크기의 한글에 맞춘다: 「(2024)」 의 괄호가 「(행정안전부)」 와 같은 크기여야 한다.
+ */
+export function numeralNominal(
+  px: number,
+  weight: string,
+  stack: string,
+  target: number | null,
+  ctx: CanvasRenderingContext2D,
+): number {
+  if (!target) return px;
+  const r = digitHeightRatio(ctx, weight, stack);
+  return r > 0 ? px * r / target : px;
+}
+
 /** 1.7.0 이 그 자리에서 쓰던 굵기·자리. classic 에서만 읽힌다. */
 export interface Legacy {
   weight?: 'bold' | 'normal';

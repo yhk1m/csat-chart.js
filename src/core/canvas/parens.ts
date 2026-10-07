@@ -11,7 +11,7 @@
 // 가고(폭을 재서 맞추고 가운데 두는 계산도 같은 폭을 본다), classic 이면 받은 ctx 그대로라
 // 1.7.0 그림이 한 픽셀도 달라지지 않는다.
 import { styleOf } from './style';
-import { parenStackOf, type FontOptions } from './renderer';
+import { fontStackOf, numeralNominal, parenStackOf, type FontOptions } from './renderer';
 
 /** 괄호 잉크 높이 / 한글 잉크 높이 — 시험지 `(천만 명)` 실측 53/51px */
 export const PAREN_HEIGHT = 1.04;
@@ -66,9 +66,9 @@ function inkOf(ctx: CanvasRenderingContext2D, ch: string): { up: number; down: n
  * 크기 앞부분(굵기·기울임)은 괄호에도 그대로 붙인다. 잉크를 못 재는 ctx 에서는 같은
  * 크기·옮김 0.
  */
-function parenFit(ctx: CanvasRenderingContext2D, stack: string): ParenFit {
+function parenFit(ctx: CanvasRenderingContext2D, stack: string, refScale = 1): ParenFit {
   const main = ctx.font;
-  const key = `${main}|${ctx.textBaseline}|${stack}`;
+  const key = `${main}|${ctx.textBaseline}|${stack}|${refScale}`;
   let fit = fitCache.get(key);
   if (fit) return fit;
   const m = /^(.*?)(\d+(?:\.\d+)?)px\b/.exec(main);
@@ -76,6 +76,8 @@ function parenFit(ctx: CanvasRenderingContext2D, stack: string): ParenFit {
   const px = m ? parseFloat(m[2]) : 16;
   const fontAt = (size: number) => `${prefix}${size}px ${stack}`;
 
+  // 견줄 한글 — refScale 이 1 이 아니면(숫자 자리: 숫자 높이로 키운 px) 요청 크기에서 잰다
+  if (refScale !== 1 && m) ctx.font = main.replace(m[0], `${prefix}${px * refScale}px`);
   const hangul = inkOf(ctx, REF_HANGUL);
   ctx.font = fontAt(px);
   const paren0 = inkOf(ctx, REF_PAREN);
@@ -101,10 +103,10 @@ interface Placed extends Run {
 }
 
 /** 조각마다 폭을 재서 왼쪽부터 놓는다. ctx.font 는 원래대로 돌려놓는다. */
-function layout(ctx: CanvasRenderingContext2D, text: string, stack: string): { runs: Placed[]; width: number; fit: ParenFit } {
+function layout(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1): { runs: Placed[]; width: number; fit: ParenFit } {
   const main = ctx.font;
   const align = ctx.textAlign;
-  const fit = parenFit(ctx, stack);
+  const fit = parenFit(ctx, stack, refScale);
   ctx.textAlign = 'left';
   let x = 0;
   const runs: Placed[] = [];
@@ -130,9 +132,9 @@ function alignOffset(align: CanvasTextAlign, width: number): number {
  * `measureText` 와 같은 꼴의 값 — 폭은 조각 폭의 합, 잉크는 조각 잉크를 모은 것
  * (괄호는 옮긴 자리로). 괄호가 없으면 ctx.measureText 그대로.
  */
-export function measureMixed(ctx: CanvasRenderingContext2D, text: string, stack: string): TextMetrics {
+export function measureMixed(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1): TextMetrics {
   if (!hasParen(text)) return ctx.measureText(text);
-  const { runs, width, fit } = layout(ctx, text, stack);
+  const { runs, width, fit } = layout(ctx, text, stack, refScale);
   const a = alignOffset(ctx.textAlign, width);
   let left = Infinity;
   let right = -Infinity;
@@ -171,6 +173,7 @@ export function fillMixed(
   stack: string,
   maxWidth?: number,
   stroke = false,
+  refScale = 1,
 ): void {
   const draw = (t: string, dx: number, dy: number, mw?: number) => {
     if (stroke) {
@@ -183,7 +186,7 @@ export function fillMixed(
     draw(text, x, y, maxWidth);
     return;
   }
-  const { runs, width, fit } = layout(ctx, text, stack);
+  const { runs, width, fit } = layout(ctx, text, stack, refScale);
   const squeeze = maxWidth !== undefined && maxWidth > 0 && width > maxWidth ? maxWidth / width : 1;
   const start = x - alignOffset(ctx.textAlign, width * squeeze);
   const main = ctx.font;
@@ -211,20 +214,31 @@ export function fillMixed(
 export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRenderingContext2D {
   if (!styleOf(o).separateParens) return ctx;
   const stack = parenStackOf(o);
+  const numeral = fontStackOf(o, 'numeral');
+  const target = styleOf(o).digitHeight;
+  // 렌더러가 건 글꼴 문자열 그대로 — 캔버스가 ctx.font 를 고쳐 쓰므로(따옴표 등) 여기서 기억한다.
+  // 숫자 자리(숫자 높이로 키운 px)면 괄호는 요청 크기의 한글에 맞춘다
+  let refScale = 1;
   return new Proxy(ctx, {
-    get(target, prop) {
+    get(target_, prop) {
       if (prop === 'fillText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target, String(t), x, y, stack, mw);
+        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, false, refScale);
       }
       if (prop === 'strokeText') {
-        return (t: string, x: number, y: number, mw?: number) => fillMixed(target, String(t), x, y, stack, mw, true);
+        return (t: string, x: number, y: number, mw?: number) => fillMixed(target_, String(t), x, y, stack, mw, true, refScale);
       }
-      if (prop === 'measureText') return (t: string) => measureMixed(target, String(t), stack);
-      const v = Reflect.get(target, prop, target);
-      return typeof v === 'function' ? v.bind(target) : v;
+      if (prop === 'measureText') return (t: string) => measureMixed(target_, String(t), stack, refScale);
+      const v = Reflect.get(target_, prop, target_);
+      return typeof v === 'function' ? v.bind(target_) : v;
     },
-    set(target, prop, value) {
-      return Reflect.set(target, prop, value, target);
+    set(target_, prop, value) {
+      if (prop === 'font' && typeof value === 'string') {
+        const m = /^(.*?)\s*(\d+(?:\.\d+)?)px (.*)$/.exec(value);
+        refScale = m && m[3] === numeral && target
+          ? numeralNominal(parseFloat(m[2]), m[1] || 'normal', numeral, target, target_) / parseFloat(m[2])
+          : 1;
+      }
+      return Reflect.set(target_, prop, value, target_);
     },
   });
 }

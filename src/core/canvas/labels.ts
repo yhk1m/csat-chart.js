@@ -146,11 +146,14 @@ export function drawSourceAndFootnote({
     const text = t.footnoteMark(i) + filtered[i];
     ctx.fillStyle = t.ink.footnote;
     const makeFont = (size: number) => textFont(fonts, 'footnote', size);
-    const size = fitFontSize(ctx, text, noteSize, footnoteAvailable, makeFont);
+    // 같은 줄 출처는 마지막 각주 줄에만 놓인다 — exam 은 그 앞 줄들에 온 폭을 준다
+    // (classic 은 1.7.0 그대로 모든 줄을 좁힌다)
+    const room = t.name === 'exam' && i < filtered.length - 1 ? available : footnoteAvailable;
+    const size = fitFontSize(ctx, text, noteSize, room, makeFont);
     ctx.font = makeFont(size);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(text, leftX, y, footnoteAvailable > 0 ? footnoteAvailable : undefined);
+    ctx.fillText(text, leftX, y, room > 0 ? room : undefined);
     lastFootnoteY = y;
     y += noteSize + 4;
   }

@@ -316,9 +316,13 @@ export function byStyle<T>(o: { style?: StyleName }, table: Record<StyleName, T>
   return table[styleOf(o).name];
 }
 
-/** 축에서 눈금 숫자까지 — 눈금 길이 + 6px 띄움 */
-export function tickLabelGap(t: StyleTokens): number {
-  return t.line.tickLen + 6;
+/**
+ * 축에서 눈금 숫자까지 — 축 바깥으로 뻗은 눈금 길이 + 6px 띄움.
+ * 안쪽·없음은 바깥으로 뻗지 않고, 가로지름은 절반만 뻗는다.
+ */
+export function tickLabelGap(t: StyleTokens, dir: TickDir = 'out'): number {
+  const reach = dir === 'out' ? t.line.tickLen : dir === 'cross' ? t.line.tickLen / 2 : 0;
+  return reach + 6;
 }
 
 /**

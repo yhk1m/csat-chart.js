@@ -1,6 +1,6 @@
 // © 2026 김용현
 import { type Padding, type FontOptions, textFont, textSize } from './renderer';
-import { styleOf, tickLabelGap } from './style';
+import { styleOf, tickLabelGap, type TickDir } from './style';
 import type { GraphOptions } from '../types/common';
 import { labelStride, widestLabel } from './labels';
 import { EDGE, nudgeInside, shrinkToWidth } from './fit';
@@ -27,11 +27,17 @@ interface YAxisParams extends AxisOptions {
   gridColor?: string;
   /** 격자선 굵기(px) — 미지정이면 양식의 격자 굵기 (classic 0.5) */
   gridWidth?: number;
+  /** 눈금 표시 방향 — 미지정이면 바깥(1.7.0). 렌더러는 tickDirOf 로 정해 넘긴다 */
+  tickDir?: TickDir;
+  /** 눈금 숫자에 부호를 붙인다 (+4 · −4) — 범주 점 그래프 시험지 꼴 */
+  signed?: boolean;
 }
 
 interface XAxisParams extends AxisOptions {
   labels: string[];
   indices?: number[];
+  /** 눈금 표시 방향 — 미지정이면 바깥(1.7.0) */
+  tickDir?: TickDir;
 }
 
 const plotArea = (p: Padding, w: number, h: number) => ({
@@ -48,11 +54,13 @@ export function drawYAxis({
   drawGrid = false,
   gridColor,
   gridWidth,
+  tickDir = 'out',
+  signed = false,
 }: YAxisParams) {
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
   const tickLen = t.line.tickLen;
-  const tickGap = tickLabelGap(t);
+  const tickGap = tickLabelGap(t, tickDir);
   const x = side === 'left' ? plot.x : plot.x + plot.w;
 
   ctx.strokeStyle = '#000';
@@ -83,17 +91,21 @@ export function drawYAxis({
     const val = ticks[i];
     const y = plot.y + plot.h - ((val - min) / (max - min)) * plot.h;
 
-    // 눈금 선
-    ctx.lineWidth = t.line.tick;
-    ctx.beginPath();
-    if (side === 'left') {
-      ctx.moveTo(x - tickLen, y);
-      ctx.lineTo(x, y);
-    } else {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + tickLen, y);
+    // 눈금 선 — 바깥은 1.7.0 과 같은 순서로 긋는다(classic 바이트)
+    if (tickDir !== 'none') {
+      ctx.lineWidth = t.line.tick;
+      ctx.beginPath();
+      if (tickDir === 'out') {
+        if (side === 'left') { ctx.moveTo(x - tickLen, y); ctx.lineTo(x, y); }
+        else { ctx.moveTo(x, y); ctx.lineTo(x + tickLen, y); }
+      } else if (tickDir === 'in') {
+        const s = side === 'left' ? 1 : -1;
+        ctx.moveTo(x, y); ctx.lineTo(x + s * tickLen, y);
+      } else {
+        ctx.moveTo(x - tickLen / 2, y); ctx.lineTo(x + tickLen / 2, y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
 
     // 격자선
     if (drawGrid && i > 0 && i < ticks.length - 1) {
@@ -111,7 +123,7 @@ export function drawYAxis({
     // 숫자 — 서로 붙으면 몇 개 걸러 그린다 (눈금선은 그대로)
     if (i % stride === 0) {
       const tx = side === 'left' ? x - tickGap : x + tickGap;
-      ctx.fillText(formatTick(val), tx, y);
+      ctx.fillText(signed ? signedTick(val) : formatTick(val), tx, y);
     }
   }
 
@@ -141,6 +153,7 @@ export function drawXAxis({
   ctx, padding, width, height,
   labels, indices,
   fonts, tickFontSize,
+  tickDir = 'out',
 }: XAxisParams) {
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
@@ -169,14 +182,18 @@ export function drawXAxis({
     const cx = plot.x + slotWidth * i + slotWidth / 2;
 
     // 눈금선
-    ctx.lineWidth = t.line.tick;
-    ctx.beginPath();
-    ctx.moveTo(cx, y);
-    ctx.lineTo(cx, y + t.line.tickLen);
-    ctx.stroke();
+    if (tickDir !== 'none') {
+      const L = t.line.tickLen;
+      ctx.lineWidth = t.line.tick;
+      ctx.beginPath();
+      if (tickDir === 'out') { ctx.moveTo(cx, y); ctx.lineTo(cx, y + L); }
+      else if (tickDir === 'in') { ctx.moveTo(cx, y); ctx.lineTo(cx, y - L); }
+      else { ctx.moveTo(cx, y - L / 2); ctx.lineTo(cx, y + L / 2); }
+      ctx.stroke();
+    }
 
     // 라벨
-    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + tickLabelGap(t));
+    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + tickLabelGap(t, tickDir));
     shown++;
   }
 }
@@ -184,4 +201,10 @@ export function drawXAxis({
 function formatTick(val: number): string {
   if (Number.isInteger(val)) return val.toString();
   return val.toFixed(1);
+}
+
+/** +4 · 0 · −4 (빼기는 U+2212 — 시험지 꼴) */
+function signedTick(val: number): string {
+  const s = formatTick(Math.abs(val));
+  return val > 0 ? `+${s}` : val < 0 ? `−${s}` : s;
 }

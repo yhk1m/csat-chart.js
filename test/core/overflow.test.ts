@@ -16,16 +16,18 @@
 // 재는 시점의 `getTransform()` 으로 네 모서리를 옮겨 감싸는 상자를 만든다.
 //
 // 케이스는 80가지(17종 + 갈래가 둘인 셋 × 두 자료 × 두 범례 위치) × 두 글꼴
-// 폭이다. 글꼴 폭은
+// 폭 × 두 양식(classic·exam)이다. exam 은 글자가 35% 쯤 크다. 글꼴 폭은
 // `FONT_WIDTHS` 를 보라 — 기계마다 다른 대체 글꼴 때문에 여기서만 통과하는 일이
 // 없게 «넓은 글꼴» 을 흉내 내어 한 번 더 돈다.
 //
 // 진단표: `OVERFLOW_REPORT=경로.txt npx vitest run test/core/overflow.test.ts`
-//         (`OVERFLOW_FONT_SCALE=1.25` 를 함께 주면 넓은 글꼴로 잰다)
+//         (`OVERFLOW_FONT_SCALE=1.25` 를 함께 주면 넓은 글꼴로, `OVERFLOW_STYLE=classic`
+//          을 주면 classic 으로 잰다 — 기본은 exam)
 import { describe, it, vi, expect } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync } from 'node:fs';
 import { CASES_A, CASES_B, type ProbeCase } from './overflow-cases';
+import { createDefaultGraphOptions, type StyleName } from '../../src/core/index';
 
 /** drawLegend/drawInsideLegend 안에서 일어난 그리기인지 표시하는 깃발 */
 const flag = vi.hoisted(() => ({
@@ -260,13 +262,15 @@ function widenFont(ctx: CanvasRenderingContext2D, scale: number) {
   };
 }
 
-function run(c: ProbeCase, fontScale = 1) {
+function run(c: ProbeCase, fontScale = 1, style: StyleName = 'exam') {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
   const hits: Hit[] = [];
   widenFont(ctx, fontScale);
   instrument(ctx, hits);
-  c.render(ctx, W, H, c.data() as never, c.options());
+  // 글자 크기는 양식의 기본값 — 케이스는 fontSize 를 따로 주지 않는다
+  const opts = { ...c.options(), style, fontSize: createDefaultGraphOptions(style).fontSize };
+  c.render(ctx, W, H, c.data() as never, opts);
   return hits;
 }
 
@@ -307,7 +311,8 @@ describe('넘침', () => {
     it('진단표', () => {
       const rows: string[] = [];
       for (const c of all) {
-        const hits = run(c, Number(process.env.OVERFLOW_FONT_SCALE ?? 1));
+        const hits = run(c, Number(process.env.OVERFLOW_FONT_SCALE ?? 1),
+          (process.env.OVERFLOW_STYLE as StyleName | undefined) ?? 'exam');
         const legendHits = hits.filter((x) => x.legend);
         const texts = hits.filter(isText);
         const bad = textOverflows(hits);
@@ -342,18 +347,20 @@ describe('넘침', () => {
   const withFonts = all.flatMap((c) =>
     FONT_WIDTHS.map(([fontName, scale]) => [`${c.name} · ${fontName}`, c, scale] as const));
 
-  it.each(withFonts)('%s — 범례가 캔버스를 넘지 않는다', (_name, c, scale) => {
-    const hits = run(c, scale);
-    const { max, acc } = legendCanvasOverflow(hits);
-    expect(max, `범례가 캔버스를 벗어났습니다 — ${dirs(acc)}`).toBeLessThanOrEqual(EPS);
-  });
+  describe.each(['classic', 'exam'] as const)('%s', (style) => {
+    it.each(withFonts)('%s — 범례가 캔버스를 넘지 않는다', (_name, c, scale) => {
+      const hits = run(c, scale, style);
+      const { max, acc } = legendCanvasOverflow(hits);
+      expect(max, `범례가 캔버스를 벗어났습니다 — ${dirs(acc)}`).toBeLessThanOrEqual(EPS);
+    });
 
-  // 범례든 축 이름이든 눈금 숫자든, **읽히지 않는 글자**를 그리는 것은 언제나
-  // 결함이다. 그래서 종류를 가리지 않고 글자 전부에 같은 잣대를 댄다.
-  it.each(withFonts)('%s — 글자가 캔버스를 넘지 않는다', (_name, c, scale) => {
-    const hits = run(c, scale);
-    const bad = textOverflows(hits);
-    const why = bad.map(({ hit, o }) => `«${hit.text}» (${hit.where}) ${dirs(o)}`).join('\n  ');
-    expect(bad.length, `글자가 캔버스를 벗어났습니다 —\n  ${why}`).toBe(0);
+    // 범례든 축 이름이든 눈금 숫자든, **읽히지 않는 글자**를 그리는 것은 언제나
+    // 결함이다. 그래서 종류를 가리지 않고 글자 전부에 같은 잣대를 댄다.
+    it.each(withFonts)('%s — 글자가 캔버스를 넘지 않는다', (_name, c, scale) => {
+      const hits = run(c, scale, style);
+      const bad = textOverflows(hits);
+      const why = bad.map(({ hit, o }) => `«${hit.text}» (${hit.where}) ${dirs(o)}`).join('\n  ');
+      expect(bad.length, `글자가 캔버스를 벗어났습니다 —\n  ${why}`).toBe(0);
+    });
   });
 });

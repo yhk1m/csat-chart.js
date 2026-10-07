@@ -79,6 +79,21 @@ class Numerals(unittest.TestCase):
         m = np.zeros((50, 50), dtype=bool); m[5:25, 5:15] = True
         self.assertAlmostEqual(aspect(m), 0.5)
 
+import tempfile
+from pathlib import Path as _P
+from compare import goldens_for
+
+
+class Compare(unittest.TestCase):
+    def test_goldens_for_matches_type_prefix(self):
+        with tempfile.TemporaryDirectory() as d:
+            snap = _P(d)
+            for n in ("absbar.png", "absbarStacked.png", "deviationA.png", "deviationAExam.png", "deviationB.png"):
+                (snap / n).write_bytes(b"")
+            self.assertEqual([p.name for p in goldens_for("absbar", snap)], ["absbar.png", "absbarStacked.png"])
+            self.assertEqual([p.name for p in goldens_for("deviation-a", snap)], ["deviationA.png", "deviationAExam.png"])
+            self.assertEqual(goldens_for("cube", snap), [])
+
 
 if __name__ == "__main__":
     unittest.main()

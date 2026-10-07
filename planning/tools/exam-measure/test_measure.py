@@ -97,3 +97,25 @@ class Compare(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from overlay import axis_frame
+
+
+class Overlay(unittest.TestCase):
+    def test_axis_frame_skips_long_box_edge(self):
+        a = blank(260, 300)
+        a[150:153, 40:260] = 0      # 가로축
+        a[20:153, 40:43] = 0        # 세로축
+        a[220, 40:260] = 0          # 범례 상자 아랫변 — 길이가 같다
+        a[200:221, 40] = 0          # 범례 상자 왼변 (짧다)
+        self.assertEqual(axis_frame(a)[3], 152)
+
+    def test_axis_frame_finds_l_shape(self):
+        a = blank(200, 300)
+        a[150:153, 40:260] = 0      # 가로축 (y 150~152)
+        a[20:153, 40:43] = 0        # 세로축 (x 40~42)
+        x0, x1, y_top, y_base = axis_frame(a)
+        self.assertEqual((x0, x1), (40, 259))
+        self.assertEqual(y_base, 152)   # 가로축 맨 아래 줄
+        self.assertEqual(y_top, 20)

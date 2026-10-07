@@ -28,7 +28,8 @@ const MARKERS: MarkerType[] = ['filledCircle', 'filledSquare', 'filledTriangle',
 const EXAM_DASHDOT_SHORT = [24.3, 4.1, 4.9, 4.1];
 const LOOK = {
   classic: { tickW: 1, markerR: 5, haloR: 7, iconGap: 8 },
-  exam: { tickW: 1.9, markerR: 6.8, haloR: 8.8, iconGap: 14 }, // 꺾은선 기호(§3 #32)·눈금(#24)
+  // 꺾은선 기호(§3 #32)·눈금(#24). haloR ≈ — 기호 + 2px (하이서그래프 표본 없음)
+  exam: { tickW: 1.9, markerR: 6.8, haloR: 8.8, iconGap: 14 },
 };
 
 function drawMarker(

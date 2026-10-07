@@ -265,10 +265,10 @@ export const examStyle: StyleTokens = {
     lineIcon: 112,      // 23pt
     iconGap: 14,        // 1.9–3.7pt
     insideSwatchRatio: 0.86, // 6.2 / 7.2
-    swatchLine: 1.75,   // ≈ 막대 테두리 0.36pt
+    swatchLine: 1.75,   // ≈ 막대 테두리 0.36pt 를 따랐다 (견본 테두리는 잰 적 없음)
   },
   marker: { r: 6.8, stroke: 1.75 }, // 지름 2.8pt, 외곽 0.36pt
-  leader: { color: '#000', width: 1.45 }, // ≈ 격자·유도선 0.30pt
+  leader: { color: '#000', width: 1.45 }, // ≈0.3pt 검정 (실측 §2 line «짧은 유도선 0.3 쯤»)
   seriesDash: {
     solid: [],
     dashed: [15, 6.8],             // 3.1/1.4pt

@@ -66,6 +66,7 @@ const LOOK = {
     breakW: 1.9,      // ≈
     legendLine: 4.0,
     thickDash: [15, 6.8], // ≈ 꺾은선 점선 3.1/1.4pt
+    // dotted ≈ — classic 값 그대로 (짧은 점선은 표본에서 잰 적 없음)
     dash: { dashed: [7.6, 4.7], dotted: [1.5, 4] } as Record<'dashed' | 'dotted', number[]>,
   },
 };

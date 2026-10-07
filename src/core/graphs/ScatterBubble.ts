@@ -124,11 +124,11 @@ function renderNormal(
   const toCanvasY = (v: number) => plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
   // 격자선 — 시험지 틀이면 진한 점선이다
-  const exam = data.examFrame === true;
+  const examFrame = data.examFrame === true;
   ctx.save();
-  ctx.strokeStyle = exam ? look.frameGrid.color : t.line.barGridColor;
-  ctx.lineWidth = exam ? look.frameGrid.width : t.line.barGrid;
-  ctx.setLineDash(exam ? look.frameGrid.dash : t.line.barGridDash);
+  ctx.strokeStyle = examFrame ? look.frameGrid.color : t.line.barGridColor;
+  ctx.lineWidth = examFrame ? look.frameGrid.width : t.line.barGrid;
+  ctx.setLineDash(examFrame ? look.frameGrid.dash : t.line.barGridDash);
   for (let v = xMin + xStep; v < xMax; v += xStep) {
     const x = toCanvasX(v);
     ctx.beginPath();
@@ -148,7 +148,7 @@ function renderNormal(
   // 축선 — 시험지 틀이면 사각 테두리로 감싼다
   ctx.strokeStyle = '#000';
   ctx.lineWidth = t.line.axis;
-  if (exam) {
+  if (examFrame) {
     ctx.strokeRect(plotX, plotY, plotW, plotH);
   } else {
     ctx.beginPath();
@@ -220,7 +220,7 @@ function renderNormal(
   // X축 단위 — 시험지 틀이면 마지막 눈금 옆(`4(℃)` 꼴),
   // 아니면 기존대로 축 이름과 같은 줄 오른쪽 끝
   if (data.xUnit) {
-    if (exam) {
+    if (examFrame) {
       ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.tick));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';

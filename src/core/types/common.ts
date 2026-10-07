@@ -43,8 +43,11 @@ export type LegendPosition = 'bottom' | 'right';
 /** 플롯 안쪽 범례를 놓을 모서리 */
 export type InsideLegendCorner = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
 
-/** 글꼴 자리. 시험지는 명조 자리와 고딕 자리가 갈린다. */
-export type FontRole = 'serif' | 'sans' | 'custom';
+/**
+ * 글꼴 자리. 시험지는 명조·고딕 자리가 갈리고, 숫자·라틴 문자는 따로 세리프다.
+ * - `numeral` — 눈금 숫자·연도·자료값·라틴 기호 `A`·`S₁` (2.0.0)
+ */
+export type FontRole = 'serif' | 'sans' | 'numeral' | 'custom';
 
 /**
  * 그림 양식.
@@ -78,6 +81,12 @@ export interface FontStack {
   serif?: string;
   /** 고딕 자리 — 제목·출처·각주·범례. 기본 `'Noto Sans KR', sans-serif` */
   sans?: string;
+  /**
+   * 숫자 자리 — 눈금·연도·자료값·라틴 기호. 한글이 **없는** 세리프 글꼴을 준다.
+   * 이 글꼴은 명조·고딕 기본 순서 앞에도 붙어, 한 글줄 안에서 숫자·괄호만
+   * 이 글꼴로, 한글은 뒤 글꼴로 그려진다. 기본은 양식이 정한다(classic 없음).
+   */
+  numeral?: string;
 }
 
 // 공통 그래프 옵션

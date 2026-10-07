@@ -3,8 +3,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   classicStyle, examStyle, styleOf, byStyle, tickDirOf, labelPlace, type TextPlace,
+  DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK, EXAM_SERIF_STACK, EXAM_SANS_STACK, EXAM_NUMERAL_STACK,
 } from '../../src/core/canvas/style';
-import { getFont, sansFont, textFont, textSize } from '../../src/core/canvas/renderer';
+import { getFont, sansFont, textFont, textSize, fontStackOf } from '../../src/core/canvas/renderer';
 import { createDefaultGraphOptions } from '../../src/core/index';
 
 const AXIS_PLACES: TextPlace[] = ['tick', 'unit', 'axisName', 'axisNameV', 'category', 'region', 'symbol', 'value'];
@@ -124,5 +125,50 @@ describe('byStyle·tickDirOf', () => {
   it('tickDirection 을 주면 양식과 상관없이 두 축 모두 그쪽', () => {
     expect(tickDirOf({ style: 'exam', tickDirection: 'out' }, { x: 'in', y: 'none' })).toEqual({ x: 'out', y: 'out' });
     expect(tickDirOf({ style: 'classic', tickDirection: 'in' }, { x: 'out', y: 'out' })).toEqual({ x: 'in', y: 'in' });
+  });
+});
+
+describe('글꼴 순서', () => {
+  it('classic 은 1.7.0 그대로 — 숫자 글꼴을 붙이지 않는다', () => {
+    expect(fontStackOf({ style: 'classic' }, 'serif')).toBe(DEFAULT_SERIF_STACK);
+    expect(fontStackOf({ style: 'classic' }, 'sans')).toBe(DEFAULT_SANS_STACK);
+    expect(fontStackOf({ style: 'classic' }, 'numeral')).toBe(DEFAULT_SERIF_STACK);
+  });
+
+  it('exam 은 숫자 글꼴을 앞에 둔다 — 숫자·괄호는 세리프, 한글은 뒤 글꼴', () => {
+    expect(fontStackOf({ style: 'exam' }, 'numeral')).toBe(`${EXAM_NUMERAL_STACK}, ${EXAM_SERIF_STACK}`);
+    expect(fontStackOf({ style: 'exam' }, 'serif')).toBe(`${EXAM_NUMERAL_STACK}, ${EXAM_SERIF_STACK}`);
+    expect(fontStackOf({ style: 'exam' }, 'sans')).toBe(`${EXAM_NUMERAL_STACK}, ${EXAM_SANS_STACK}`);
+  });
+
+  it('시험지 고딕 1순위는 HY중고딕, 명조는 신명 별칭 다음 HY신명조', () => {
+    expect(EXAM_SANS_STACK.startsWith("'HY중고딕', 'HYGothic-Medium'")).toBe(true);
+    expect(EXAM_SANS_STACK.endsWith("'Noto Sans KR', sans-serif")).toBe(true);
+    expect(EXAM_SERIF_STACK).toContain("'HY신명조', 'HYSinMyeongJo-Medium', 'Noto Serif KR', serif");
+  });
+
+  it('숫자 글꼴 목록에 Noto 가 없다 — 사용자가 두 자리를 다 주면 Noto 가 한 번도 안 쓰여야 한다', () => {
+    expect(EXAM_NUMERAL_STACK).not.toContain('Noto');
+  });
+
+  it('자리를 직접 준 사람의 글꼴에는 숫자 글꼴을 붙이지 않는다', () => {
+    expect(fontStackOf({ style: 'exam', fontStack: { sans: "'내고딕'" } }, 'sans')).toBe("'내고딕'");
+    expect(fontStackOf({ style: 'exam', fontStack: { serif: "'내명조'" } }, 'serif')).toBe("'내명조'");
+    // 숫자 자리는 직접 준 명조를 뒤에 둔다
+    expect(fontStackOf({ style: 'exam', fontStack: { serif: "'내명조'" } }, 'numeral'))
+      .toBe(`${EXAM_NUMERAL_STACK}, '내명조'`);
+  });
+
+  it('숫자 글꼴을 직접 주면 그것이 기본 명조·고딕 앞에 선다', () => {
+    const o = { style: 'exam' as const, fontStack: { numeral: "'내숫자'" } };
+    expect(fontStackOf(o, 'sans')).toBe(`'내숫자', ${EXAM_SANS_STACK}`);
+    expect(fontStackOf(o, 'numeral')).toBe(`'내숫자', ${EXAM_SERIF_STACK}`);
+  });
+
+  it('exam 눈금·기호·자료값·연도는 숫자 자리', () => {
+    const o = { ...createDefaultGraphOptions(), style: 'exam' as const };
+    for (const place of ['tick', 'symbol', 'value', 'year'] as const) {
+      expect(textFont(o, place, 30)).toBe(`normal 30px ${EXAM_NUMERAL_STACK}, ${EXAM_SERIF_STACK}`);
+    }
   });
 });

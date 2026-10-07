@@ -27,7 +27,10 @@ export {
   DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK,
 } from './canvas/renderer';
 export type { Padding, CanvasSize, FontOptions, Legacy } from './canvas/renderer';
-export { classicStyle, examStyle, styleOf, byStyle, tickDirOf, labelPlace } from './canvas/style';
+export {
+  classicStyle, examStyle, styleOf, byStyle, tickDirOf, labelPlace,
+  EXAM_SERIF_STACK, EXAM_SANS_STACK, EXAM_NUMERAL_STACK,
+} from './canvas/style';
 export type { StyleTokens, TextPlace, TickDir } from './canvas/style';
 
 // ── 타입 및 기본값 ──────────────────────────────────────

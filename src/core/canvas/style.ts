@@ -11,6 +11,26 @@
 import type { FontRole, GraphOptions, StyleName, TickDirection } from '../types/common';
 import { LINE_DASH, type LineStyle } from '../types/line';
 
+/** 1.7.x 명조 자리 — 축 이름·눈금·자료값 */
+export const DEFAULT_SERIF_STACK = "'Noto Serif KR', 'NanumMyeongjo', serif";
+/** 1.7.x 고딕 자리 — 제목·출처·각주·범례 */
+export const DEFAULT_SANS_STACK = "'Noto Sans KR', sans-serif";
+/**
+ * 시험지 명조 — 신명 중명조(상용, 설치된 PC 에서만) → HY신명조 → Noto.
+ * 신명의 정확한 family 이름은 설치해 봐야 안다(설계 §4) — 별칭을 여럿 둔다.
+ */
+export const EXAM_SERIF_STACK =
+  "'신명 중명조', '신명-중명조', '신명중명조', 'HY신명조', 'HYSinMyeongJo-Medium', 'Noto Serif KR', serif";
+/** 시험지 고딕 — 그림 속 고딕은 HY중고딕과 꼴·굵기가 맞는다(실측 §4 결정 2) */
+export const EXAM_SANS_STACK =
+  "'HY중고딕', 'HYGothic-Medium', '돋움', 'Dotum', 'Noto Sans KR', sans-serif";
+/**
+ * 시험지 숫자 — 본문 «한양신명조» 숫자와 꼴이 가장 가까운, 한글이 없는 세리프.
+ * 작업 13(numerals.py)의 결과다 — 실측 명세 «숫자 글꼴 대조» 참고.
+ * Garamond(Office)가 비율·획 굵기·굽은 `7` 이 가장 가깝고, 없으면 Times New Roman.
+ */
+export const EXAM_NUMERAL_STACK = "'Garamond', 'Times New Roman'";
+
 /** 눈금 하나가 축에서 어디로 뻗는가. `cross` 는 축을 가로지른다(방사형·편차 B). */
 export type TickDir = TickDirection | 'none' | 'cross';
 
@@ -49,6 +69,8 @@ export interface StyleTokens {
   /** 기본 글자 크기 — createDefaultGraphOptions 가 쓴다 */
   fontSize: FontSizes;
   text: Record<TextPlace, TextToken>;
+  /** 글꼴 순서 — numeral 이 비어 있지 않으면 명조·고딕 기본 순서 앞에 붙는다 */
+  stack: { serif: string; sans: string; numeral: string };
   ink: { source: string; footnote: string };
   line: {
     /** 축·바깥 틀 */
@@ -126,6 +148,7 @@ export const classicStyle: StyleTokens = {
   name: 'classic',
   honorsLegacy: true,
   fontSize: { title: 36, axisLabel: 28, tick: 26, dataLabel: 22 },
+  stack: { serif: DEFAULT_SERIF_STACK, sans: DEFAULT_SANS_STACK, numeral: '' },
   text: {
     tick: axisClassic(),
     unit: axisClassic(),
@@ -196,20 +219,20 @@ export const examStyle: StyleTokens = {
   honorsLegacy: false,
   // 눈금 7.3pt·축 이름 8.0pt·제목 8.2pt·자료값 8.2pt (실측 §1.1) × 4.85
   fontSize: { title: 40, axisLabel: 39, tick: 35, dataLabel: 40 },
+  stack: { serif: EXAM_SERIF_STACK, sans: EXAM_SANS_STACK, numeral: EXAM_NUMERAL_STACK },
   text: {
-    // 작업 14 에서 tick·symbol·value·year 의 자리를 'numeral' 로 바꾼다
-    tick: examText('serif', true, same),
+    tick: examText('numeral', true, same),
     unit: examText('sans', true, (fs) => fs.tick),
     axisName: examText('sans', true, (fs) => fs.axisLabel),
     axisNameV: examText('sans', true, (fs) => fs.tick * 0.93),
     category: examText('serif', true, (fs) => fs.tick * 1.37),
     region: examText('sans', true, (fs) => fs.axisLabel),
-    symbol: examText('serif', true, same),
-    value: examText('serif', true, same),
+    symbol: examText('numeral', true, same),
+    value: examText('numeral', true, same),
     legend: examText('sans', false, (fs) => fs.tick),
     title: examText('sans', false, same),
     source: examText('sans', false, (fs) => fs.tick),
-    year: examText('serif', false, (fs) => fs.tick),
+    year: examText('numeral', false, (fs) => fs.tick),
     footnote: examText('sans', false, (fs) => fs.tick * 0.97),
   },
   ink: { source: '#000', footnote: '#000' },

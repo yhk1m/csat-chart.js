@@ -1,7 +1,8 @@
 // © 2026 김용현
 // Canvas 공통 렌더링 유틸리티
 import type { FontRole, FontStack, GraphOptions, StyleName } from '../types/common';
-import { styleOf, type TextPlace } from './style';
+import { styleOf, DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK, type TextPlace } from './style';
+export { DEFAULT_SERIF_STACK, DEFAULT_SANS_STACK };
 
 export interface Padding {
   top: number;
@@ -15,10 +16,6 @@ export interface CanvasSize {
   height: number;
 }
 
-/** 명조 자리의 기본 글꼴 — 축 이름·눈금·자료값 */
-export const DEFAULT_SERIF_STACK = "'Noto Serif KR', 'NanumMyeongjo', serif";
-/** 고딕 자리의 기본 글꼴 — 제목·출처·각주·범례 */
-export const DEFAULT_SANS_STACK = "'Noto Sans KR', sans-serif";
 /** `fontFamily: 'custom'` 인데 `customFont` 이 비었을 때 대신 쓸 글꼴 */
 const CUSTOM_FALLBACK_STACK = "'Noto Serif KR', serif";
 
@@ -43,8 +40,18 @@ export interface FontOptions {
 /** 자리 이름 하나를 실제 글꼴 문자열로 푼다 */
 export function fontStackOf(fonts: FontOptions, role: FontRole): string {
   if (role === 'custom') return fonts.customFont || CUSTOM_FALLBACK_STACK;
-  if (role === 'sans') return fonts.fontStack?.sans || DEFAULT_SANS_STACK;
-  return fonts.fontStack?.serif || DEFAULT_SERIF_STACK;
+  const t = styleOf(fonts);
+  const given = fonts.fontStack ?? {};
+  const serif = given.serif || t.stack.serif;
+  const sans = given.sans || t.stack.sans;
+  const numeral = given.numeral || t.stack.numeral;
+  if (role === 'numeral') return numeral ? `${numeral}, ${serif}` : serif;
+  const base = role === 'sans' ? sans : serif;
+  const own = role === 'sans' ? given.sans : given.serif;
+  // 시험지의 숫자·괄호는 어느 자리에서나 세리프다. 숫자 글꼴에는 한글이 없으므로
+  // 앞에 두면 한 글줄 안에서 숫자·괄호만 그 글꼴로, 한글은 뒤 글꼴로 넘어간다.
+  // 자리를 직접 준 사람의 글꼴에는 붙이지 않는다 — 준 그대로 쓴다.
+  return numeral && !own ? `${numeral}, ${base}` : base;
 }
 
 /** 고딕 자리 글꼴 — 제목·출처·각주·범례가 자리를 가리지 않고 이것을 쓴다 */

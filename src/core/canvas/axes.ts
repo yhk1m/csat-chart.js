@@ -1,5 +1,7 @@
 // © 2026 김용현
-import { type Padding, type FontOptions, getFont } from './renderer';
+import { type Padding, type FontOptions, textFont, textSize } from './renderer';
+import { styleOf } from './style';
+import type { GraphOptions } from '../types/common';
 import { labelStride, widestLabel } from './labels';
 import { EDGE, nudgeInside, shrinkToWidth } from './fit';
 
@@ -9,7 +11,7 @@ interface AxisOptions {
   width: number;
   height: number;
   /** 글꼴 옵션. `options` 를 그대로 넘긴다. */
-  fonts: FontOptions;
+  fonts: FontOptions & { fontSize?: GraphOptions['fontSize'] };
   tickFontSize: number;
   labelFontSize: number;
 }
@@ -21,9 +23,9 @@ interface YAxisParams extends AxisOptions {
   label: string;
   side: 'left' | 'right';
   drawGrid?: boolean;
-  /** 격자선 색 — 미지정이면 #ccc. 시험지 틀은 더 진한 점선을 쓴다 */
+  /** 격자선 색 — 미지정이면 양식의 격자 색 (classic #ccc) */
   gridColor?: string;
-  /** 격자선 굵기(px) — 미지정이면 0.5 */
+  /** 격자선 굵기(px) — 미지정이면 양식의 격자 굵기 (classic 0.5) */
   gridWidth?: number;
 }
 
@@ -44,22 +46,25 @@ export function drawYAxis({
   min, max, step, label, side,
   fonts, tickFontSize, labelFontSize,
   drawGrid = false,
-  gridColor = '#ccc',
-  gridWidth = 0.5,
+  gridColor,
+  gridWidth,
 }: YAxisParams) {
   const plot = plotArea(padding, width, height);
+  const t = styleOf(fonts);
+  const tickLen = t.line.tickLen;
+  const tickGap = tickLen + 6;
   const x = side === 'left' ? plot.x : plot.x + plot.w;
 
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   ctx.beginPath();
   ctx.moveTo(x, plot.y);
   ctx.lineTo(x, plot.y + plot.h);
   ctx.stroke();
 
-  // 눈금 — 모두 bold
+  // 눈금 숫자
   ctx.fillStyle = '#000';
-  ctx.font = getFont(tickFontSize, fonts, 'bold');
+  ctx.font = textFont(fonts, 'tick', tickFontSize);
   ctx.textBaseline = 'middle';
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
@@ -79,23 +84,23 @@ export function drawYAxis({
     const y = plot.y + plot.h - ((val - min) / (max - min)) * plot.h;
 
     // 눈금 선
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = t.line.tick;
     ctx.beginPath();
     if (side === 'left') {
-      ctx.moveTo(x - 6, y);
+      ctx.moveTo(x - tickLen, y);
       ctx.lineTo(x, y);
     } else {
       ctx.moveTo(x, y);
-      ctx.lineTo(x + 6, y);
+      ctx.lineTo(x + tickLen, y);
     }
     ctx.stroke();
 
     // 격자선
     if (drawGrid && i > 0 && i < ticks.length - 1) {
       ctx.save();
-      ctx.strokeStyle = gridColor;
-      ctx.lineWidth = gridWidth;
-      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = gridColor ?? t.line.gridColor;
+      ctx.lineWidth = gridWidth ?? t.line.grid;
+      ctx.setLineDash(t.line.gridDash);
       ctx.beginPath();
       ctx.moveTo(plot.x, y);
       ctx.lineTo(plot.x + plot.w, y);
@@ -105,7 +110,7 @@ export function drawYAxis({
 
     // 숫자 — 서로 붙으면 몇 개 걸러 그린다 (눈금선은 그대로)
     if (i % stride === 0) {
-      const tx = side === 'left' ? x - 12 : x + 12;
+      const tx = side === 'left' ? x - tickGap : x + tickGap;
       ctx.fillText(formatTick(val), tx, y);
     }
   }
@@ -118,13 +123,14 @@ export function drawYAxis({
   //  왼쪽으로 72.9px 넘던 자리다.)
   if (label) {
     ctx.save();
-    const makeFont = (size: number) => getFont(size, fonts, 'bold');
+    const makeFont = (size: number) => textFont(fonts, 'unit', size);
     ctx.fillStyle = '#000';
     ctx.textBaseline = 'bottom';
     ctx.textAlign = side === 'left' ? 'right' : 'left';
     // 캔버스보다 넓은 이름은 밀어서 될 일이 아니다 — 글꼴부터 줄인다
-    ctx.font = makeFont(shrinkToWidth(ctx, [label], labelFontSize, width - EDGE * 2, makeFont));
-    const labelX = side === 'left' ? x - 12 : x + 12;
+    const unitSize = textSize(fonts, 'unit', labelFontSize);
+    ctx.font = makeFont(shrinkToWidth(ctx, [label], unitSize, width - EDGE * 2, makeFont));
+    const labelX = side === 'left' ? x - tickGap : x + tickGap;
     const at = nudgeInside(ctx, label, labelX, plot.y - tickFontSize * 0.5 - 8, width, height);
     ctx.fillText(label, at.x, at.y);
     ctx.restore();
@@ -137,17 +143,18 @@ export function drawXAxis({
   fonts, tickFontSize,
 }: XAxisParams) {
   const plot = plotArea(padding, width, height);
+  const t = styleOf(fonts);
   const y = plot.y + plot.h;
 
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   ctx.beginPath();
   ctx.moveTo(plot.x, y);
   ctx.lineTo(plot.x + plot.w, y);
   ctx.stroke();
 
   ctx.fillStyle = '#000';
-  ctx.font = getFont(tickFontSize, fonts, 'bold');
+  ctx.font = textFont(fonts, 'tick', tickFontSize);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
@@ -162,14 +169,14 @@ export function drawXAxis({
     const cx = plot.x + slotWidth * i + slotWidth / 2;
 
     // 눈금선
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = t.line.tick;
     ctx.beginPath();
     ctx.moveTo(cx, y);
-    ctx.lineTo(cx, y + 6);
+    ctx.lineTo(cx, y + t.line.tickLen);
     ctx.stroke();
 
     // 라벨
-    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + 12);
+    if (shown % stride === 0) ctx.fillText(labels[i], cx, y + t.line.tickLen + 6);
     shown++;
   }
 }

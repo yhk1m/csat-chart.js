@@ -1,5 +1,10 @@
 // © 2026 김용현
-import { sansFont, type FontOptions } from './renderer';
+import { textFont, textSize, type FontOptions } from './renderer';
+import { styleOf } from './style';
+import type { GraphOptions } from '../types/common';
+
+/** 출처·각주 도우미가 받는 옵션 — 렌더러는 options 를 통째로 넘긴다 */
+type LabelFonts = FontOptions & { fontSize?: GraphOptions['fontSize'] };
 
 interface TitleParams {
   ctx: CanvasRenderingContext2D;
@@ -15,7 +20,7 @@ interface TitleParams {
    * 없어도 되는 항목으로 두지 않는다 — 빠뜨린 호출부가 조용히 기본 글꼴로
    * 그려지는 것이 1.2.0 까지의 결함이었다.
    */
-  fonts: FontOptions;
+  fonts: LabelFonts;
   /** 캔버스 전체 너비. 주면 제목이 넘칠 때 글자를 줄여 맞춘다. */
   canvasWidth?: number;
 }
@@ -47,8 +52,7 @@ export function drawTitle({ ctx, plotX, plotW, title, fontSize, fonts, canvasWid
   ctx.save();
   ctx.fillStyle = '#000';
 
-  const labelFont = sansFont(fonts);
-  const makeFont = (size: number) => `bold ${size}px ${labelFont}`;
+  const makeFont = (size: number) => textFont(fonts, 'title', size);
   // 제목은 그래프 가운데에 놓이므로 캔버스 양쪽으로 넘칠 수 있다.
   // 가운데를 기준으로 양쪽에서 좁은 쪽 × 2 가 실제로 쓸 수 있는 폭이다.
   const centerX = plotX + plotW / 2;
@@ -77,7 +81,7 @@ interface SourceFootnoteParams {
   footnotes: string[];
   fontSize: number;
   /** 글꼴 옵션. `options` 를 그대로 넘긴다 — `TitleParams.fonts` 와 같다. */
-  fonts: FontOptions;
+  fonts: LabelFonts;
   canvasWidth?: number;
 }
 
@@ -88,7 +92,10 @@ export function drawSourceAndFootnote({
   ctx, plotX, plotW, height, source, sourceLeft, sourceInline, footnotes, fontSize, fonts, canvasWidth,
 }: SourceFootnoteParams) {
   ctx.save();
-  const labelFont = sansFont(fonts);
+  const t = styleOf(fonts);
+  const srcSize = textSize(fonts, 'source', fontSize);
+  const noteSize = textSize(fonts, 'footnote', fontSize * 0.9);
+  const yearSize = textSize(fonts, 'year', fontSize);
 
   // 출처·연도는 오른쪽 **끝**, 각주는 왼쪽 **끝**에 붙인다 (2026-08-04 사용자 결정).
   // 예전에는 플롯 영역에 맞춰 안쪽으로 들여써서 그림 가운데에 뜬 것처럼 보였다.
@@ -102,12 +109,12 @@ export function drawSourceAndFootnote({
   // 위에서 아래로: 출처 → 각주들.
   // 단 sourceLeft 를 주면 순서가 뒤집힌다 — 각주 아래에 "(연도) ... (출처)" 한 줄.
   const filtered = footnotes.filter((f) => f.trim());
-  const totalFootnoteH = filtered.length * (fontSize * 0.9 + 4);
+  const totalFootnoteH = filtered.length * (noteSize + 4);
   const sourceBelow = !!sourceLeft;
   // 시험지 관습 — 출처를 마지막 각주와 **같은 줄** 오른쪽 끝에 둔다.
-  // 각주가 없으면 놓을 줄이 없으므로 기존 배치를 그대로 쓴다.
-  const inlineSource = !!sourceInline && !!source && !sourceBelow && filtered.length > 0;
-  const sourceH = (source || sourceLeft) && !inlineSource ? fontSize + 4 : 0;
+  // 주지 않으면 양식의 기본값(exam 은 켜짐). 각주가 없으면 놓을 줄이 없으므로 기존 배치.
+  const inlineSource = !!(sourceInline ?? t.sourceInline) && !!source && !sourceBelow && filtered.length > 0;
+  const sourceH = (source || sourceLeft) && !inlineSource ? srcSize + 4 : 0;
   let y = height - 6 - totalFootnoteH - (sourceBelow ? sourceH : 0);
 
   // 각주는 왼쪽 끝에서 시작해 오른쪽으로 흐른다. 캔버스를 넘으면 잘리므로
@@ -115,11 +122,11 @@ export function drawSourceAndFootnote({
   const rightEdge = canvasWidth != null ? rightX : plotX + plotW;
   const available = Math.max(0, rightEdge - leftX);
 
-  const sourceFont = (size: number) => `bold ${size}px ${labelFont}`;
+  const sourceFont = (size: number) => textFont(fonts, 'source', size);
 
   if (source && !sourceBelow && !inlineSource) {
-    ctx.fillStyle = '#555';
-    const size = fitFontSize(ctx, source, fontSize, available, sourceFont);
+    ctx.fillStyle = t.ink.source;
+    const size = fitFontSize(ctx, source, srcSize, available, sourceFont);
     ctx.font = sourceFont(size);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -128,28 +135,28 @@ export function drawSourceAndFootnote({
   }
 
   // 같은 줄에 출처가 들어오면 각주가 쓸 수 있는 폭이 그만큼 줄어든다
-  ctx.font = sourceFont(fontSize);
+  ctx.font = sourceFont(srcSize);
   const inlineSourceW = inlineSource ? ctx.measureText(source).width + 16 : 0;
   const footnoteAvailable = Math.max(0, available - inlineSourceW);
 
   let lastFootnoteY = y;
   for (let i = 0; i < filtered.length; i++) {
-    const text = '* ' + filtered[i];
-    ctx.fillStyle = '#555';
-    const makeFont = (size: number) => `${size}px ${labelFont}`;
-    const size = fitFontSize(ctx, text, fontSize * 0.9, footnoteAvailable, makeFont);
+    const text = t.footnoteMark(i) + filtered[i];
+    ctx.fillStyle = t.ink.footnote;
+    const makeFont = (size: number) => textFont(fonts, 'footnote', size);
+    const size = fitFontSize(ctx, text, noteSize, footnoteAvailable, makeFont);
     ctx.font = makeFont(size);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
     ctx.fillText(text, leftX, y, footnoteAvailable > 0 ? footnoteAvailable : undefined);
     lastFootnoteY = y;
-    y += fontSize * 0.9 + 4;
+    y += noteSize + 4;
   }
 
   // 마지막 각주와 같은 줄, 오른쪽 끝
   if (inlineSource) {
-    ctx.fillStyle = '#555';
-    const size = fitFontSize(ctx, source, fontSize, inlineSourceW, sourceFont);
+    ctx.fillStyle = t.ink.source;
+    const size = fitFontSize(ctx, source, srcSize, inlineSourceW, sourceFont);
     ctx.font = sourceFont(size);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -158,17 +165,17 @@ export function drawSourceAndFootnote({
 
   // 각주 아래 출처 줄 — 왼쪽에 자료 연도, 오른쪽에 출처 기관
   if (sourceBelow) {
-    const makeFont = (size: number) => `bold ${size}px ${labelFont}`;
+    const yearFont = (size: number) => textFont(fonts, 'year', size);
     const half = available > 0 ? available / 2 : 0;
-    ctx.fillStyle = '#555';
+    ctx.fillStyle = t.ink.source;
     ctx.textBaseline = 'bottom';
 
-    ctx.font = makeFont(fitFontSize(ctx, sourceLeft!, fontSize, half, makeFont));
+    ctx.font = yearFont(fitFontSize(ctx, sourceLeft!, yearSize, half, yearFont));
     ctx.textAlign = 'left';
     ctx.fillText(sourceLeft!, leftX, height - 6, half > 0 ? half : undefined);
 
     if (source) {
-      ctx.font = makeFont(fitFontSize(ctx, source, fontSize, half, makeFont));
+      ctx.font = sourceFont(fitFontSize(ctx, source, srcSize, half, sourceFont));
       ctx.textAlign = 'right';
       ctx.fillText(source, rightX, height - 6, half > 0 ? half : undefined);
     }

@@ -748,10 +748,14 @@ function measureYAxisName(
   // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
   const given = (data.yLabel || '').split('\\n');
   const budget = Math.max(40, w * 0.3 - 18 - tickW - 12);
+  // 낱말이 접을 폭보다 넓으면 글자 단위로 잘리기 전에(「지역내총생 / 산」) 먼저 줄여
+  // 낱말째 담는다(폭은 크기에 꼭 비례하지 않아 1% 덜 잡는다). 바닥(MIN_SCALE)까지 줄여도 넘치는 낱말만 wrapToWidth 가 글자로 자른다.
+  const words = given.flatMap((l) => l.split(/\s+/)).filter(Boolean);
+  let size = widestLine(ctx, words) > budget ? shrinkToWidth(ctx, words, base, budget * 0.99, makeFont) : base;
+  ctx.font = makeFont(size);
   let lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
-  let size = base;
   if (widestLine(ctx, lines) > budget) {
-    size = shrinkToWidth(ctx, lines, base, budget, makeFont);
+    size = shrinkToWidth(ctx, lines, size, budget, makeFont);
     ctx.font = makeFont(size);
     lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
   }

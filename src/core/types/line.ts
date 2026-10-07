@@ -55,8 +55,15 @@ export interface LineSeries {
   leader?: LineLeader;
 }
 
-/** 계열 이름을 어디에 쓸지 — 선 끝 · 범례 상자 · 유도선 */
-export type LineLabelPlacement = 'lineEnd' | 'legend' | 'leader';
+/**
+ * 계열 이름을 어디에 쓸지.
+ * - `lineEnd` — 선 끝 오른쪽에 바로 (기본)
+ * - `legend` — 범례 상자
+ * - `leader` — 선 곁 아무 점에서 (dx, dy) 떨어진 자리, 짧은 유도선 (`series[].leader`)
+ * - `rightLeader` — 플롯 오른쪽 바깥 한 열에 세우고, 선 끝 점에서 유도선으로 잇는다.
+ *   이름은 선 끝의 위아래 차례대로, 서로 겹치지 않게 벌린다 (2026학년도 수능 세계지리 10번 꼴)
+ */
+export type LineLabelPlacement = 'lineEnd' | 'legend' | 'leader' | 'rightLeader';
 
 export interface LineGraphData {
   series: LineSeries[];

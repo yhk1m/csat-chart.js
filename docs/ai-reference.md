@@ -232,7 +232,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `xUnit`: string (기본 `'(월)'`)
 - `yUnit`: string (기본 `''`)
 - `yRange`: `{ min: 0, max: 100, auto: true }`
-- `labelPlacement`: `'lineEnd' | 'legend' | 'leader'` (기본 `'lineEnd'`). `'leader'`는 유도선 — 이름을 선 근처에 쓰고 짧은 선으로 가리킨다
+- `labelPlacement`: `'lineEnd' | 'legend' | 'leader' | 'rightLeader'` (기본 `'lineEnd'`). `'leader'`는 유도선 — 이름을 선 근처에 쓰고 짧은 선으로 가리킨다. `'rightLeader'`는 이름을 플롯 오른쪽 바깥 한 열에 선 끝 차례대로 세우고 마지막 점에서 유도선으로 잇는다 (2.1.0). 다른 낱말은 `CsatChartError`
 - `showMarkers`: boolean (기본 `true`)
 - 선택 필드(1.6.0): `series[].stroke`(선 색, 기본 검정 — 시험지는 `'#999'` 회색으로 한 계열을 가른다), `series[].lineWidth`(px, 기본 2), `series[].leader`(`{ at, dx, dy }` — 가리킬 점 번호와 라벨 오프셋, 기본 가운데 점에서 `+20, -30`), `xGrid`(세로 점선 격자), `gridColor`(격자 색, 기본 `'#ccc'` — 시험지는 `'#555'`), `gridWidth`(격자 굵기 px, 기본 0.5 — 시험지는 1, 1.6.1)
 

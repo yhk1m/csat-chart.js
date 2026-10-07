@@ -185,7 +185,23 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
       }
     }
   }
+
+  for (const [key, allowed] of Object.entries(DATA_WORDS[type] ?? {})) {
+    const v = given[key];
+    if (v === undefined || allowed.includes(v as string)) continue;
+    throw new CsatChartError(
+      `type "${type}" 의 data.${key} 는 ${allowed.map((a) => `'${a}'`).join('·')} 중 하나여야 합니다 (지금 ${JSON.stringify(v)})`,
+    );
+  }
 }
+
+/**
+ * 자료 가운데 «정해진 낱말만 받는» 칸. 모르는 낱말은 렌더러가 조용히 아무 일도 안 해
+ * (이름이 통째로 사라진다) 오타를 알 길이 없다.
+ */
+const DATA_WORDS: Partial<Record<CsatChartType, Record<string, string[]>>> = {
+  line: { labelPlacement: ['lineEnd', 'legend', 'leader', 'rightLeader'] },
+};
 
 const STYLE_NAMES = ['exam', 'classic'];
 const TICK_DIRECTIONS = ['in', 'out'];

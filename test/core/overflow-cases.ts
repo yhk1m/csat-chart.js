@@ -245,6 +245,16 @@ const B_LINE: Maker = () => {
   return d;
 };
 
+const B_LINE_RIGHT: Maker = () => {
+  const d = clone(A_LINE) as unknown as ReturnType<typeof createDefaultLineData>;
+  d.series = [
+    { ...d.series[0], label: '서울특별시' },
+    { ...d.series[0], label: '강원특별자치도', values: d.series[0].values.map((v) => (v ?? 0) * 0.9) },
+  ];
+  d.labelPlacement = 'rightLeader';
+  return d;
+};
+
 const B_PYRAMID: Maker = () => {
   const d = clone(A_PYRAMID) as unknown as ReturnType<typeof createDefaultPyramidData>;
   d.maleLabel = '남자 인구 비율';
@@ -462,6 +472,8 @@ const TYPES: Entry[] = [
   ['econ-plane(계열)', renderEconPlane as ProbeCase['render'], A_ECON_PLANE_SERIES, B_ECON_PLANE_SERIES],
   ['hythergraph', renderHythergraph as ProbeCase['render'], () => clone(A_HYTHER), B_HYTHER],
   ['line', renderLineGraph as ProbeCase['render'], () => clone(A_LINE), B_LINE],
+  // 2.1.0 오른쪽 열 + 유도선 — 긴 이름은 오른쪽 여백을 이름 폭만큼 잡는다
+  ['line(rightLeader)', renderLineGraph as ProbeCase['render'], () => ({ ...clone(A_LINE), labelPlacement: 'rightLeader' }), B_LINE_RIGHT],
   ['matrix-table', renderMatrixTable as ProbeCase['render'], createDefaultMatrixTableData, B_MATRIX_TABLE],
   ['pyramid', renderPyramidGraph as ProbeCase['render'], () => clone(A_PYRAMID), B_PYRAMID],
   ['radar', renderRadarChart as ProbeCase['render'], () => clone(A_RADAR), B_RADAR],

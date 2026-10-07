@@ -887,6 +887,12 @@ const SUPPORTS_BAR_DIRECTION = ['absbar', 'stacked'];
  */
 const SUPPORTS_AXIS_BREAK = ['econ-plane'];
 
+/**
+ * 「계열 이름 자리」도 자료의 값이다(`data.labelPlacement`, 꺾은선만).
+ * 선 끝 · 선 곁 유도선 · 오른쪽 열 + 유도선(2.1.0) · 범례 넷을 고른다.
+ */
+const SUPPORTS_LABEL_PLACEMENT = ['line'];
+
 function supports(list, type) { return list.indexOf(type) >= 0; }
 
 /**
@@ -1568,6 +1574,7 @@ function card(type, ordinal) {
   const hasDataLabels = supports(SUPPORTS_DATA_LABELS, type);
   const hasBarDirection = supports(SUPPORTS_BAR_DIRECTION, type);
   const hasAxisBreak = supports(SUPPORTS_AXIS_BREAK, type);
+  const hasLabelPlacement = supports(SUPPORTS_LABEL_PLACEMENT, type);
 
   // data-wrap 은 «이 칸을 감출 때 함께 감출 껍데기» 다. 조작칸 자체에만
   // hidden 을 걸면 이름표가 홀로 남는다.
@@ -1632,6 +1639,17 @@ function card(type, ordinal) {
         '<label class="field-label" for="' + uid('dir') + '">막대 방향</label>' +
         '<select id="' + uid('dir') + '" data-data="barDirection" title="data.barDirection">' +
           '<option value="vertical">세로</option><option value="horizontal">가로</option>' +
+        '</select></div>'
+    : '';
+
+  const placeHtml = hasLabelPlacement
+    ? '<div class="field data-field" data-wrap="labelPlacement">' +
+        '<label class="field-label" for="' + uid('place') + '">계열 이름 자리</label>' +
+        '<select id="' + uid('place') + '" data-data="labelPlacement" title="data.labelPlacement">' +
+          '<option value="leader">선 곁 + 유도선</option>' +
+          '<option value="rightLeader">오른쪽 열 + 유도선</option>' +
+          '<option value="lineEnd">선 끝</option>' +
+          '<option value="legend">범례</option>' +
         '</select></div>'
     : '';
 
@@ -1706,6 +1724,7 @@ function card(type, ordinal) {
             '<div class="grid2">' + selectParts.join('') + '</div>' +
             fontBlockHtml +
             dirHtml +
+            placeHtml +
             breakHtml +
             '<p class="names-head">그래프 안의 이름</p>' +
             '<p class="names-note">칸을 고치면 그림의 그 자리가 바로 바뀝니다.</p>' +

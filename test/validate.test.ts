@@ -100,6 +100,19 @@ describe('assertChartData', () => {
   });
 });
 
+describe('assertChartData — 정해진 낱말 칸', () => {
+  it('line.labelPlacement 은 네 낱말을 받는다', () => {
+    for (const v of ['lineEnd', 'legend', 'leader', 'rightLeader']) {
+      expect(() => assertChartData('line', { ...REGISTRY.line.createDefaultData(), labelPlacement: v })).not.toThrow();
+    }
+  });
+
+  it('모르는 line.labelPlacement 를 한국어로 거부한다', () => {
+    expect(() => assertChartData('line', { ...REGISTRY.line.createDefaultData(), labelPlacement: 'right' }))
+      .toThrow(/type "line" 의 data\.labelPlacement 는 'lineEnd'·'legend'·'leader'·'rightLeader' 중 하나여야 합니다 \(지금 "right"\)/);
+  });
+});
+
 describe('assertOptionValues', () => {
   it('아는 값·빈 값은 통과시킨다', () => {
     expect(() => assertOptionValues(undefined)).not.toThrow();

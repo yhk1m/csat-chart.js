@@ -35,6 +35,8 @@ const LOOK = {
 
 /** 1.7.0 꺾은선 유도선 굵기 — classic 에서만. exam 은 t.leader */
 const CLASSIC_LEADER = { width: 1 };
+/** rightLeader: 플롯 오른쪽 끝에서 이름 열까지 — 유도선이 보일 만한 길이 */
+const RIGHT_LEADER_GAP = 30;
 
 /** 꼭짓점 기호 하나 */
 function drawMarker(
@@ -99,8 +101,9 @@ export function renderLineGraph(
   // 선 끝에 이름을 붙이면 오른쪽에 자리가 필요하다
   const endSize = textSize(options, 'category', options.fontSize.dataLabel);
   ctx.font = textFont(options, 'category', endSize);
-  const endLabelW = data.labelPlacement === 'lineEnd'
-    ? widestLabel(ctx, data.series.map((s) => s.label)) + 16
+  const rightColumn = data.labelPlacement === 'rightLeader';
+  const endLabelW = data.labelPlacement === 'lineEnd' || rightColumn
+    ? widestLabel(ctx, data.series.map((s) => s.label)) + 16 + (rightColumn ? RIGHT_LEADER_GAP : 0)
     : 0;
 
   // x축 단위((년) 등)도 마지막 눈금 오른쪽에 놓이므로 그만큼 자리를 비워 둔다.
@@ -410,6 +413,42 @@ export function renderLineGraph(
         { lineHeight, bounds },
       );
     });
+  }
+
+  // 계열 이름 — 오른쪽 열 + 유도선 (두 양식 같은 배치, 선 굵기·색만 양식을 따른다).
+  // 이름의 위아래 차례는 선 끝의 차례 그대로, 서로 한 줄 높이 이상 떨어지게 묶어 민다(stackInOrder).
+  if (rightColumn) {
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.font = textFont(options, 'category', endSize);
+    // 괄호까지 들어간 이름 잉크가 글자 크기보다 높다 — 1.25 줄 높이로 벌린다
+    const lineHeight = endSize * 1.25;
+    const columnX = plotX + plotW + RIGHT_LEADER_GAP;
+    const ends = data.series.map((s, si) => {
+      const top = tops[si];
+      let last = -1;
+      for (let i = top.length - 1; i >= 0; i--) {
+        if (top[i] !== null) { last = i; break; }
+      }
+      return last < 0 ? null : { label: s.label, x: toX(last), y: toY(top[last] as number) };
+    }).filter((e): e is { label: string; x: number; y: number } => e !== null && !!e.label);
+    // 아래로는 가로축 높이까지 — 그 밑은 가로축 숫자·단위·각주 자리다
+    const centres = stackInOrder(ends.map((e) => e.y), lineHeight, 4 + lineHeight / 2, Math.max(4 + lineHeight / 2, plotY + plotH));
+    const startGap = data.showMarkers ? t.marker.r + 2 : 3;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ends.forEach((e, k) => {
+      const cy = centres[k];
+      ctx.strokeStyle = leaderLine.color;
+      ctx.lineWidth = leaderLine.width;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(e.x + startGap, e.y);
+      ctx.lineTo(columnX - 4, cy);
+      ctx.stroke();
+      ctx.fillText(e.label, columnX, cy);
+    });
+    ctx.restore();
   }
 
   // 계열 이름 — 유도선. 라벨을 점에서 (dx, dy) 떨어진 곳에 쓰고,

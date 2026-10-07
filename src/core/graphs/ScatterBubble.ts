@@ -1,8 +1,34 @@
 // © 2026 김용현
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, getFont, autoRange, fillTextMultiline, type FontOptions } from '../canvas/renderer';
+import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { styleOf, byStyle, labelPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
+
+const LOOK = {
+  classic: {
+    frameGrid: { color: '#333', width: 1, dash: [5, 4] }, // examFrame:true 의 격자
+    tickW: 1,
+    crossW: 1.5,          // 편차 모드 0 십자선
+    dotR: 4,
+    bubbleW: 1.5, bubbleStroke: '#333', bubbleFill: 'rgba(80,80,80,0.3)',
+    valueInk: '#555',
+    legendBox: { color: '#666', width: 1.5, radius: 4 },
+    leader: { color: '#666', width: 1, dash: [3, 2] },
+    boxedLabelW: 1.2,
+  },
+  exam: {
+    frameGrid: { color: '#000', width: 1.45, dash: [7.6, 4.7] },
+    tickW: 1.9,
+    crossW: 1.75,
+    dotR: 7,              // 지름 2.9pt (§3 #40)
+    bubbleW: 4.0, bubbleStroke: '#000', bubbleFill: 'transparent', // 원 테두리 0.83pt, 채움 없음 (#39)
+    valueInk: '#000',
+    legendBox: { color: '#000', width: 1.45, radius: 0 },
+    leader: { color: '#000', width: 1.45, dash: [7.6, 4.7] },
+    boxedLabelW: 1.45,
+  },
+};
 
 export function renderScatterGraph(
   ctx: CanvasRenderingContext2D,
@@ -30,6 +56,10 @@ function renderNormal(
   options: GraphOptions
 ) {
   const fs = options.fontSize;
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
+  const tickPx = textSize(options, 'tick', fs.tick);
+  const axisPx = textSize(options, 'axisName', fs.axisLabel);
 
   // 범례를 플롯 바깥에 둘 참이면 먼저 크기를 재서 오른쪽 여백을 확보한다.
   // 그려 놓고 자리를 잡으면 이미 늦다.
@@ -44,7 +74,7 @@ function renderNormal(
   const examUnitW = (() => {
     if (data.examFrame !== true || !data.xUnit) return 0;
     ctx.save();
-    ctx.font = getFont(fs.tick, options, 'bold');
+    ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.tick));
     const width = ctx.measureText(data.xUnit).width;
     ctx.restore();
     return width;
@@ -93,9 +123,9 @@ function renderNormal(
   // 격자선 — 시험지 틀이면 진한 점선이다
   const exam = data.examFrame === true;
   ctx.save();
-  ctx.strokeStyle = exam ? '#333' : '#ddd';
-  ctx.lineWidth = exam ? 1 : 0.5;
-  ctx.setLineDash(exam ? [5, 4] : [3, 3]);
+  ctx.strokeStyle = exam ? look.frameGrid.color : t.line.barGridColor;
+  ctx.lineWidth = exam ? look.frameGrid.width : t.line.barGrid;
+  ctx.setLineDash(exam ? look.frameGrid.dash : t.line.barGridDash);
   for (let v = xMin + xStep; v < xMax; v += xStep) {
     const x = toCanvasX(v);
     ctx.beginPath();
@@ -114,7 +144,7 @@ function renderNormal(
 
   // 축선 — 시험지 틀이면 사각 테두리로 감싼다
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   if (exam) {
     ctx.strokeRect(plotX, plotY, plotW, plotH);
   } else {
@@ -127,7 +157,7 @@ function renderNormal(
 
   // X축 눈금
   ctx.fillStyle = '#000';
-  ctx.font = getFont(fs.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', tickPx);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   // 숫자가 서로 붙으면 몇 개 걸러 그린다 (눈금 표시는 그대로 둔다)
@@ -143,10 +173,10 @@ function renderNormal(
   let lastXLabelRight = plotX + plotW;
   xTicks.forEach((v, i) => {
     const x = toCanvasX(v);
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tickW;
     ctx.beginPath();
     ctx.moveTo(x, plotY + plotH);
-    ctx.lineTo(x, plotY + plotH + 6);
+    ctx.lineTo(x, plotY + plotH + t.line.tickLen);
     ctx.stroke();
     if (i % xStride === 0) {
       const text = formatTick(v);
@@ -160,41 +190,42 @@ function renderNormal(
   ctx.textBaseline = 'middle';
   const yTicks: number[] = [];
   for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) yTicks.push(v);
-  const yStride = labelStride(plotH / Math.max(1, yTicks.length - 1), fs.tick * 1.1);
+  const yStride = labelStride(plotH / Math.max(1, yTicks.length - 1), tickPx * 1.1);
   // 축 이름이 눈금 숫자를 밟지 않도록, 가장 넓은 숫자만큼 밀어낼 거리를 재 둔다
   // (여백을 정할 때 이미 잰 값이다 — 같은 것을 두 번 세지 않는다)
   const yTickTextW = yName.tickW;
   yTicks.forEach((v, i) => {
     const y = toCanvasY(v);
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tickW;
     ctx.beginPath();
-    ctx.moveTo(plotX - 6, y);
+    ctx.moveTo(plotX - t.line.tickLen, y);
     ctx.lineTo(plotX, y);
     ctx.stroke();
     if (i % yStride === 0) ctx.fillText(formatTick(v), plotX - 10, y);
   });
 
   // 축 라벨
-  ctx.font = getFont(fs.axisLabel, options, 'bold');
+  ctx.font = textFont(options, 'axisName', axisPx);
 
   // X축 라벨 (하단 중앙) — 플롯 가운데에 놓이므로 캔버스 양쪽으로 넘칠 수 있다
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   drawFloatingLabel(ctx, data.xLabel, plotX + plotW / 2, plotY + plotH + 40, w, h,
-    fs.axisLabel, (size) => getFont(size, options, 'bold'));
-  ctx.font = getFont(fs.axisLabel, options, 'bold');
+    axisPx, (size) => textFont(options, 'axisName', size));
+  ctx.font = textFont(options, 'axisName', axisPx);
 
   // X축 단위 — 시험지 틀이면 마지막 눈금 옆(`4(℃)` 꼴),
   // 아니면 기존대로 축 이름과 같은 줄 오른쪽 끝
   if (data.xUnit) {
     if (exam) {
-      ctx.font = getFont(fs.tick, options, 'bold');
+      ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.tick));
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       // 마지막 눈금 숫자 오른쪽 끝에서 한 칸 띄운다
       ctx.fillText(data.xUnit, lastXLabelRight + 6, plotY + plotH + 10);
-      ctx.font = getFont(fs.axisLabel, options, 'bold');
+      ctx.font = textFont(options, 'axisName', axisPx);
     } else {
+      ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.axisLabel));
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
       ctx.fillText(data.xUnit, plotX + plotW + 10, plotY + plotH + 40);
@@ -206,17 +237,17 @@ function renderNormal(
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     drawFloatingLabel(ctx, data.yUnit, plotX - 10, plotY - 16, w, h,
-      fs.axisLabel, (size) => getFont(size, options, 'bold'));
+      textSize(options, 'unit', fs.axisLabel), (size) => textFont(options, 'unit', size));
   }
 
   // Y축 라벨 (Y축 중간) — 왼쪽 여백은 이미 이 이름 몫만큼 비워 두었다
-  ctx.font = getFont(yName.size, options, 'bold');
+  ctx.font = textFont(options, 'axisNameV', yName.size);
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   const yNameLineH = yName.size * 1.3;
   fillLines(ctx, yName.lines, plotX - 18 - yTickTextW,
     clampLinesMiddle(ctx, yName.lines, plotY + plotH / 2, yNameLineH, h), yNameLineH);
-  ctx.font = getFont(fs.axisLabel, options, 'bold');
+  ctx.font = textFont(options, 'axisName', axisPx);
 
   // 데이터 포인트
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, options, options.showDataLabels,
@@ -233,7 +264,7 @@ function renderNormal(
     }
     if (fillM.boxH > 0) drawFillLegendAt(ctx, data, x, y, fillM, fs, options);
   } else if (data.showBubble && data.points.length > 0) {
-    const avoid = bubbleRects(data, toCanvasX, toCanvasY);
+    const avoid = bubbleRects(data, toCanvasX, toCanvasY, look.dotR);
     const fill = measureFillLegend(ctx, data, fs, options);
     const used = drawBubbleLegend(ctx, data, plotX, plotY, plotW, plotH, fs, options, avoid, fill.boxH);
     drawFillLegend(ctx, data, plotX, plotY, plotW, plotH, used.bottom, fs, options, used.corner);
@@ -253,6 +284,8 @@ function renderDeviation(
   options: GraphOptions
 ) {
   const fs = options.fontSize;
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
   const padding: Padding = {
     // 상자 축이름은 그래프 위에 놓이고 그 아래에 y 단위가 들어가므로 자리를 더 준다
@@ -296,9 +329,9 @@ function renderDeviation(
 
   // 격자선
   ctx.save();
-  ctx.strokeStyle = '#ddd';
-  ctx.lineWidth = 0.5;
-  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = t.line.barGridColor;
+  ctx.lineWidth = t.line.barGrid;
+  ctx.setLineDash(t.line.barGridDash);
   for (let v = -xLimit + xStep; v < xLimit; v += xStep) {
     if (Math.abs(v) < xStep * 0.01) continue;
     const x = toCanvasX(v);
@@ -319,7 +352,7 @@ function renderDeviation(
 
   // 외곽 축선 — 시험지 편차 그래프는 테두리 없이 교차하는 두 축만 둔다
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = t.line.axis;
   if (data.showFrame !== false) {
     ctx.beginPath();
     ctx.moveTo(plotX, plotY);
@@ -332,7 +365,7 @@ function renderDeviation(
 
   // 십자 기준선 (0,0)
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = look.crossW;
   ctx.beginPath();
   ctx.moveTo(originX, plotY);
   ctx.lineTo(originX, plotY + plotH);
@@ -344,7 +377,7 @@ function renderDeviation(
 
   // 0 표시
   ctx.fillStyle = '#000';
-  ctx.font = getFont(fs.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
   ctx.fillText('0', originX - 6, originY + 4);
@@ -365,10 +398,10 @@ function renderDeviation(
   devXTicks.forEach((v, i) => {
     if (Math.abs(v) < xStep * 0.01) return;
     const x = toCanvasX(v);
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tickW;
     ctx.beginPath();
     ctx.moveTo(x, xTickBase);
-    ctx.lineTo(x, xTickBase + 6);
+    ctx.lineTo(x, xTickBase + t.line.tickLen);
     ctx.stroke();
     if (i % devXStride === 0) ctx.fillText(formatTick(v), x, xTickBase + 10);
   });
@@ -378,21 +411,21 @@ function renderDeviation(
   ctx.textBaseline = 'middle';
   const devYTicks: number[] = [];
   for (let v = -yLimit; v <= yLimit + yStep * 0.01; v += yStep) devYTicks.push(v);
-  const devYStride = labelStride(plotH / Math.max(1, devYTicks.length - 1), fs.tick * 1.1);
+  const devYStride = labelStride(plotH / Math.max(1, devYTicks.length - 1), textSize(options, 'tick', fs.tick) * 1.1);
   const yTickTextW = widestLabel(ctx, devYTicks.map(formatTick));
   devYTicks.forEach((v, i) => {
     if (Math.abs(v) < yStep * 0.01) return;
     const y = toCanvasY(v);
-    ctx.lineWidth = 1;
+    ctx.lineWidth = look.tickW;
     ctx.beginPath();
-    ctx.moveTo(yTickBase - 6, y);
+    ctx.moveTo(yTickBase - t.line.tickLen, y);
     ctx.lineTo(yTickBase, y);
     ctx.stroke();
     if (i % devYStride === 0) ctx.fillText(formatTick(v), yTickBase - 10, y);
   });
 
   // 축 라벨
-  ctx.font = getFont(fs.axisLabel, options, 'bold');
+  ctx.font = textFont(options, 'axisName', textSize(options, 'axisName', fs.axisLabel));
 
   // X축 라벨 (하단 중앙). 상자 방식이면 아래에서 따로 그린다.
   if (!data.boxedAxisLabels) {
@@ -404,6 +437,7 @@ function renderDeviation(
   // 축 단위.
   // 눈금이 십자축에 붙어 있으면 단위도 그 축 끝에, 눈금 숫자와 같은 줄·열에 둔다.
   // (축선 위가 아니라 숫자와 나란히 놓여야 읽힌다.)
+  ctx.font = textFont(options, 'unit', textSize(options, 'unit', fs.axisLabel));
   if (data.xUnit) {
     ctx.textAlign = data.ticksOnAxis ? 'left' : 'right';
     ctx.textBaseline = 'top';
@@ -427,16 +461,20 @@ function renderDeviation(
   if (data.boxedAxisLabels) {
     // 시험지 관습 — y 이름은 그래프 위, x 이름은 그래프 오른쪽에 상자로 둔다
     // y 이름은 맨 위에 둔다 — 그 아래 자리는 y 단위가 쓴다.
-    // y 이름은 세로축(0선)에 가운데를 맞춘다
-    drawBoxedLabel(ctx, data.yLabel, originX, 10, fs.axisLabel, 'below');
     // x 이름은 x 단위 오른쪽에 둔다 — 둘 다 축 오른쪽 끝, 같은 줄이라 겹칠 수 있다.
+    // (단위 폭은 단위 글꼴로 재야 하므로 상자 글꼴로 바꾸기 전에 잰다)
     const xUnitW = data.xUnit && data.ticksOnAxis ? ctx.measureText(data.xUnit).width + 14 : 0;
-    drawBoxedLabel(ctx, data.xLabel, plotX + plotW + 16 + xUnitW, plotY + plotH / 2, fs.axisLabel, 'right');
+    const boxedPx = textSize(options, 'axisName', fs.axisLabel);
+    ctx.font = textFont(options, 'axisName', boxedPx);
+    // y 이름은 세로축(0선)에 가운데를 맞춘다
+    drawBoxedLabel(ctx, data.yLabel, originX, 10, boxedPx, 'below', look.boxedLabelW);
+    drawBoxedLabel(ctx, data.xLabel, plotX + plotW + 16 + xUnitW, plotY + plotH / 2, boxedPx, 'right', look.boxedLabelW);
   } else {
     // Y축 라벨 (Y축 중간, 줄바꿈 지원)
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    fillTextMultiline(ctx, data.yLabel, yTickBase - 18 - yTickTextW, plotY + plotH / 2, fs.axisLabel * 1.3);
+    ctx.font = textFont(options, 'axisNameV', textSize(options, 'axisNameV', fs.axisLabel));
+    fillTextMultiline(ctx, data.yLabel, yTickBase - 18 - yTickTextW, plotY + plotH / 2, textSize(options, 'axisNameV', fs.axisLabel) * 1.3);
   }
 
   // 데이터 포인트
@@ -446,7 +484,7 @@ function renderDeviation(
   // 버블 크기 범례
   if (data.showBubble && data.points.length > 0) {
     drawBubbleLegend(ctx, data, plotX, plotY, plotW, plotH, fs, options,
-      bubbleRects(data, toCanvasX, toCanvasY));
+      bubbleRects(data, toCanvasX, toCanvasY, look.dotR));
   }
 
   drawTitle({ ctx, fonts: options, plotX, plotW, title: options.title, fontSize: fs.title, canvasWidth: w });
@@ -467,6 +505,7 @@ function drawPoints(
   canvasW: number,
   canvasH: number,
 ) {
+  const look = byStyle(options, LOOK);
   const maxSize = data.points.length > 0 ? Math.max(...data.points.map((p) => p.size), 1) : 1;
 
   // 라벨이 서로/점과 겹치지 않게 자리를 잡는다.
@@ -474,7 +513,7 @@ function drawPoints(
   const placer = new LabelPlacer();
   if (bounds) {
     for (const pt of data.points) {
-      const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : 4;
+      const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : look.dotR;
       placer.reserveCircle(toX(pt.x), toY(pt.y), r);
     }
   }
@@ -494,33 +533,35 @@ function drawPoints(
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
       // 버블 원 — 점별 채움색을 주면 그 색으로 (크기와 다른 값을 색으로 나타낼 때)
-      ctx.fillStyle = pt.fill ?? 'rgba(80,80,80,0.3)';
+      ctx.fillStyle = pt.fill ?? look.bubbleFill;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = look.bubbleStroke;
+      ctx.lineWidth = look.bubbleW;
       ctx.stroke();
     } else {
       // 버블 없을 때만 중심 점 표시
       ctx.fillStyle = '#000';
       ctx.beginPath();
-      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.arc(cx, cy, look.dotR, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // 라벨
     if (pt.label) {
       ctx.fillStyle = '#000';
-      ctx.font = getFont(fs.dataLabel, options, 'bold');
+      const lp = labelPlace(pt.label);
+      const lpx = textSize(options, lp, fs.dataLabel);
+      ctx.font = textFont(options, lp, lpx);
       const offset = data.showBubble && pt.size > 0
         ? (pt.size / maxSize) * data.bubbleScale + 4
-        : 8;
+        : look.dotR + 4;
 
       if (bounds) {
         placer.place(ctx, pt.label, cx, cy, {
           gap: offset,
-          lineHeight: fs.dataLabel * 1.1,
+          lineHeight: lpx * 1.1,
           bounds,
         });
       } else {
@@ -533,13 +574,13 @@ function drawPoints(
 
     // 데이터 라벨 (좌표값)
     if (showLabels) {
-      ctx.fillStyle = '#555';
-      ctx.font = getFont(fs.dataLabel * 0.8, options, 'normal');
+      ctx.fillStyle = look.valueInk;
+      ctx.font = textFont(options, 'value', textSize(options, 'value', fs.dataLabel * 0.8), { weight: 'normal' });
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       const offset = data.showBubble && pt.size > 0
         ? (pt.size / maxSize) * data.bubbleScale + 4
-        : 8;
+        : look.dotR + 4;
       // 오른쪽 끝 점의 값 라벨은 플롯 밖으로 흘러 캔버스를 넘을 수 있다
       const valueLabel = `(${pt.x}, ${pt.y})`;
       const at = nudgeInside(ctx, valueLabel, cx + offset, cy + 2, canvasW, canvasH);
@@ -592,20 +633,21 @@ function measureYAxisName(
 ): { lines: string[]; size: number; tickW: number; reserve: number } {
   ctx.save();
 
-  ctx.font = getFont(fs.tick, options, 'bold');
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));
   const ticks: number[] = [];
   for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) ticks.push(v);
   const tickW = widestLabel(ctx, ticks.map(formatTick));
 
-  const makeFont = (size: number) => getFont(size, options, 'bold');
-  ctx.font = makeFont(fs.axisLabel);
+  const makeFont = (size: number) => textFont(options, 'axisNameV', size);
+  const base = textSize(options, 'axisNameV', fs.axisLabel);
+  ctx.font = makeFont(base);
   // 사용자가 손으로 나눈 줄(리터럴 \n)은 그대로 지킨다
   const given = (data.yLabel || '').split('\\n');
   const budget = Math.max(40, w * 0.3 - 18 - tickW - 12);
   let lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
-  let size = fs.axisLabel;
+  let size = base;
   if (widestLine(ctx, lines) > budget) {
-    size = shrinkToWidth(ctx, lines, fs.axisLabel, budget, makeFont);
+    size = shrinkToWidth(ctx, lines, base, budget, makeFont);
     ctx.font = makeFont(size);
     lines = given.flatMap((l) => wrapToWidth(ctx, l, budget));
   }
@@ -622,10 +664,11 @@ function bubbleRects(
   data: ScatterGraphData,
   toX: (v: number) => number,
   toY: (v: number) => number,
+  dotR: number,
 ): Rect[] {
   const maxSize = data.points.length > 0 ? Math.max(...data.points.map((p) => p.size), 1) : 1;
   return data.points.map((pt) => {
-    const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : 4;
+    const r = data.showBubble && pt.size > 0 ? (pt.size / maxSize) * data.bubbleScale : dotR;
     const cx = toX(pt.x);
     const cy = toY(pt.y);
     return { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r };
@@ -694,9 +737,9 @@ function measureFillLegend(
   const legend = data.fillLegend;
   if (!legend || legend.items.length === 0) return { boxW: 0, boxH: 0 };
 
-  const fontSize = fs.dataLabel * 0.8;
+  const fontSize = textSize(options, 'legend', fs.dataLabel * 0.8);
   ctx.save();
-  ctx.font = getFont(fontSize, options, 'bold');
+  ctx.font = textFont(options, 'legend', fontSize, { role: options.fontFamily ?? 'serif' });
   const rowH = fontSize * 1.5;
   const swatch = fontSize * 0.95;
   const pad = 8;
@@ -753,9 +796,9 @@ function bubbleLegendMetrics(
   const radiusOf = (size: number) => (size / maxSize) * data.bubbleScale;
   const maxR = radiusOf(uniqueSteps[0]);
 
-  const labelFontSize = fs.dataLabel * 0.85;
+  const labelFontSize = textSize(options, 'value', fs.dataLabel * 0.85);
   ctx.save();
-  ctx.font = getFont(labelFontSize, options, 'bold');
+  ctx.font = textFont(options, 'value', labelFontSize);
   const labelW = Math.max(50, ...uniqueSteps.map((v) => ctx.measureText(labelOf(v)).width));
   ctx.restore();
   const pad = 14;
@@ -787,11 +830,12 @@ function drawBubbleLegendAt(
   boxY: number,
   options: FontOptions,
 ) {
+  const look = byStyle(options, LOOK);
   ctx.fillStyle = '#fff';
-  ctx.strokeStyle = '#666';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = look.legendBox.color;
+  ctx.lineWidth = look.legendBox.width;
   ctx.beginPath();
-  ctx.roundRect(boxX, boxY, m.boxW, m.boxH, 4);
+  ctx.roundRect(boxX, boxY, m.boxW, m.boxH, look.legendBox.radius);
   ctx.fill();
   ctx.stroke();
 
@@ -802,16 +846,16 @@ function drawBubbleLegendAt(
     const r = m.radiusOf(size);
     const cy = bottomCircleY - r;
 
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = look.bubbleStroke;
+    ctx.lineWidth = look.bubbleW;
     ctx.beginPath();
     ctx.arc(circleX, cy, r, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.save();
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 2]);
+    ctx.strokeStyle = look.leader.color;
+    ctx.lineWidth = look.leader.width;
+    ctx.setLineDash(look.leader.dash);
     const lineY = cy - r;
     ctx.beginPath();
     ctx.moveTo(circleX, lineY);
@@ -820,7 +864,7 @@ function drawBubbleLegendAt(
     ctx.restore();
 
     ctx.fillStyle = '#000';
-    ctx.font = getFont(m.labelFontSize, options, 'bold');
+    ctx.font = textFont(options, 'value', m.labelFontSize);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(m.labelOf(size), circleX + m.maxR + 16, bottomCircleY + m.labelOffsets[si]);
@@ -863,7 +907,8 @@ function drawBoxedLabel(
   x: number,
   y: number,
   fontSize: number,
-  place: 'below' | 'right'
+  place: 'below' | 'right',
+  lineW: number,
 ) {
   if (!text) return;
   // fillTextMultiline 과 같은 규약 — 실제 줄바꿈이 아니라 리터럴 역슬래시+n 으로 나눈다
@@ -883,7 +928,7 @@ function drawBoxedLabel(
   ctx.fillStyle = '#fff';
   ctx.fillRect(boxX, boxY, boxW, boxH);
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = lineW;
   ctx.strokeRect(boxX, boxY, boxW, boxH);
 
   ctx.fillStyle = '#000';
@@ -913,18 +958,20 @@ function drawFillLegendAt(
 ) {
   const legend = data.fillLegend;
   if (!legend || legend.items.length === 0) return;
+  const t = styleOf(options);
+  const look = byStyle(options, LOOK);
 
-  const fontSize = fs.dataLabel * 0.8;
+  const fontSize = textSize(options, 'legend', fs.dataLabel * 0.8);
   ctx.save();
-  ctx.font = getFont(fontSize, options, 'bold');
+  ctx.font = textFont(options, 'legend', fontSize, { role: options.fontFamily ?? 'serif' });
   const rowH = fontSize * 1.5;
   const swatch = fontSize * 0.95;
   const pad = 8;
 
   ctx.fillStyle = '#fff';
   ctx.fillRect(boxX, boxY, m.boxW, m.boxH);
-  ctx.strokeStyle = '#666';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = look.legendBox.color;
+  ctx.lineWidth = look.legendBox.width;
   ctx.setLineDash([]);
   ctx.strokeRect(boxX, boxY, m.boxW, m.boxH);
 
@@ -941,7 +988,7 @@ function drawFillLegendAt(
     ctx.fillStyle = it.fill;
     ctx.fillRect(boxX + pad, y + (rowH - swatch) / 2, swatch, swatch);
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = t.line.barStroke;
     ctx.strokeRect(boxX + pad, y + (rowH - swatch) / 2, swatch, swatch);
 
     ctx.fillStyle = '#000';

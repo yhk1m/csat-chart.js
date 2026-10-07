@@ -23,7 +23,7 @@ import { clearCanvas, textFont, textSize, type Padding } from '../canvas/rendere
 import { textCtx } from '../canvas/parens';
 import { byStyle, labelPlace, type TextPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
+import { EDGE, drawFloatingLabel, nudgeInside, wrapToWidth } from '../canvas/fit';
 import { drawFloatingRich, fillRich, nudgeRichInside, richWidth } from '../canvas/subscript';
 import { drawInsideLegend, type LegendItem } from '../canvas/legend';
 
@@ -622,7 +622,18 @@ export function renderEconPlane(
   if (data.xAxis.label) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    drawFloatingRich(ctx, data.xAxis.label, xRight + 10, axY + tickPx * 0.6, w, h, axisPx, axisFont);
+    // exam: 이름이 화살촉 오른쪽 자리보다 길면 밀려 들어와 눈금 숫자를 덮는다 — 그 폭으로 접어
+    // 마지막 줄을 한 줄일 때의 자리에 두고 위로 쌓는다 (화살촉 오른쪽 위는 비어 있다).
+    // classic 은 1.7.0 그대로 민다
+    ctx.font = axisFont(axisPx);
+    const room = w - EDGE - (xRight + 10);
+    const wrap = byStyle(options, { classic: false, exam: true })
+      && !data.xAxis.label.includes('_') && richWidth(ctx, data.xAxis.label, axisPx, axisFont) > room;
+    const xLines = wrap ? wrapToWidth(ctx, data.xAxis.label, Math.max(40, room)) : [data.xAxis.label];
+    xLines.forEach((lineText, i) => {
+      const up = (xLines.length - 1 - i) * axisPx * NAME_LINE_H;
+      drawFloatingRich(ctx, lineText, xRight + 10, axY + tickPx * 0.6 - up, w, h, axisPx, axisFont);
+    });
   }
   if (data.yAxis.label) {
     // 1사분면이면 축 왼쪽에 오른쪽 맞춤, 네 사분면이면 화살촉 위 가운데 맞춤이다.

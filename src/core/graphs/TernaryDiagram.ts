@@ -2,14 +2,16 @@
 import { type TernaryGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
-import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
+import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, nudgeInside, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle, labelPlace, tickDirOf } from '../canvas/style';
 
 const LOOK = {
   // classic 격자는 실선이다 — 공유 토큰(grid [4,4])과 달라 여기 둔다
-  classic: { gridDash: [] as number[], tickLen: 12, dotR: 6, valueInk: '#555' },
-  exam: { gridDash: [7.6, 4.7], tickLen: 12, dotR: 7, valueInk: '#000' }, // 산점을 따른다(실측 §2 ternary)
+  classic: { gridDash: [] as number[], tickLen: 12, dotR: 6, valueInk: '#555', dotHalo: 0, textHalo: false },
+  // 산점을 따른다(실측 §2 ternary). 점·이름은 흰 테두리로 격자 점선에서 떼어 낸다 — 저자 검토(2026-10-08):
+  // 격자 위의 점이 잘 안 보였다. 점은 둘레 3px 흰 고리, 글자는 양식의 흰 테두리(haloWidth)
+  exam: { gridDash: [7.6, 4.7], tickLen: 12, dotR: 7, valueInk: '#000', dotHalo: 3, textHalo: true },
 };
 
 // 삼각좌표 → 캔버스 좌표 변환
@@ -215,13 +217,20 @@ export function renderTernaryGraph(
     fillLines(ctx, nameFit.lines[i], spots[i].x, spots[i].y, labelLineH);
   }
 
-  // 데이터 포인트
+  // 데이터 포인트 — 흰 테두리 글자는 테두리(획 바깥 반 굵기)까지 캔버스 안에 넣는다
+  const textEdge = look.textHalo ? EDGE + t.haloWidth / 2 : EDGE;
   for (let i = 0; i < data.points.length; i++) {
     const p = data.points[i];
     // 시계방향 좌표: user(a,b,c) → internal(b, c, a)
     const { x, y } = ternaryToXY(p.b, p.c, p.a, cx, cy, triSize);
 
-    // 점
+    // 점 — exam 은 흰 고리를 먼저 깔아 격자 선을 끊는다
+    if (look.dotHalo > 0) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(x, y, look.dotR + look.dotHalo, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.arc(x, y, look.dotR, 0, Math.PI * 2);
@@ -235,8 +244,9 @@ export function renderTernaryGraph(
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       // 오른쪽 꼭짓점 가까운 점의 긴 이름은 캔버스를 넘는다 — 안으로 민다
-      const at = nudgeInside(ctx, p.label, x + look.dotR + 4, y - 4, w, h);
-      ctx.fillText(p.label, at.x, at.y);
+      const at = nudgeInside(ctx, p.label, x + look.dotR + 4, y - 4, w, h, textEdge);
+      if (look.textHalo) inkText(ctx, p.label, at.x, at.y, undefined, true, t, true);
+      else ctx.fillText(p.label, at.x, at.y);
     }
 
     // 데이터 라벨 (값 표시)
@@ -246,8 +256,9 @@ export function renderTernaryGraph(
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       const value = `(${p.a}, ${p.b}, ${p.c})`;
-      const at = nudgeInside(ctx, value, x + look.dotR + 4, y + 4, w, h);
-      ctx.fillText(value, at.x, at.y);
+      const at = nudgeInside(ctx, value, x + look.dotR + 4, y + 4, w, h, textEdge);
+      if (look.textHalo) inkText(ctx, value, at.x, at.y, undefined, true, t, true);
+      else ctx.fillText(value, at.x, at.y);
     }
   }
 

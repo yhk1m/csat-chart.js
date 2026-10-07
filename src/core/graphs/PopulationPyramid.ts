@@ -3,7 +3,7 @@ import { type PyramidGraphData, type GraphOptions, AGE_GROUPS } from '../types/i
 import { type Padding, clearCanvas, niceStep, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
+import { drawFloatingLabel, nudgeInside, textExtent } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
@@ -151,7 +151,20 @@ export function renderPyramidGraph(
   }
 
   const centerX = plotX + plotW / 2;
-  const halfW = plotW / 2;
+  const side = data.ageLabelSide;
+  // exam: 연령대 이름을 가운데에 두면 남·여 막대 사이에 그 폭만큼 빈 기둥을 낸다 — 글자가
+  // classic 보다 커서 막대 위에 얹으면 칸에 끼여 읽히지 않는다. classic 은 틈 0(1.7.0 그대로).
+  let ageGap = 0;
+  if (side === 'center' && !data.numericAgeAxis && byStyle(options, { classic: false, exam: true })) {
+    ctx.save();
+    ctx.font = textFont(options, 'tick', textSize(options, 'tick', options.fontSize.tick * 0.75));
+    ageGap = widestLabel(ctx, AGE_GROUPS.slice(0, n)) + 20;
+    ctx.restore();
+  }
+  /** 남 막대가 시작하는 x (0 자리) · 여 막대가 시작하는 x */
+  const maleX0 = centerX - ageGap / 2;
+  const femaleX0 = centerX + ageGap / 2;
+  const halfW = (plotW - ageGap) / 2;
   // 시험지는 두 축 모두 안쪽 눈금 (§2 pyramid)
   const dir = tickDirOf(options, { x: 'in', y: 'in' });
   const xs = dir.x === 'in' ? -1 : 1;
@@ -160,7 +173,6 @@ export function renderPyramidGraph(
   const actualBarH = barH - barGap - look.barGapPx;
 
   // 외곽선 + 연령 라벨 위치 세로선
-  const side = data.ageLabelSide;
   ctx.strokeStyle = '#000';
   ctx.lineWidth = t.line.axis;
 
@@ -180,10 +192,13 @@ export function renderPyramidGraph(
   }
   // 중앙 세로선
   if (side === 'center') {
-    ctx.beginPath();
-    ctx.moveTo(centerX, plotY);
-    ctx.lineTo(centerX, plotY + plotH);
-    ctx.stroke();
+    // 가운데 빈 기둥이 있으면 그 양쪽(남·여의 0 자리)에 하나씩
+    for (const x of ageGap > 0 ? [maleX0, femaleX0] : [centerX]) {
+      ctx.beginPath();
+      ctx.moveTo(x, plotY);
+      ctx.lineTo(x, plotY + plotH);
+      ctx.stroke();
+    }
   }
 
   // 상단 가로선
@@ -214,13 +229,13 @@ export function renderPyramidGraph(
     ctx.setLineDash(t.line.barGridDash);
     // 좌측
     ctx.beginPath();
-    ctx.moveTo(centerX - offset, plotY);
-    ctx.lineTo(centerX - offset, plotY + plotH);
+    ctx.moveTo(maleX0 - offset, plotY);
+    ctx.lineTo(maleX0 - offset, plotY + plotH);
     ctx.stroke();
     // 우측
     ctx.beginPath();
-    ctx.moveTo(centerX + offset, plotY);
-    ctx.lineTo(centerX + offset, plotY + plotH);
+    ctx.moveTo(femaleX0 + offset, plotY);
+    ctx.lineTo(femaleX0 + offset, plotY + plotH);
     ctx.stroke();
     ctx.restore();
   }
@@ -233,17 +248,17 @@ export function renderPyramidGraph(
 
     // 남성 (좌측) — 기본은 진한 회색, sexFills 를 주면 그 색
     ctx.fillStyle = data.sexFills?.[0] ?? look.male;
-    ctx.fillRect(centerX - maleW, y, maleW, actualBarH);
+    ctx.fillRect(maleX0 - maleW, y, maleW, actualBarH);
     ctx.strokeStyle = data.sexFills ? '#000' : look.maleStroke;
     ctx.lineWidth = look.barStroke;
-    ctx.strokeRect(centerX - maleW, y, maleW, actualBarH);
+    ctx.strokeRect(maleX0 - maleW, y, maleW, actualBarH);
 
     // 여성 (우측) — 기본은 연한 회색
     ctx.fillStyle = data.sexFills?.[1] ?? look.female;
-    ctx.fillRect(centerX, y, femaleW, actualBarH);
+    ctx.fillRect(femaleX0, y, femaleW, actualBarH);
     ctx.strokeStyle = data.sexFills ? '#000' : look.femaleStroke;
     ctx.lineWidth = look.barStroke;
-    ctx.strokeRect(centerX, y, femaleW, actualBarH);
+    ctx.strokeRect(femaleX0, y, femaleW, actualBarH);
   }
 
   // 연령 축
@@ -278,7 +293,14 @@ export function renderPyramidGraph(
     }
   } else {
     ctx.font = textFont(options, 'tick', textSize(options, 'tick', options.fontSize.tick * 0.75));
+    // exam: 글자가 칸보다 높으면 이름을 하나 걸러 적는다 (classic 은 1.7.0 그대로 다 적는다)
+    let ageStride = 1;
+    if (byStyle(options, { classic: false, exam: true })) {
+      const e = textExtent(ctx, '0123456789-+');
+      ageStride = labelStride(barH, e.up + e.down, 3);
+    }
     for (let i = 0; i < n; i++) {
+      if (i % ageStride !== 0) continue;
       const y = plotY + plotH - (i + 1) * barH + barH / 2;
       if (side === 'center') {
         ctx.textAlign = 'center';
@@ -321,7 +343,7 @@ export function renderPyramidGraph(
     const offset = (rv / maxVal) * halfW;
 
     // 좌측
-    const lx = centerX - offset;
+    const lx = maleX0 - offset;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = look.tick;
     ctx.beginPath();
@@ -334,14 +356,15 @@ export function renderPyramidGraph(
     }
 
     // 우측
-    const rx = centerX + offset;
+    const rx = femaleX0 + offset;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = look.tick;
     ctx.beginPath();
     ctx.moveTo(rx, plotY + plotH);
     ctx.lineTo(rx, plotY + plotH + xs * look.tickLen);
     ctx.stroke();
-    if (rv > 0 && showNumber) {
+    // 가운데가 한 자리면 0 을 한 번만, 빈 기둥으로 갈라졌으면 양쪽에 적는다
+    if ((rv > 0 || ageGap > 0) && showNumber) {
       ctx.textAlign = 'center';
       ctx.fillText(fmtTick(rv), rx, plotY + plotH + 10);
     }
@@ -355,7 +378,7 @@ export function renderPyramidGraph(
   const sexY = look.sexBelow ? plotY + plotH + 10 + tickFs + 8 : plotY - 16;
   ctx.textBaseline = look.sexBelow ? 'top' : 'bottom';
   // 긴 이름은 캔버스를 넘는다 — 여백에 떠 있는 글자라 안으로 민다
-  for (const [label, x] of [[data.maleLabel, plotX + halfW / 2], [data.femaleLabel, centerX + halfW / 2]] as const) {
+  for (const [label, x] of [[data.maleLabel, plotX + halfW / 2], [data.femaleLabel, femaleX0 + halfW / 2]] as const) {
     const at = nudgeInside(ctx, label, x, sexY, w, h);
     ctx.fillText(label, at.x, at.y);
   }
@@ -395,11 +418,11 @@ export function renderPyramidGraph(
 
       if (displayAges[i].male > 0) {
         ctx.textAlign = 'right';
-        ctx.fillText(mLabel, centerX - mW - 4, y);
+        ctx.fillText(mLabel, maleX0 - mW - 4, y);
       }
       if (displayAges[i].female > 0) {
         ctx.textAlign = 'left';
-        ctx.fillText(fLabel, centerX + fW + 4, y);
+        ctx.fillText(fLabel, femaleX0 + fW + 4, y);
       }
     }
   }

@@ -269,10 +269,18 @@ export function renderAbsBarGraph(
     ctx.textBaseline = 'top';
     // 범주 이름이 서로 붙으면 몇 개 걸러 그린다
     const catStride = labelStride(catArea, widestLabel(ctx, data.categories.map((c) => c.label)));
+    // exam: 0 선 아래 이름은 그 범주의 음수 막대에 덮인다 — 가장 낮은 음수 막대 끝 아래로 내린다
+    const dodgeNegative = data.categoryLabelAtBaseline && !data.stacked
+      && byStyle(options, { classic: false, exam: true });
     for (let c = 0; c < n; c++) {
       if (c % catStride !== 0) continue;
       const cx = plotX + catArea * c + catArea / 2;
-      ctx.fillText(data.categories[c].label, cx, labelY);
+      let y = labelY;
+      if (dodgeNegative) {
+        const low = Math.min(0, ...data.categories[c].values.slice(0, sCount).map((v) => v || 0));
+        if (low < 0) y = Math.min(valToY(low), plotY + plotH) + 6;
+      }
+      ctx.fillText(data.categories[c].label, cx, y);
     }
   } else {
     // 가로 — 사각 테두리

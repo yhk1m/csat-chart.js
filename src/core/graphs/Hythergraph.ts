@@ -7,7 +7,7 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
-import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
+import { LabelPlacer, drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
@@ -269,6 +269,9 @@ export function renderHythergraph(
   const showLoop = data.mode === 'loop' || data.mode === 'both';
   const showPts = data.mode === 'points' || data.mode === 'both';
 
+  // exam 은 글자가 커서(8.2pt) 붙은 달끼리 숫자가 겹친다 — 자리 찾기(LabelPlacer)로 놓는다
+  const spreadMonths = showPts && byStyle(options, { classic: false, exam: true });
+
   for (let si = 0; si < data.series.length; si++) {
     const series = data.series[si];
     const pts = series.months.map((m) => ({ cx: toX(m.temp), cy: toY(m.precip) }));
@@ -303,8 +306,8 @@ export function renderHythergraph(
         // 기호
         drawMarker(ctx, marker, cx, cy, look.markerR, t.marker.stroke);
 
-        // 월 라벨 (모든 계열에 표시)
-        {
+        // 월 라벨 (모든 계열에 표시) — exam 은 기호를 다 그린 뒤 겹치지 않게 따로 놓는다
+        if (!spreadMonths) {
           ctx.fillStyle = '#000';
           ctx.font = textFont(options, 'value', textSize(options, 'value', fs.dataLabel));
           ctx.textAlign = 'left';
@@ -313,6 +316,22 @@ export function renderHythergraph(
         }
       }
     }
+  }
+
+  if (spreadMonths) {
+    const placer = new LabelPlacer(t.leader);
+    const size = textSize(options, 'value', fs.dataLabel);
+    const all = data.series.map((sr) => sr.months.map((m) => ({ cx: toX(m.temp), cy: toY(m.precip) })));
+    for (const pts of all) for (const p of pts) placer.reserveCircle(p.cx, p.cy, look.markerR + 1);
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.font = textFont(options, 'value', size);
+    const bounds = { left: plotX + 2, right: plotX + plotW - 2, top: plotY + 2, bottom: plotY + plotH - 2 };
+    for (const pts of all) {
+      pts.forEach((p, i) => placer.place(ctx, mLabels[i], p.cx, p.cy,
+        { gap: look.markerR + 3, lineHeight: size * 0.8, bounds }));
+    }
+    ctx.restore();
   }
 
   // 범례 (기호 + 선 스타일)

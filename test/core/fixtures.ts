@@ -743,3 +743,30 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['treemapExam', renderTreemapGraph as Renderer, treemapExam],
   ['treemapLongTail', renderTreemapGraph as Renderer, treemapLongTail],
 ];
+
+/**
+ * exam 에만 있는 기준 이미지 — `options.legendPosition` 을 적은 그림(2.1.0).
+ * classic 기준 43장은 1.7.0 의 증거라 늘리지 않는다. 이름이 `LegendRight`·`LegendBottom` 으로
+ * 끝나면 golden.test.ts 가 그 쪽을 옵션에 넣는다.
+ *
+ * - 경제 좌표평면 계열 — 네 모서리가 다 막혀 오른쪽 위로 나간다(플롯을 좁히고 이름을 접는다)
+ * - 막대·100% 막대·꺾은선(범례 모드) — 바깥 범례가 곧장 오른쪽
+ * - 산점도 버블 — 막히면 오른쪽(적지 않은 것과 같다) / 아래(가로축 이름 밑)
+ */
+/** 데모 산점도에 버블 둘을 더해 네 모서리가 다 막힌다 — 버블 범례가 플롯 밖으로 나가야 한다 */
+const scatterLegendBlocked = () => {
+  const d = createDefaultScatterData();
+  d.xLabel = '인구밀도'; d.xUnit = '(명/km²)';
+  d.yLabel = '1인당 지역내총생산'; d.yUnit = '(백만 원)';
+  d.points = [...d.points, { x: 8, y: 58, size: 60, label: 'E' }, { x: 55, y: 14, size: 60, label: 'F' }];
+  return d;
+};
+
+export const EXAM_ONLY_CASES: [string, Renderer, () => unknown][] = [
+  ['econPlaneLegendRight', renderEconPlane as Renderer, econPlaneSeries],
+  ['absbarLegendRight', renderAbsBarGraph as Renderer, createDefaultAbsBarData],
+  ['stackedLegendRight', renderStackedGraph as Renderer, createDefaultStackedData],
+  ['lineLegendRight', renderLineGraph as Renderer, () => ({ ...lineWithData(), labelPlacement: 'legend' })],
+  ['scatterLegendRight', renderScatterGraph as Renderer, scatterLegendBlocked],
+  ['scatterLegendBottom', renderScatterGraph as Renderer, scatterLegendBlocked],
+];

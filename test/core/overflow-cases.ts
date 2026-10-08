@@ -155,6 +155,13 @@ const A_SCATTER: Maker = () => {
   return d;
 };
 
+/** 버블 둘을 더해 네 모서리가 다 막힌다 — 버블 범례가 legendPosition 쪽 바깥으로 나간다 (2.1.0) */
+const A_SCATTER_BLOCKED: Maker = () => {
+  const d = A_SCATTER() as ReturnType<typeof createDefaultScatterData>;
+  d.points = [...d.points, { x: 8, y: 58, size: 60, label: 'E' }, { x: 55, y: 14, size: 60, label: 'F' }];
+  return d;
+};
+
 const A_STACKED: Maker = () => {
   const d = createDefaultStackedData();
   d.seriesLabels = ['1차 산업', '2차 산업', '3차 산업'];
@@ -478,6 +485,11 @@ const TYPES: Entry[] = [
   ['pyramid', renderPyramidGraph as ProbeCase['render'], () => clone(A_PYRAMID), B_PYRAMID],
   ['radar', renderRadarChart as ProbeCase['render'], () => clone(A_RADAR), B_RADAR],
   ['scatter', renderScatterGraph as ProbeCase['render'], A_SCATTER, B_SCATTER],
+  ['scatter(막힘)', renderScatterGraph as ProbeCase['render'], A_SCATTER_BLOCKED, () => {
+    const d = B_SCATTER() as ReturnType<typeof createDefaultScatterData>;
+    d.points = [...d.points, { x: 8, y: 58, size: 60, label: '제주특별자치도 서귀포시' }];
+    return d;
+  }],
   ['stacked', renderStackedGraph as ProbeCase['render'], A_STACKED, B_STACKED],
   ['ternary', renderTernaryGraph as ProbeCase['render'], createDefaultTernaryData, B_TERNARY],
   ['treemap', renderTreemapGraph as ProbeCase['render'], createDefaultTreemapData, B_TREEMAP],

@@ -4,7 +4,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { clearCanvas, createDefaultGraphOptions, type StyleName } from '../../src/core/index';
-import { CASES, type Renderer } from './fixtures';
+import { CASES, EXAM_ONLY_CASES, type Renderer } from './fixtures';
 
 const SNAP_DIR = join(__dirname, '__snapshots__');
 const W = 800;
@@ -63,6 +63,9 @@ function optionsFor(name: string, style: StyleName) {
       sourceInline: true,
     };
   }
+  // 범례 쪽을 적은 그림 (exam 만, 2.1.0)
+  if (name.endsWith('LegendRight')) return { ...base, legendPosition: 'right' as const };
+  if (name.endsWith('LegendBottom')) return { ...base, legendPosition: 'bottom' as const };
   // 원그래프 — 조각 안 값 라벨(어두운 조각은 흰 글자)까지 감시한다
   if (name === 'stackedPie') return { ...base, showDataLabels: true };
   if (!name.endsWith('LongText')) return base;
@@ -82,7 +85,9 @@ function render(fn: Renderer, data: unknown, name: string, style: StyleName): Bu
 }
 
 describe.each(SETS)('골든 이미지 — %s', (style, dir) => {
-  (SKIP_GOLDEN ? it.skip : it).each(CASES)(
+  // classic 은 43장 그대로, exam 은 legendPosition 을 적은 그림이 더 있다
+  const cases = style === 'exam' ? [...CASES, ...EXAM_ONLY_CASES] : CASES;
+  (SKIP_GOLDEN ? it.skip : it).each(cases)(
     '%s 렌더 결과가 기준 이미지와 같다',
     (name, fn, makeData) => {
       const actual = render(fn, makeData(), name, style);
@@ -105,7 +110,7 @@ describe.each(SETS)('골든 이미지 — %s', (style, dir) => {
     },
   );
 
-  it.each(CASES)('%s 는 빈 캔버스가 아니다', (_name, fn, makeData) => {
+  it.each(cases)('%s 는 빈 캔버스가 아니다', (_name, fn, makeData) => {
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
     // 새 캔버스는 투명 검정이다. 흰색으로 채워야 «흰색이 아닌 픽셀» 이 뜻을 가진다.

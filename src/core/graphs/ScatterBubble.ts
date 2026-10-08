@@ -6,7 +6,7 @@ import { legendSideOf } from '../canvas/legend';
 import { xTickLabelAt, yTickLabelAt, yUnitLeft } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
-import { EDGE, clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, textExtent, widestLine, wrapToWidth } from '../canvas/fit';
+import { EDGE, clampLinesMiddle, drawFloatingLabel, fillLines, fontSizeOf, inkExtent, nudgeInside, shrinkToWidth, textExtent, widestLine, wrapToWidth } from '../canvas/fit';
 
 const LOOK = {
   classic: {
@@ -595,12 +595,21 @@ function renderDeviation(
   if (data.yUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    // 십자축이면 맨 위 눈금 숫자(가운데 맞춤) 윗끝에서 4 위로 — 숫자와 겹치지 않게 잰다
-    ctx.fillText(
-      data.yUnit,
-      data.ticksOnAxis ? originX - 10 : plotX - 10,
-      data.ticksOnAxis ? plotY - tickUp - 4 - textExtent(ctx, data.yUnit).down : plotY - 16,
-    );
+    // 십자축이면 맨 위 눈금 숫자(가운데 맞춤)의 잉크 윗끝에서 띄운다 — 단위·숫자 모두 실제로
+    // 찍히는 글꼴·크기(숫자 높이 맞춤 뒤, 괄호 조각 포함)의 잉크로 잰다. 틈은 글꼴 크기에서
+    // 잡는다 — 어느 글꼴이 대체로 들어와도(리눅스 CI) 붙지 않는다 (2.2.1)
+    let unitY = plotY - 16;
+    if (data.ticksOnAxis) {
+      const unitFont = ctx.font;
+      ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));
+      ctx.textBaseline = 'middle';
+      const tickTop = plotY - inkExtent(ctx, formatTick(yLimit)).up;
+      ctx.font = unitFont;
+      ctx.textBaseline = 'bottom';
+      const gap = Math.max(4, fontSizeOf(ctx.font) * 0.1);
+      unitY = tickTop - gap - inkExtent(ctx, data.yUnit).down;
+    }
+    ctx.fillText(data.yUnit, data.ticksOnAxis ? originX - 10 : plotX - 10, unitY);
   }
 
   if (data.boxedAxisLabels) {

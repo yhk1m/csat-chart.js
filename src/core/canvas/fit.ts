@@ -67,8 +67,33 @@ export function textExtent(ctx: CanvasRenderingContext2D, text: string): TextExt
   return { left, right: w - left, up, down };
 }
 
+/**
+ * 글자 잉크의 **부호 있는** 세로 끝 — 기준점에서 잉크 윗끝까지(`up`, 위가 +)와 아랫끝까지
+ * (`down`, 아래가 +). `textExtent` 는 0 아래로 내려가지 않지만(기준점을 늘 덮는다), 이것은
+ * 잉크가 기준점에서 떨어져 있으면 그대로 음수다 — 「bottom」 기준선의 괄호·`m` 은 글꼴에 따라
+ * 기준선보다 몇 px 위에서 끝난다 (2.2.1: 리눅스 대체 글꼴에서 단위가 눈금에 붙던 까닭).
+ *
+ * 글자마다 따로 잰다(`textExtent` 와 같은 까닭). 감싼 ctx(parens.ts)면 괄호 조각은 실제로
+ * 찍히는 글꼴·옮김으로 재진다. 잉크를 못 재는 ctx 면 `textExtent` 와 같다.
+ */
+export function inkExtent(ctx: CanvasRenderingContext2D, text: string): { up: number; down: number } {
+  let up = -Infinity;
+  let down = -Infinity;
+  for (const ch of text) {
+    if (!ch.trim()) continue;
+    const m = ctx.measureText(ch);
+    if (typeof m.actualBoundingBoxAscent !== 'number' || typeof m.actualBoundingBoxDescent !== 'number') {
+      const e = textExtent(ctx, text);
+      return { up: e.up, down: e.down };
+    }
+    up = Math.max(up, m.actualBoundingBoxAscent);
+    down = Math.max(down, m.actualBoundingBoxDescent);
+  }
+  return up === -Infinity ? { up: 0, down: 0 } : { up, down };
+}
+
 /** `'bold 28px ...'` 에서 28 을 뽑는다. 못 읽으면 16. */
-function fontSizeOf(font: string): number {
+export function fontSizeOf(font: string): number {
   const m = /(\d+(?:\.\d+)?)px/.exec(font);
   return m ? parseFloat(m[1]) : 16;
 }

@@ -87,7 +87,7 @@ export const shrink = (b: Box, d: number): Box =>
   ({ left: b.left + d, right: b.right - d, top: b.top + d, bottom: b.bottom - d });
 
 /**
- * 글자 잉크 상자를 **글자마다 따로 재서** 기록한다 (2.2.1).
+ * 글자 잉크 상자를 **글자마다 따로 재서** 기록한다 (2.2.1). 위·아래 끝은 부호 그대로다.
  *
  * `actualBoundingBox*` 를 문자열 통째로 재면 @napi-rs/canvas 는 글꼴 대체가 일어난
  * 문자열에서 첫 조각만 잰다 (src/core/canvas/fit.ts 의 textExtent 설명). 그래서 폭은
@@ -163,14 +163,17 @@ export function inkLogged(
     const width = Math.min(o.measureText(s).width, mw ?? Infinity);
     const al = ctx.textAlign;
     const left = al === 'right' || al === 'end' ? width : al === 'center' ? width / 2 : 0;
-    let up = 0;
-    let down = 0;
+    // 부호 있는 잉크 — 「bottom」 기준선의 괄호처럼 잉크가 기준점 위에서 끝나면 그 자리가 아랫끝이다
+    // (0 에서 자르면 기준점까지 잉크가 있다고 보아 틈을 실제보다 좁게 잰다 — 2.2.1 CI)
+    let up = -Infinity;
+    let down = -Infinity;
     for (const ch of s) {
       if (!ch.trim()) continue;
       const m = o.measureText(ch);
       up = Math.max(up, m.actualBoundingBoxAscent);
       down = Math.max(down, m.actualBoundingBoxDescent);
     }
+    if (up === -Infinity) { up = 0; down = 0; }
     const m = ctx.getTransform();
     const sx = Math.hypot(m.a, m.b);
     const sy = Math.hypot(m.c, m.d);

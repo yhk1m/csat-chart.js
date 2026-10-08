@@ -3,6 +3,8 @@
 // 없는 기계를 흉내 낸다. 글꼴에 기대는 배치 결함을 로컬에서 잡는다 (`npm run test:fallback`).
 //   FALLBACK_FONTS=1         글꼴 목록의 이름 붙은 글꼴을 모두 지운다 — 일반 글꼴(serif·sans-serif) + 한글 대체
 //   FALLBACK_FONTS=<글꼴 이름> 글꼴 목록 전체를 그 글꼴 하나로 바꾼다 (예: 'Noto Serif KR')
+//   `npm run test:fallback` 은 GeoTester 사례를 'Batang' 으로도 한 번 더 돈다 — 잉크가 기준선에서
+//   떨어지는 괄호(리눅스 대체 글꼴처럼)로 단위 틈을 본다 (vitest.config.ts)
 import { createCanvas } from '@napi-rs/canvas';
 
 const mode = process.env.FALLBACK_FONTS;

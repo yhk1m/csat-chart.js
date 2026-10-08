@@ -408,6 +408,11 @@ export function layoutBottomLegend(
   };
 }
 
+/** 아래 범례 상자를 플롯 바닥에서 띄우는 기본 거리 (양식별) */
+export function legendBelowPlot(fonts: FontOptions): number {
+  return byStyle(fonts, LOOK).belowPlot;
+}
+
 /**
  * 하단 범례가 플롯 아래로 실제로 차지하는 높이 (오프셋 포함).
  *

@@ -349,6 +349,66 @@ export function resolveDrawSize(labelSize: number, layout: LabelLayout): number 
   return labelSize * layout.scale;
 }
 
+/**
+ * exam — 기본 배치로는 못 읽을 만큼 좁은 칸의 이름 (2.2.1).
+ *
+ * 2027학년도 9월 세계지리 6번 꼴 순위 트리맵에서 「5위 3.6」 같은 좁고 긴 칸이 이름 없이
+ * 비었다. 조용히 버리기 전에 두 자리를 더 본다.
+ *  1. **바로 세운 채** 안쪽 여백을 칸 폭의 8% 로 줄여 — 쓴 사람이 정한 줄 그대로.
+ *  2. **90° 돌려** 한 줄로 — 줄을 띄어 쓰기로 이어 칸 높이 방향으로 눕힌다.
+ * 둘 중 글자가 뚜렷이(1.25배 넘게) 큰 쪽을 쓰되, 비슷하면 바로 세운 쪽.
+ * 둘 다 `MIN_LEGIBLE_SCALE` 밑이면 그때 버린다.
+ */
+function drawNarrowLabel(
+  ctx: CanvasRenderingContext2D,
+  r: TreemapRect,
+  cell: TreemapGraphData['cells'][number],
+  labelSize: number,
+  pad: number,
+  options: GraphOptions,
+  look: (typeof LOOK)[keyof typeof LOOK],
+): void {
+  const tight = Math.min(pad, r.w * 0.08, r.h * 0.08);
+  ctx.save();
+  ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
+  const upright = pickLabelLayout(ctx, cell.label, r.w - tight * 2, r.h - tight * 2, labelSize);
+  const oneLine = cell.label.split('\n').join(' ');
+  const lineW = ctx.measureText(oneLine).width;
+  const rotScale = Math.min(1, (r.h - tight * 2) / Math.max(lineW, 1), (r.w - tight * 2) / (labelSize * 1.2));
+  const rotate = rotScale > upright.scale * 1.25;
+  const scale = rotate ? rotScale : upright.scale;
+  if (scale < MIN_LEGIBLE_SCALE) {
+    ctx.restore();
+    return;
+  }
+  const size = labelSize * scale;
+  ctx.font = textFont(options, 'region', size, { weight: 'normal' });
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const dark = isDarkFill(cell.fill);
+  const ink = (line: string, x: number, y: number, maxW: number) => {
+    if (dark) {
+      ctx.save();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = look.halo ? look.halo(size) : styleOf(options).haloWidth;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(line, x, y, maxW);
+      ctx.restore();
+    }
+    ctx.fillText(line, x, y, maxW);
+  };
+  if (rotate) {
+    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ink(oneLine, 0, 0, r.h - tight * 2);
+  } else {
+    const startY = r.y + r.h / 2 - ((upright.lines.length - 1) * size * 1.2) / 2;
+    upright.lines.forEach((line, k) => ink(line, r.x + r.w / 2, startY + k * size * 1.2, r.w - tight * 2));
+  }
+  ctx.restore();
+}
+
 export function renderTreemapGraph(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -407,8 +467,13 @@ export function renderTreemapGraph(
   ctx.textBaseline = 'middle';
   ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
 
+  const examFallback = byStyle(options, { classic: false, exam: true });
   rects.forEach((r, i) => {
-    if (shouldOmitLabel(r, minLabelW, labelSize)) return;
+    if (shouldOmitLabel(r, minLabelW, labelSize)) {
+      // exam: 좁은 칸도 읽히는 자리가 있으면 버리지 않는다 (2.2.1)
+      if (examFallback && r.w > 0 && r.h > 0) drawNarrowLabel(ctx, r, data.cells[i], labelSize, pad, options, look);
+      return;
+    }
     const avail = r.w - pad * 2;
     ctx.font = textFont(options, 'region', labelSize, { weight: 'normal' });
     // 줄 수와 글꼴 크기를 함께 고른다 — 칸 너비·높이를 둘 다 만족하는 가장 큰
@@ -419,7 +484,10 @@ export function renderTreemapGraph(
     // 않는다 — 하한으로 밀어 올리지 않는다(2026-08-18). 밀어 올리면
     // `pickLabelLayout`이 세워 둔 "칸에 맞는다"는 보장이 깨진다(파일
     // 머리말·`pickLabelLayout` 설명 참고).
-    if (shouldOmitLayout(layout)) return;
+    if (shouldOmitLayout(layout)) {
+      if (examFallback) drawNarrowLabel(ctx, r, data.cells[i], labelSize, pad, options, look);
+      return;
+    }
     const drawSize = resolveDrawSize(labelSize, layout);
     if (drawSize !== labelSize) {
       ctx.font = textFont(options, 'region', drawSize, { weight: 'normal' });

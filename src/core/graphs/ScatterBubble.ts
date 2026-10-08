@@ -6,7 +6,7 @@ import { legendSideOf } from '../canvas/legend';
 import { xTickLabelAt, yTickLabelAt, yUnitLeft } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
-import { clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, widestLine, wrapToWidth } from '../canvas/fit';
+import { EDGE, clampLinesMiddle, drawFloatingLabel, fillLines, nudgeInside, shrinkToWidth, textExtent, widestLine, wrapToWidth } from '../canvas/fit';
 
 const LOOK = {
   classic: {
@@ -381,11 +381,42 @@ function renderDeviation(
   const t = styleOf(options);
   const look = byStyle(options, LOOK);
 
+  // 상자 축 이름·단위·눈금 숫자의 실제 크기 (2.2.1) — 고정 여백(위 120·오른쪽 170)이면
+  // 단위 「(mm)」 가 맨 위 눈금 「30」 에 붙고, 오른쪽 상자 이름이 캔버스 끝에서 잘렸다.
+  const tickPx = textSize(options, 'tick', fs.tick);
+  const unitPx = textSize(options, 'unit', fs.axisLabel);
+  let boxedPx = textSize(options, 'axisName', fs.axisLabel);
+  ctx.save();
+  ctx.font = textFont(options, 'tick', tickPx);
+  ctx.textBaseline = 'middle';
+  const tickUp = textExtent(ctx, formatTick(Math.max(Math.abs(data.yRange.min), Math.abs(data.yRange.max)))).up;
+  const lastXTickHalf = ctx.measureText(formatTick(Math.max(Math.abs(data.xRange.min), Math.abs(data.xRange.max)))).width / 2;
+  ctx.font = textFont(options, 'unit', unitPx);
+  const yUnitExt = data.yUnit ? textExtent(ctx, data.yUnit) : null;
+  const yUnitH = yUnitExt ? yUnitExt.up + yUnitExt.down : 0;
+  // 십자축 눈금이면 x 단위는 마지막 눈금 숫자 바로 오른쪽 — 숫자 반폭 + 6
+  const xUnitGap = data.ticksOnAxis ? Math.max(20, lastXTickHalf + 6) : 10;
+  const xUnitW = data.xUnit && data.ticksOnAxis ? ctx.measureText(data.xUnit).width : 0;
+  // 오른쪽 상자 이름 — 너무 넓으면(캔버스 폭의 30% 넘게) 그때만 글꼴을 줄인다
+  const xBoxGap = 14;
+  const boxRoom = w * 0.3 - xUnitGap - xUnitW - xBoxGap - BOX_PAD_X * 2 - EDGE;
+  if (data.boxedAxisLabels && data.xLabel) {
+    boxedPx = shrinkToWidth(ctx, data.xLabel.split('\\n'), boxedPx, boxRoom,
+      (sz) => textFont(options, 'axisName', sz));
+  }
+  ctx.font = textFont(options, 'axisName', boxedPx);
+  const xBox = data.boxedAxisLabels ? boxedLabelSize(ctx, data.xLabel, boxedPx) : { w: 0, h: 0 };
+  const yBox = data.boxedAxisLabels ? boxedLabelSize(ctx, data.yLabel, boxedPx) : { w: 0, h: 0 };
+  ctx.restore();
+  // 위: 상자(y 이름) → 6 → y 단위 → 4 → 맨 위 눈금 숫자의 윗끝 → 플롯 윗변
+  const topNeeded = Math.ceil(BOX_TOP + yBox.h + (yUnitH ? 6 + yUnitH + 4 : 6) + tickUp);
+  const rightNeeded = Math.ceil(xUnitGap + xUnitW + xBoxGap + xBox.w + EDGE + 2);
+
   const padding: Padding = {
     // 상자 축이름은 그래프 위에 놓이고 그 아래에 y 단위가 들어가므로 자리를 더 준다
-    top: options.title ? 100 : (data.boxedAxisLabels ? 120 : 50),
-    // 상자 축이름은 플롯 오른쪽 바깥에 놓이므로 그때만 자리를 더 준다
-    right: data.boxedAxisLabels ? 170 : 80,
+    top: options.title ? 100 : (data.boxedAxisLabels ? Math.max(120, topNeeded) : 50),
+    // 상자 축이름은 플롯 오른쪽 바깥에 놓인다 — 단위·상자 폭을 재서 잡는다
+    right: data.boxedAxisLabels ? Math.max(80, rightNeeded) : 80,
     bottom: (() => {
       let b = 90;
       const notes = options.footnotes.filter(f => f.trim()).length;
@@ -481,6 +512,11 @@ function renderDeviation(
   // 눈금을 어디에 붙일지 — 기본은 플롯 가장자리, ticksOnAxis 면 가운데 십자선
   const xTickBase = data.ticksOnAxis ? originY : plotY + plotH;
   const yTickBase = data.ticksOnAxis ? originX : plotX;
+  // exam: 십자축 눈금 숫자는 플롯 안 점선 격자 위에 놓인다 — 숫자 자리만 흰 바탕으로 비운다.
+  // 시험지 그림은 격자가 숫자를 지나지 않는다 (2.2.1)
+  const knockout = !!data.ticksOnAxis && byStyle(options, { classic: false, exam: true });
+  // 그 숫자 자리는 점 이름도 비켜 간다
+  const tickBoxes: LabelBox[] = [];
 
   // X축 눈금
   ctx.textAlign = 'center';
@@ -502,7 +538,10 @@ function renderDeviation(
       ctx.lineTo(x, xTickBase + b);
       ctx.stroke();
     }
-    if (i % devXStride === 0) ctx.fillText(formatTick(v), x, xTickBase + 10);
+    if (i % devXStride === 0) {
+      if (knockout) tickBoxes.push(knockOut(ctx, formatTick(v), x, xTickBase + 10));
+      ctx.fillText(formatTick(v), x, xTickBase + 10);
+    }
   });
 
   // Y축 눈금
@@ -523,7 +562,10 @@ function renderDeviation(
       ctx.lineTo(yTickBase - a, y);
       ctx.stroke();
     }
-    if (i % devYStride === 0) ctx.fillText(formatTick(v), yTickBase - 10, y);
+    if (i % devYStride === 0) {
+      if (knockout) tickBoxes.push(knockOut(ctx, formatTick(v), yTickBase - 10, y));
+      ctx.fillText(formatTick(v), yTickBase - 10, y);
+    }
   });
 
   // 축 라벨
@@ -545,7 +587,7 @@ function renderDeviation(
     ctx.textBaseline = 'top';
     ctx.fillText(
       data.xUnit,
-      plotX + plotW + (data.ticksOnAxis ? 20 : 10),
+      plotX + plotW + xUnitGap,
       data.ticksOnAxis ? originY + 10 : plotY + plotH + 40,
     );
   }
@@ -553,10 +595,11 @@ function renderDeviation(
   if (data.yUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
+    // 십자축이면 맨 위 눈금 숫자(가운데 맞춤) 윗끝에서 4 위로 — 숫자와 겹치지 않게 잰다
     ctx.fillText(
       data.yUnit,
       data.ticksOnAxis ? originX - 10 : plotX - 10,
-      data.ticksOnAxis ? plotY - 6 : plotY - 16,
+      data.ticksOnAxis ? plotY - tickUp - 4 - textExtent(ctx, data.yUnit).down : plotY - 16,
     );
   }
 
@@ -565,12 +608,11 @@ function renderDeviation(
     // y 이름은 맨 위에 둔다 — 그 아래 자리는 y 단위가 쓴다.
     // x 이름은 x 단위 오른쪽에 둔다 — 둘 다 축 오른쪽 끝, 같은 줄이라 겹칠 수 있다.
     // (단위 폭은 단위 글꼴로 재야 하므로 상자 글꼴로 바꾸기 전에 잰다)
-    const xUnitW = data.xUnit && data.ticksOnAxis ? ctx.measureText(data.xUnit).width + 14 : 0;
-    const boxedPx = textSize(options, 'axisName', fs.axisLabel);
     ctx.font = textFont(options, 'axisName', boxedPx);
     // y 이름은 세로축(0선)에 가운데를 맞춘다
-    drawBoxedLabel(ctx, data.yLabel, originX, 10, boxedPx, 'below', look.boxedLabelW);
-    drawBoxedLabel(ctx, data.xLabel, plotX + plotW + 16 + xUnitW, plotY + plotH / 2, boxedPx, 'right', look.boxedLabelW);
+    drawBoxedLabel(ctx, data.yLabel, originX, BOX_TOP, boxedPx, 'below', look.boxedLabelW);
+    drawBoxedLabel(ctx, data.xLabel, plotX + plotW + xUnitGap + xUnitW + xBoxGap, plotY + plotH / 2,
+      boxedPx, 'right', look.boxedLabelW);
   } else {
     // Y축 라벨 (Y축 중간, 줄바꿈 지원)
     ctx.textAlign = 'right';
@@ -592,7 +634,7 @@ function renderDeviation(
 
   // 데이터 포인트
   drawPoints(ctx, data, toCanvasX, toCanvasY, fs, options, options.showDataLabels,
-    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h);
+    { left: plotX, right: plotX + plotW, top: plotY, bottom: plotY + plotH }, w, h, tickBoxes);
 
   // 버블 크기 범례
   if (data.showBubble && data.points.length > 0) {
@@ -681,6 +723,8 @@ function drawPoints(
           gap: offset,
           lineHeight: lpx * 1.1,
           bounds,
+          // exam: 다 막혀도 남의 이름 위에 얹지 않는다 — 더 넓게 찾는다 (2.2.1)
+          wide: byStyle(options, { classic: false, exam: true }),
         });
       } else {
         // 경계를 모르면 겹침 회피를 할 수 없다 — 기존처럼 오른쪽 위에 둔다
@@ -1086,6 +1130,32 @@ function insideLegendBoxes(
  * 줄바꿈 구분자는 fillTextMultiline 과 같은 리터럴 
  이다.
  */
+const BOX_PAD_X = 8;
+const BOX_PAD_Y = 6;
+/** 위 상자 축 이름의 윗변 */
+const BOX_TOP = 10;
+
+/** 상자 축 이름의 바깥 크기 (지금 ctx.font 로) */
+function boxedLabelSize(ctx: CanvasRenderingContext2D, text: string, fontSize: number): { w: number; h: number } {
+  if (!text) return { w: 0, h: 0 };
+  const lines = text.split('\\n');
+  return {
+    w: Math.max(...lines.map((l) => ctx.measureText(l).width)) + BOX_PAD_X * 2,
+    h: lines.length * fontSize * 1.25 + BOX_PAD_Y * 2,
+  };
+}
+
+/** 글자 자리를 흰 바탕으로 비운다 — 지금 ctx 의 글꼴·맞춤으로 잰 잉크 상자 + 2 */
+function knockOut(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): LabelBox {
+  const e = textExtent(ctx, text);
+  const box = { left: x - e.left - 2, right: x + e.right + 2, top: y - e.up - 2, bottom: y + e.down + 2 };
+  const fill = ctx.fillStyle;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
+  ctx.fillStyle = fill;
+  return box;
+}
+
 function drawBoxedLabel(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -1099,8 +1169,8 @@ function drawBoxedLabel(
   // fillTextMultiline 과 같은 규약 — 실제 줄바꿈이 아니라 리터럴 역슬래시+n 으로 나눈다
   const lines = text.split('\\n');
   const lineH = fontSize * 1.25;
-  const padX = 8;
-  const padY = 6;
+  const padX = BOX_PAD_X;
+  const padY = BOX_PAD_Y;
 
   ctx.save();
   const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));

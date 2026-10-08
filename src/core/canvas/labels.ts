@@ -373,7 +373,16 @@ export class LabelPlacer {
     label: string,
     cx: number,
     cy: number,
-    opts: { gap: number; lineHeight: number; bounds: LabelBox }
+    opts: {
+      gap: number; lineHeight: number; bounds: LabelBox;
+      /**
+       * 8방향 세 거리가 다 막혔을 때 유도선부터 긋지 않고 **더 넓게 찾는다** (2.2.1, exam 산점).
+       * 위·아래·옆에서 반 칸씩 비킨 자리, 영역 밖으로 나간 후보를 영역 안으로 당긴 자리까지
+       * 점에서 가까운 순으로 본다. 그래도 없으면 **가장 덜 겹치는** 자리에 놓는다 —
+       * 첫 후보(남의 이름 위일 수 있다)에 놓지 않는다.
+       */
+      wide?: boolean;
+    }
   ) {
     const w = ctx.measureText(label).width;
     const h = opts.lineHeight;
@@ -407,6 +416,19 @@ export class LabelPlacer {
       }
     }
 
+    if (opts.wide) {
+      const spot = this.wideSearch(cx, cy, w, h, gap, bounds);
+      this.used.push({ left: spot.x, right: spot.x + w, top: spot.y, bottom: spot.y + h });
+      // 점에서 떨어져 놓였으면(가장 가까운 변까지 gap 의 두 배 넘게) 유도선으로 잇는다
+      const dx = Math.max(spot.x - cx, 0, cx - (spot.x + w));
+      const dy = Math.max(spot.y - cy, 0, cy - (spot.y + h));
+      if (Math.hypot(dx, dy) > gap * 2) this.leaderLine(ctx, cx, cy, spot.x, spot.y, w, h);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(label, spot.x, spot.y);
+      return;
+    }
+
     // 다 막혔다 — 가장 먼 자리에 놓고 유도선을 긋는다.
     // 어느 후보도 영역 안에 못 들었으면(이름이 길다 — exam 은 글자가 크다) 영역 안으로 당긴다
     const far = fallback ?? {
@@ -428,6 +450,66 @@ export class LabelPlacer {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(label, far.x, far.y);
+  }
+
+  /** 겹친 넓이의 합 */
+  private overlapArea(box: LabelBox): number {
+    let a = 0;
+    for (const u of this.used) {
+      const ox = Math.min(box.right, u.right) - Math.max(box.left, u.left);
+      const oy = Math.min(box.bottom, u.bottom) - Math.max(box.top, u.top);
+      if (ox >= 0 && oy >= 0) a += Math.max(ox, 0.5) * Math.max(oy, 0.5);
+    }
+    return a;
+  }
+
+  /**
+   * 점 둘레의 자리를 넓게 훑는다 — 가로 일곱 자리 × 세로 일곱 자리 × 네 거리,
+   * 영역 밖이면 안으로 당긴다. 점(상자 중심)에서 가까운 순으로 첫 빈자리,
+   * 빈자리가 없으면 가장 덜 겹치는 자리.
+   */
+  private wideSearch(
+    cx: number, cy: number, w: number, h: number, gap: number, bounds: LabelBox,
+  ): { x: number; y: number } {
+    const seen = new Set<string>();
+    const cands: { x: number; y: number; d: number }[] = [];
+    for (const dist of [gap, gap * 2, gap * 3.5, gap * 5]) {
+      // 상자 왼쪽 끝 — 오른쪽 옆 / 왼쪽 옆 / 가운데 / 반의반씩 비킨 자리
+      const xs = [cx + dist, cx - dist - w, cx - w / 2, cx - w * 0.25, cx - w * 0.75, cx, cx - w];
+      // 상자 윗끝 — 위 / 아래 / 가운데 / 반씩 비킨 자리
+      const ys = [cy - dist - h, cy + dist, cy - h / 2, cy - h * 0.25, cy - h * 0.75, cy, cy - h];
+      for (const x0 of xs) for (const y0 of ys) {
+        const x = Math.max(bounds.left, Math.min(x0, bounds.right - w));
+        const y = Math.max(bounds.top, Math.min(y0, bounds.bottom - h));
+        const key = `${Math.round(x)},${Math.round(y)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cands.push({ x, y, d: Math.hypot(x + w / 2 - cx, y + h / 2 - cy) });
+      }
+    }
+    cands.sort((a, b) => a.d - b.d);
+    let best = cands[0];
+    let bestArea = Infinity;
+    for (const c of cands) {
+      const area = this.overlapArea({ left: c.x, right: c.x + w, top: c.y, bottom: c.y + h });
+      if (area === 0) return c;
+      if (area < bestArea) { best = c; bestArea = area; }
+    }
+    return best;
+  }
+
+  private leaderLine(ctx: CanvasRenderingContext2D, cx: number, cy: number, x: number, y: number, w: number, h: number) {
+    ctx.save();
+    ctx.strokeStyle = this.leader.color;
+    ctx.lineWidth = this.leader.width;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    // 상자 가장자리에서 멈춘다 — 글자 위로 선이 지나지 않게
+    const tx = Math.max(x, Math.min(cx, x + w));
+    const ty = Math.max(y, Math.min(cy, y + h));
+    ctx.lineTo(tx === cx && ty === cy ? x + w / 2 : tx, tx === cx && ty === cy ? y + h / 2 : ty);
+    ctx.stroke();
+    ctx.restore();
   }
 }
 

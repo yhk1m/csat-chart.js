@@ -5,7 +5,7 @@ import { textCtx } from '../canvas/parens';
 import { yUnitLeft } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
 import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
-import { EDGE, nudgeInside, textExtent } from '../canvas/fit';
+import { EDGE, nudgeInside, shrinkToWidth, textExtent } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
 
@@ -50,7 +50,7 @@ function renderStackedBar(
   const tickFs = textSize(options, 'tick', options.fontSize.tick);
   const unitFs = textSize(options, 'unit', options.fontSize.axisLabel);
   const valueFs = textSize(options, 'value', options.fontSize.dataLabel * 0.8);
-  const catFs = textSize(options, 'category', options.fontSize.tick);
+  let catFs = textSize(options, 'category', options.fontSize.tick);
   const showLegend = options.showLegend;
   const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
@@ -63,10 +63,24 @@ function renderStackedBar(
   ctx.font = textFont(options, 'tick', tickFs);
   const vLeft = byStyle(options, { classic: 80, exam: Math.max(80, ctx.measureText('100').width + 10 + EDGE) });
 
+  // 가로 막대 왼쪽 여백 — 가장 긴 범주 이름을 실제 글꼴로 재서 잡는다 (2.2.1).
+  // 고정 100px 이면 「노르웨이」 가 「웨이」 로 잘렸다. 캔버스 폭의 35% 를 넘으면
+  // 그때만 범주 글꼴을 줄인다 (바닥 MIN_SCALE).
+  let hLeft = 100;
+  if (!isVertical && data.categories.length > 0) {
+    const labels = data.categories.map((c) => c.label);
+    const cap = Math.max(100, w * 0.35);
+    const room = cap - 10 - EDGE;
+    catFs = shrinkToWidth(ctx, labels, catFs, room, (s) => textFont(options, 'category', s));
+    ctx.font = textFont(options, 'category', catFs);
+    const widest = Math.max(...labels.map((l) => ctx.measureText(l).width));
+    hLeft = Math.max(100, Math.min(cap, Math.ceil(widest + 10 + EDGE)));
+  }
+
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, data.seriesLabels, legendFs,
-        w - (isVertical ? vLeft : 100) - (isVertical ? 60 + legendW : 160 + legendW), options)
+        w - (isVertical ? vLeft : hLeft) - (isVertical ? 60 + legendW : 160 + legendW), options)
     : 0;
 
   const padding: Padding = {
@@ -82,7 +96,7 @@ function renderStackedBar(
         { sourceLeft: options.sourceLeft });
       return b;
     })(),
-    left: isVertical ? vLeft : 100,
+    left: isVertical ? vLeft : hLeft,
   };
 
   const plotX = padding.left;

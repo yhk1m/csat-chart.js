@@ -4,7 +4,8 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, labelStride, widestLabel, inkText } from '../canvas/labels';
-import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf, legendBelowPlot } from '../canvas/legend';
+import { textExtent } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
 
@@ -94,9 +95,21 @@ function drawAbsBarGraph(
   const padLeft = isVertical
     ? 130
     : (hasGroups ? 20 + groupLabelW + 14 + catLabelW + 12 : 100);
+  // exam: 아래 범례 상자는 범주 이름 줄의 실제 잉크 아래끝에서 띄운다 (2.2.1).
+  // 고정 거리(58)면 큰 한글 이름(「천연가스」)이 상자 윗변에 닿았다.
+  let legendOffset = legendBelowPlot(options);
+  if (isVertical && !data.categoryLabelAtBaseline && byStyle(options, { classic: false, exam: true })) {
+    ctx.save();
+    ctx.font = textFont(options, catPlace, catFs);
+    ctx.textBaseline = 'top';
+    let down = 0;
+    for (const c of data.categories) down = Math.max(down, textExtent(ctx, c.label).down);
+    ctx.restore();
+    legendOffset = Math.max(legendOffset, Math.ceil(12 + t.categoryGap + down + Math.max(8, catFs * 0.3)));
+  }
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)
-    ? measureBottomLegend(ctx, data.seriesLabels, legendFs, w - padLeft - padRight, options)
+    ? measureBottomLegend(ctx, data.seriesLabels, legendFs, w - padLeft - padRight, options, 'rect', legendOffset)
     : 0;
 
   const padding: Padding = {
@@ -532,6 +545,7 @@ function drawAbsBarGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
+      bottomOffset: legendOffset,
     });
   }
 

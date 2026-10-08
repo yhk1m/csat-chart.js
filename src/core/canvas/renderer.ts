@@ -290,3 +290,92 @@ export function autoRange(
   max = Math.ceil(max / step) * step;
   return { min, max, step };
 }
+
+/**
+ * s 보다 큰 다음 «좋은» 간격 (1·2·2.5·5 × 10^k). 2.5 는 10^k ≥ 1 일 때만 —
+ * 250 은 ±500 축을 넷으로 나눠 끝 눈금을 지키지만, 0.25 는 소수 한 자리 숫자로 못 적는다.
+ */
+export function nextNiceStep(s: number): number {
+  if (!Number.isFinite(s) || s <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(s)));
+  for (const m of pow >= 1 ? [1, 2, 2.5, 5, 10] : [1, 2, 5, 10]) {
+    const c = Math.round(m * pow * 1e12) / 1e12;
+    if (c > s * (1 + 1e-9)) return c;
+  }
+  return 10 * pow;
+}
+
+/** 지금 ctx.font 로 찍을 눈금 숫자의 잉크 높이(px) — 글꼴이 바뀌어도(대체 글꼴) 실제 높이로 잰다 */
+export function tickLabelHeight(ctx: CanvasRenderingContext2D): number {
+  const m = ctx.measureText('-0123456789.');
+  const h = (m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0);
+  return h > 0 ? h : parseFloat(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? '12') * 0.75;
+}
+
+export interface SpacedAxis {
+  min: number;
+  max: number;
+  step: number;
+  /** 간격을 넓혔을 때만 — 그릴 눈금 값. 없으면 렌더러가 예전처럼 min 부터 step 씩 센다 */
+  ticks?: number[];
+}
+
+/**
+ * 눈금 숫자가 세로로 붙지 않게 간격을 넓힌다 (2.1.1).
+ *
+ * 편차 그래프의 자동 범위는 좁은 자료 범위에서 고른 간격을 둔 채 0 을 가운데로
+ * 대칭으로 넓힌다 — 자료가 0 에서 멀면(기준값 0, 강수량 900~1550) 눈금이
+ * 100 간격으로 서른 개를 넘어 숫자가 한 기둥으로 뭉갰다. 눈금 사이가
+ * `minGap`(px) 보다 좁으면 다음 좋은 간격(1·2·5)으로 올린다.
+ *
+ * - 넉넉하면 축을 **그대로** 돌려준다 (`ticks` 없음) — 기준 이미지가 흔들리지 않는다.
+ * - `expand` (자동 범위) 면 양 끝을 새 간격의 배수로 넓힌다. 대칭 축은 대칭 그대로라
+ *   두 축의 0 선이 계속 같은 높이다.
+ * - 사용자 범위면 min·max 는 두고, 그 안의 새 간격 배수(0 포함)에만 눈금을 둔다.
+ */
+export function spaceTicks(
+  axis: { min: number; max: number; step: number },
+  plotH: number,
+  minGap: number,
+  expand: boolean,
+): SpacedAxis {
+  let { min, max, step } = axis;
+  const span = () => max - min;
+  if (!(span() > 0) || !(step > 0) || !(plotH > 0)) return { min, max, step };
+  if ((step / span()) * plotH >= minGap) return { min, max, step };
+  const snap = (v: number) => Math.round(v * 1e10) / 1e10;
+  const whole = (v: number) => Math.abs(v - Math.round(v)) < 1e-9;
+  // 사용자 범위는 양 끝 눈금을 지키는 간격을 먼저 찾는다 — ±1600 은 800 간격(−1600·−800·0·800·1600).
+  // 간격은 소수 한 자리까지, 0 을 지나는 축이면 0 에 눈금이 놓여야 한다.
+  if (!expand) {
+    for (let n = Math.floor(plotH / minGap); n >= 1; n--) {
+      const s = snap(span() / n);
+      if (s <= step || !whole(s * 10)) continue;
+      if (min < 0 && max > 0 && !whole(snap(min / s))) continue;
+      const ticks: number[] = [];
+      for (let i = 0; i <= n; i++) {
+        const v = snap(min + i * s);
+        ticks.push(Object.is(v, -0) ? 0 : v);
+      }
+      return { min, max, step: s, ticks };
+    }
+  }
+  for (let guard = 0; guard < 60 && (step / span()) * plotH < minGap; guard++) {
+    step = nextNiceStep(step);
+    // 넓히기는 늘 처음 범위에서 — 앞 후보가 넓힌 끝(±600)을 다음 후보(250)가 또 넓히면 ±750 이 된다
+    if (expand) {
+      min = snap(Math.floor(snap(axis.min / step)) * step);
+      max = snap(Math.ceil(snap(axis.max / step)) * step);
+    }
+    // 사용자 범위가 간격 하나보다 좁아지면 더 넓혀도 소용없다
+    if (!expand && step >= span()) break;
+  }
+  const ticks: number[] = [];
+  const first = Math.ceil(snap(min / step));
+  const last = Math.floor(snap(max / step));
+  for (let k = first; k <= last; k++) {
+    const v = snap(k * step);
+    ticks.push(Object.is(v, -0) ? 0 : v);
+  }
+  return { min, max, step, ticks };
+}

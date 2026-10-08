@@ -1,7 +1,7 @@
 // © 2026 김용현
 // 모드 A — 월별 편차 (시계열)
 import { type DeviationAData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, textFont, textSize, type FontOptions } from '../canvas/renderer';
+import { type Padding, type SpacedAxis, clearCanvas, autoRange, textFont, textSize, spaceTicks, tickLabelHeight, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
@@ -111,9 +111,6 @@ function drawDeviationAGraph(
     left: padLeft,
   };
 
-  const plotX = padding.left;
-  const plotY = padding.top;
-  const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
 
   const indices = INTERVAL_INDICES[data.monthInterval] ?? INTERVAL_INDICES[12];
@@ -150,9 +147,29 @@ function drawDeviationAGraph(
     tempAxis.step = Math.max(0.5, Math.round(((tempAxis.max - tempAxis.min) / 6) * 10) / 10);
   }
 
+  // 눈금 숫자가 붙으면 간격을 넓힌다 — 자동 범위는 대칭 그대로 넓혀 두 0 선이 같은 높이다
+  ctx.save();
+  ctx.font = textFont(options, 'tick', tickFs);
+  const minGap = tickLabelHeight(ctx) * 1.3;
+  const tAx = spaceTicks(tempAxis, plotH, minGap, data.tempRange.auto);
+  const pAx = spaceTicks(precipAxis, plotH, minGap, data.precipRange.auto);
+  Object.assign(tempAxis, tAx);
+  Object.assign(precipAxis, pAx);
+  // 넓힌 눈금(−1500)은 130px 여백을 넘을 수 있다 — 숫자(+세로 축 이름) 폭이 모자랄 때만 그쪽 여백을 넓힌다
+  const tickRoom = (ax: SpacedAxis, named: boolean) =>
+    Math.max(...tickValues(ax).map((v) => ctx.measureText(fmtTick(v)).width))
+    + Math.max(tickLabelGap(t), 22) + (named ? nameW : 0) + EDGE;
+  padding.left = Math.max(padding.left, tickRoom(tAx, !!data.tempAxisName));
+  padding.right = Math.max(padding.right, legendW + tickRoom(pAx, !!data.precipAxisName));
+  ctx.restore();
+
+  const plotX = padding.left;
+  const plotY = padding.top;
+  const plotW = w - padding.left - padding.right;
+
   // Y축 (좌: 기온, 우: 강수량)
-  const tempTickW = drawDeviationYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempLabel, options);
-  const precipTickW = drawDeviationYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipLabel, options);
+  const tempTickW = drawDeviationYAxis(ctx, padding, w, h, tAx, 'left', data.tempLabel, options);
+  const precipTickW = drawDeviationYAxis(ctx, padding, w, h, pAx, 'right', data.precipLabel, options);
 
   // X축
   const totalSlots = indices.length;
@@ -353,12 +370,23 @@ function drawDeviationAGraph(
   drawSourceAndFootnote({ ctx, fonts: options, plotX, plotW, height: h, source: options.source, footnotes: options.footnotes, fontSize: options.fontSize.dataLabel, canvasWidth: w });
 }
 
+/** 축이 그릴 눈금 값 — 간격을 넓혔으면 그 목록, 아니면 예전처럼 min 부터 step 씩 */
+function tickValues(axis: SpacedAxis): number[] {
+  if (axis.ticks) return axis.ticks;
+  const n = Math.round((axis.max - axis.min) / axis.step);
+  return Array.from({ length: n + 1 }, (_, i) => axis.min + i * axis.step);
+}
+
+function fmtTick(val: number): string {
+  return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+}
+
 function drawDeviationYAxis(
   ctx: CanvasRenderingContext2D,
   padding: Padding,
   width: number,
   height: number,
-  axis: { min: number; max: number; step: number },
+  axis: SpacedAxis,
   side: 'left' | 'right',
   label: string,
   o: GraphOptions,
@@ -383,9 +411,7 @@ function drawDeviationYAxis(
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
   let maxTickW = 0;
-  const tickCount = Math.round((axis.max - axis.min) / axis.step);
-  for (let i = 0; i <= tickCount; i++) {
-    const val = axis.min + i * axis.step;
+  for (const val of tickValues(axis)) {
     const y = plotY + plotH - ((val - axis.min) / (axis.max - axis.min)) * plotH;
 
     ctx.lineWidth = t.line.tick;
@@ -400,7 +426,7 @@ function drawDeviationYAxis(
     ctx.stroke();
 
     const tx = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
-    const valStr = Number.isInteger(val) ? val.toString() : val.toFixed(1);
+    const valStr = fmtTick(val);
     ctx.fillText(valStr, tx, y);
     maxTickW = Math.max(maxTickW, ctx.measureText(valStr).width);
   }

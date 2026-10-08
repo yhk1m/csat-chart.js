@@ -74,6 +74,23 @@ const A_DEVIATION_B = {
   tempRange: { min: -10, max: 10, auto: true },
 };
 
+/**
+ * GeoGrapher 기본 자료(기준값 0)에 지역 값을 그대로 친 모양 (2.1.1) — 편차가 0 에서 멀어
+ * 자동 범위가 좁은 간격(100·1)을 둔 채 ±1700·±15 로 대칭으로 넓어지고, 눈금 숫자가 한 기둥으로 뭉갰다.
+ */
+const A_DEVIATION_B_BASE0 = {
+  ...A_DEVIATION_B,
+  baseTemp: 0, basePrecip: 0,
+};
+
+/** 편차 A 도 같은 모양 — 기준값 0 에 월 값을 그대로 쳐서 편차가 1000 언저리에 몰린다 (2.1.1) */
+const A_DEVIATION_A_BASE0: Maker = () => {
+  const d = createDefaultDeviationAData();
+  d.months = [30, 32, 45, 80, 110, 150, 250, 240, 140, 60, 45, 28]
+    .map((p, i) => ({ precip: p + 1000, temp: 20 + i * 0.3 }));
+  return d;
+};
+
 const A_HYTHER = {
   series: [
     { label: '서울', months: [
@@ -227,6 +244,15 @@ const B_DEVIATION_B: Maker = () => {
     { label: '경기도 성남시 분당구', precip: 1180, temp: 14.2 },
     { label: '강원특별자치도 춘천시', precip: 900, temp: 11.1 },
   ];
+  return d;
+};
+
+const B_DEVIATION_B_BASE0: Maker = () => ({ ...(B_DEVIATION_B() as object), baseTemp: 0, basePrecip: 0 });
+
+const B_DEVIATION_A_BASE0: Maker = () => {
+  const d = A_DEVIATION_A_BASE0() as ReturnType<typeof createDefaultDeviationAData>;
+  d.tempLabel = '평년 대비 기온 차이(°C)';
+  d.precipLabel = '평년 대비 강수량 차이(mm)';
   return d;
 };
 
@@ -475,6 +501,8 @@ const TYPES: Entry[] = [
   ['deviation-a(안쪽범례)', renderDeviationAGraph as ProbeCase['render'], () => clone(A_DEVIATION_A), B_DEVIATION_A],
   ['deviation-a', renderDeviationAGraph as ProbeCase['render'], createDefaultDeviationAData, B_DEVIATION_A_OUT],
   ['deviation-b', renderDeviationBGraph as ProbeCase['render'], () => clone(A_DEVIATION_B), B_DEVIATION_B],
+  ['deviation-a(기준값0)', renderDeviationAGraph as ProbeCase['render'], A_DEVIATION_A_BASE0, B_DEVIATION_A_BASE0],
+  ['deviation-b(기준값0)', renderDeviationBGraph as ProbeCase['render'], () => clone(A_DEVIATION_B_BASE0), B_DEVIATION_B_BASE0],
   ['econ-plane', renderEconPlane as ProbeCase['render'], A_ECON_PLANE, B_ECON_PLANE],
   ['econ-plane(계열)', renderEconPlane as ProbeCase['render'], A_ECON_PLANE_SERIES, B_ECON_PLANE_SERIES],
   ['hythergraph', renderHythergraph as ProbeCase['render'], () => clone(A_HYTHER), B_HYTHER],

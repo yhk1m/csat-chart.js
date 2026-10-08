@@ -1,10 +1,10 @@
 // © 2026 김용현
 // 모드 B — 지역별 편차 (비교형)
 import { type DeviationBData, type GraphOptions } from '../types/index';
-import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
+import { type Padding, type SpacedAxis, clearCanvas, autoRange, textFont, textSize, spaceTicks, tickLabelHeight } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
+import { EDGE, drawFloatingLabel, nudgeInside } from '../canvas/fit';
 import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
@@ -13,6 +13,17 @@ const LOOK = {
   classic: { zero: 1.5, barPos: '#888', barNeg: '#CCC', barStrokeColor: '#444', barStroke: 1, markerR: 7, crossTicks: false, crossLen: 0, labelAtZero: false, frame: false },
   exam: { zero: 1.75, barPos: '#7f7f7f', barNeg: '#ffffff', barStrokeColor: '#000', barStroke: 1.45, markerR: 6.8, crossTicks: true, crossLen: 15.5, labelAtZero: true, frame: true },
 };
+
+/** 축이 그릴 눈금 값 — 간격을 넓혔으면 그 목록, 아니면 예전처럼 min 부터 step 씩 */
+function tickValues(axis: SpacedAxis): number[] {
+  if (axis.ticks) return axis.ticks;
+  const n = Math.round((axis.max - axis.min) / axis.step);
+  return Array.from({ length: n + 1 }, (_, i) => axis.min + i * axis.step);
+}
+
+function fmtTick(val: number): string {
+  return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+}
 
 /** 편차 값 — 뺄셈이 남긴 부동소수 꼬리(2.1999999999999993)를 지운다 */
 function fmtDiff(v: number): string {
@@ -65,9 +76,6 @@ export function renderDeviationBGraph(
     left: 130,
   };
 
-  const plotX = padding.left;
-  const plotY = padding.top;
-  const plotW = w - padding.left - padding.right;
   const plotH = h - padding.top - padding.bottom;
 
   const regions = data.regions;
@@ -101,9 +109,31 @@ export function renderDeviationBGraph(
     tempAxis.max = tempAbs;
   }
 
+  // 눈금 숫자가 붙으면 간격을 넓힌다 — 자동 범위는 대칭 그대로 넓혀 두 0 선이 같은 높이다
+  ctx.save();
+  ctx.font = textFont(options, 'tick', textSize(options, 'tick', options.fontSize.tick));
+  const minGap = tickLabelHeight(ctx) * 1.3;
+  const tAx = spaceTicks(tempAxis, plotH, minGap, data.tempRange.auto);
+  const pAx = spaceTicks(precipAxis, plotH, minGap, data.precipRange.auto);
+  Object.assign(tempAxis, tAx);
+  Object.assign(precipAxis, pAx);
+  // 넓힌 눈금(−2000)은 130px 여백을 넘을 수 있다 — 숫자 폭이 모자랄 때만 그쪽 여백을 넓힌다
+  const tickRoom = (ax: SpacedAxis) => Math.max(...tickValues(ax).map((v) => ctx.measureText(fmtTick(v)).width))
+    + tickLabelGap(t) + EDGE;
+  const precipRoom = tickRoom(pAx);
+  // 오른쪽 범례는 눈금 숫자 바깥(80px, 숫자가 넓으면 그 너머)에 선다 — 민 만큼 여백도 늘린다
+  const legendGap = Math.max(80, precipRoom + 10);
+  padding.left = Math.max(padding.left, tickRoom(tAx));
+  padding.right = Math.max(padding.right + (legendW ? legendGap - 80 : 0), legendW + precipRoom);
+  ctx.restore();
+
+  const plotX = padding.left;
+  const plotY = padding.top;
+  const plotW = w - padding.left - padding.right;
+
   // Y축 좌 (기온 차이), 우 (강수량 차이)
-  drawDevBYAxis(ctx, padding, w, h, tempAxis, 'left', data.tempUnit, options);
-  drawDevBYAxis(ctx, padding, w, h, precipAxis, 'right', data.precipUnit, options);
+  drawDevBYAxis(ctx, padding, w, h, tAx, 'left', data.tempUnit, options);
+  drawDevBYAxis(ctx, padding, w, h, pAx, 'right', data.precipUnit, options);
 
   // X축
   ctx.strokeStyle = '#000';
@@ -223,7 +253,7 @@ export function renderDeviationBGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
-      rightGap: 80,
+      rightGap: legendGap,
     });
   }
 
@@ -238,7 +268,7 @@ function drawDevBYAxis(
   padding: Padding,
   width: number,
   height: number,
-  axis: { min: number; max: number; step: number },
+  axis: SpacedAxis,
   side: 'left' | 'right',
   label: string,
   o: GraphOptions,
@@ -262,9 +292,7 @@ function drawDevBYAxis(
   ctx.textBaseline = 'middle';
   ctx.textAlign = side === 'left' ? 'right' : 'left';
 
-  const tickCount = Math.round((axis.max - axis.min) / axis.step);
-  for (let i = 0; i <= tickCount; i++) {
-    const val = axis.min + i * axis.step;
+  for (const val of tickValues(axis)) {
     const y = plotY + plotH - ((val - axis.min) / (axis.max - axis.min)) * plotH;
 
     ctx.lineWidth = t.line.tick;
@@ -279,8 +307,7 @@ function drawDevBYAxis(
     ctx.stroke();
 
     const tx = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
-    const valStr = Number.isInteger(val) ? val.toString() : val.toFixed(1);
-    ctx.fillText(valStr, tx, y);
+    ctx.fillText(fmtTick(val), tx, y);
   }
 
   ctx.save();

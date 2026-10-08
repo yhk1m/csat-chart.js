@@ -46,7 +46,7 @@ export function renderCategoryDotGraph(
   const showLegend = options.showLegend && sCount > 1;
   const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'circle')
+    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'circle', w)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다

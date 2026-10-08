@@ -4,7 +4,7 @@ import { type DeviationAData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
@@ -30,6 +30,11 @@ const INTERVAL_INDICES: Record<number, number[]> = {
   2: [0, 6],
 };
 
+/**
+ * 시험지 양식에서 안쪽 범례가 네 모서리 어디서든 막대·점을 덮고 `options.legendPosition` 을
+ * 적었으면, 그 그림을 버리고 범례를 그 쪽 바깥에 둔 그림으로 다시 그린다. 적지 않으면
+ * 2.1.0 이전 그대로 1순위 모서리에 둔다(기준 이미지가 그 모양이다).
+ */
 export function renderDeviationAGraph(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -37,6 +42,20 @@ export function renderDeviationAGraph(
   data: DeviationAData,
   options: GraphOptions
 ) {
+  if (drawDeviationAGraph(ctx, w, h, data, options) === 'blocked') {
+    drawDeviationAGraph(ctx, w, h, data, options, true);
+  }
+}
+
+function drawDeviationAGraph(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  data: DeviationAData,
+  options: GraphOptions,
+  /** 안쪽 범례를 쓰지 않는다 — 안쪽 자리가 다 막혀 바깥으로 다시 그릴 때 */
+  outside = false,
+): 'blocked' | void {
   // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
   ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
@@ -50,13 +69,13 @@ export function renderDeviationAGraph(
   const showLegend = options.showLegend;
   const legendPos = legendSideOf(options);
   // 시험지는 플롯 안 오른쪽 아래 범례가 기본
-  const insideLegend = data.insideLegend ?? look.insideLegend;
+  const insideLegend = outside ? undefined : data.insideLegend ?? look.insideLegend;
   const legendLabels = [
     options.legendLabel1 || data.precipLabel,
     options.legendLabel2 || data.tempLabel,
   ];
   const legendW = (showLegend && legendPos === 'right' && !insideLegend)
-    ? measureLegendWidth(ctx, legendLabels, legendFs, options)
+    ? measureLegendWidth(ctx, legendLabels, legendFs, options, 'rect', w)
     : 0;
 
   // 축 이름을 세로로 쌓으면 눈금 숫자 바깥에 한 글자 폭이 더 필요하다
@@ -276,7 +295,7 @@ export function renderDeviationAGraph(
 
   if (showLegend && insideLegend) {
     // 시험지는 기온(선)을 위, 강수량(막대)을 아래로 적는다 — 바깥 범례와 순서가 반대다
-    drawInsideLegend({
+    const clear = drawInsideLegend({
       ctx,
       items: [
         {
@@ -300,6 +319,7 @@ export function renderDeviationAGraph(
       fonts: options,
       avoid: inkRects,
     });
+    if (!clear && insideFallsBack(options)) return 'blocked';
   } else if (showLegend) {
     drawLegend({
       ctx, fonts: options,
@@ -311,7 +331,11 @@ export function renderDeviationAGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
-      rightGap: 80,
+      // exam: 오른쪽 축 숫자·세로 축 이름 바깥에서 시작한다 — 80 이면 긴 축 이름 위에 상자가 얹혔다
+      rightGap: byStyle(options, {
+        classic: 80,
+        exam: Math.max(80, 22 + precipTickW + (data.precipAxisName ? nameW : 0) + 8),
+      }),
     });
   }
 

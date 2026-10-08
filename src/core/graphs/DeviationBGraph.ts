@@ -41,7 +41,7 @@ export function renderDeviationBGraph(
     options.legendLabel2 || data.tempDiffLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, legendFs, options)
+    ? measureLegendWidth(ctx, legendLabels, legendFs, options, 'rect', w)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다

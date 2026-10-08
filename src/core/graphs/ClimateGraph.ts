@@ -42,7 +42,7 @@ export function renderClimateGraph(
     options.legendLabel2 || data.tempLabel,
   ];
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, legendFs, options)
+    ? measureLegendWidth(ctx, legendLabels, legendFs, options, 'rect', w)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다

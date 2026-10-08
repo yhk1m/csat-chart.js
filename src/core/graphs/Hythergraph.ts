@@ -105,7 +105,7 @@ export function renderHythergraph(
   const legendPos = legendSideOf(options);
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, lfSize, options)
+    ? measureLegendWidth(ctx, legendLabels, lfSize, options, 'rect', w)
     : 0;
 
   // 모든 계열의 데이터로 축 범위 계산
@@ -343,10 +343,25 @@ export function renderHythergraph(
     const iconW = t.legend.lineIcon; // 선 + 기호 공간
     const iconGap = look.iconGap;
     const pad = t.legend.pad;
-    const lineH = lfSize + 8;
     const n = data.series.length;
 
-    const itemWidths = data.series.map((s) => iconW + iconGap + ctx.measureText(s.label).width);
+    // 오른쪽 범례는 양식의 몫(exam 캔버스 40%)까지만 비워 두었다 — 넘치는 이름은 글꼴을 줄여
+    // 담는다(바닥 11px). classic 은 몫이 끝없어 늘 그대로다
+    let rightFs = lfSize;
+    const widthsAt = (size: number) => {
+      ctx.font = textFont(options, 'legend', size);
+      return data.series.map((s) => iconW + iconGap + ctx.measureText(s.label).width);
+    };
+    let itemWidths = widthsAt(rightFs);
+    if (legendPos === 'right') {
+      const room = w - 1 - (plotX + plotW + 20) - pad * 2;
+      while (rightFs > 11 && Math.max(...itemWidths) > room) {
+        rightFs = Math.max(11, rightFs - 0.5);
+        itemWidths = widthsAt(rightFs);
+      }
+      ctx.font = textFont(options, 'legend', lfSize);
+    }
+    const lineH = rightFs + 8;
 
     if (legendPos === 'bottom') {
       // 한 줄에 다 못 넣으면 줄을 늘린다 (이름은 자르지 않는다) — 바깥 범례와 같은 규칙
@@ -423,7 +438,7 @@ export function renderHythergraph(
         // 기호
         drawMarkerLegendIcon(ctx, MARKERS[i % MARKERS.length], ix + iconW / 2, cy, look.markerR, t.marker.stroke);
         // 라벨
-        ctx.font = textFont(options, 'legend', lfSize);
+        ctx.font = textFont(options, 'legend', rightFs);
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';

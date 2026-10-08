@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, labelStride, widestLabel, inkText } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
 
@@ -14,6 +14,11 @@ const LOOK = {
   exam: { tick: 1.9, tickLen: 12, zero: 1.75, catTicks: true, unitAdjacent: true },
 };
 
+/**
+ * 시험지 양식에서 안쪽 범례(`insideLegend`)가 네 모서리 어디서든 막대를 덮고 `options.legendPosition`
+ * 을 적었으면, 그 그림을 버리고 범례를 그 쪽 바깥에 둔 그림으로 다시 그린다. 적지 않으면
+ * 2.1.0 이전 그대로 1순위 모서리에 둔다.
+ */
 export function renderAbsBarGraph(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -21,6 +26,18 @@ export function renderAbsBarGraph(
   data: AbsBarGraphData,
   options: GraphOptions
 ) {
+  if (drawAbsBarGraph(ctx, w, h, data, options) === 'blocked') {
+    drawAbsBarGraph(ctx, w, h, { ...data, insideLegend: undefined }, options);
+  }
+}
+
+function drawAbsBarGraph(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  data: AbsBarGraphData,
+  options: GraphOptions
+): 'blocked' | void {
   // exam 은 괄호를 명조로 따로 찍는다 — 이 아래 모든 글자 그리기·재기가 이 ctx 를 거친다
   ctx = textCtx(ctx, options);
   clearCanvas(ctx, w, h);
@@ -33,7 +50,7 @@ export function renderAbsBarGraph(
   const showLegend = options.showLegend;
   const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
-    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
+    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options, 'rect', w)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
@@ -470,7 +487,7 @@ export function renderAbsBarGraph(
   if (showLegend && data.insideLegend) {
     // 시험지는 범례를 플롯 안쪽 모서리에 작은 상자로 둔다.
     // 막대와 겹치는 모서리는 피한다 — 어느 나라를 고르든 가려지면 안 된다.
-    drawInsideLegend({
+    const clear = drawInsideLegend({
       ctx,
       items: data.seriesLabels.map((label, i) => ({
         type: 'rect' as const,
@@ -485,6 +502,7 @@ export function renderAbsBarGraph(
       fonts: options,
       avoid: barRects,
     });
+    if (!clear && insideFallsBack(options)) return 'blocked';
   } else if (showLegend) {
     const items = data.seriesLabels.map((label, i) => ({
       type: 'rect' as const,

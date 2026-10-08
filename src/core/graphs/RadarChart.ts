@@ -57,7 +57,7 @@ export function renderRadarChart(
   const legendPos = legendSideOf(options);
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, legendLabels, legendSize, options, 'line')
+    ? measureLegendWidth(ctx, legendLabels, legendSize, options, 'line', w)
     : 0;
 
   const topPad = options.title ? 60 : 10;
@@ -87,8 +87,12 @@ export function renderRadarChart(
   // 다만 그림이 5분의 1 넘게 줄어들 판이면 줄이기 전에 이름을 접는다.
   const labelFontSize = textSize(options, 'axisName', fs.axisLabel * 0.85);
   const makeLabelFont = (size: number) => textFont(options, 'axisName', size);
+  // exam: 오른쪽 범례가 있으면 이름은 범례 상자(플롯 오른쪽 끝 + 20) 왼쪽까지만 쓴다 —
+  // 캔버스 끝까지 재면 「3차 산업 비중」 위에 상자가 얹혔다. classic 은 1.7.0 그대로
+  const labelRight = legendW > 0 && byStyle(options, { classic: false, exam: true })
+    ? w - rightPad + 20 : w;
   const { radius, labelLines, labelSize } = fitAxisLabels(
-    ctx, data.axisLabels, angles, cx, cy, w, h,
+    ctx, data.axisLabels, angles, cx, cy, labelRight, h,
     Math.min(availW, availH) / 2 - 40, labelFontSize, makeLabelFont,
   );
 

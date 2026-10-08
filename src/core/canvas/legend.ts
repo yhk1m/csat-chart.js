@@ -79,6 +79,15 @@ export function legendSideOf(options: { legendPosition?: LegendPosition }, fallb
   return options.legendPosition ?? fallback;
 }
 
+/**
+ * 안쪽 범례(막대·편차 A 의 `insideLegend`)가 네 모서리에서 다 막혔을 때 바깥으로 나갈까.
+ * 시험지 양식이고 `legendPosition` 을 **적었을 때만** 나간다 — 적지 않으면 2.1.0 이전처럼
+ * 1순위 모서리에 둔다. 경제 좌표평면·산점도 버블은 원래 바깥으로 나가던 종류라 이 규칙을 쓰지 않는다.
+ */
+export function insideFallsBack(options: { legendPosition?: LegendPosition } & FontOptions): boolean {
+  return options.legendPosition !== undefined && byStyle(options, { classic: false, exam: true });
+}
+
 /** 플롯 안 범례 상자의 모서리와 플롯 사이 */
 export const INSIDE_MARGIN = 8;
 
@@ -156,11 +165,14 @@ function withFontSize(font: string, size: number): string {
  * 시험지 그래프는 범례를 그림 바깥이 아니라 빈 구석에 넣는 경우가 많다.
  * `avoid`를 주면 자료를 덮지 않는 모서리를 골라 쓴다 — 어떤 값이 들어와도
  * 막대나 점이 가려지면 안 되기 때문이다.
+ *
+ * 돌려주는 값은 «덮지 않는 자리를 찾았는가» 다. 네 모서리가 다 막히면 1순위 모서리에
+ * 그리고 `false` 를 돌려준다 — 시험지 양식은 그때 범례를 바깥(`legendPosition`)으로 낸다.
  */
 export function drawInsideLegend({
   ctx, items, corner, plotX, plotY, plotW, plotH, canvasW, canvasH, fontSize, font, fonts, avoid = [], at,
-}: InsideLegendParams): void {
-  if (items.length === 0) return;
+}: InsideLegendParams): boolean {
+  if (items.length === 0) return true;
 
   const padX = 8;
   // 상자가 플롯보다 넓어지면 그 자리에서 시작점이 플롯 밖으로 밀려난다.
@@ -174,7 +186,8 @@ export function drawInsideLegend({
   const clear = (s: { x: number; y: number }) => !avoid.some(
     (b) => b.x0 < s.x + boxW && b.x1 > s.x && b.y0 < s.y + boxH && b.y1 > s.y
   );
-  const picked = at ?? spots.find(clear) ?? spots[0];
+  const free = spots.find(clear);
+  const picked = at ?? free ?? spots[0];
   // 글꼴을 바닥까지 줄여도 안 들어가는 경우가 남는다 — 그때도 캔버스 밖으로는 안 내보낸다
   const spot = {
     x: Math.max(1, Math.min(picked.x, canvasW - boxW - 1)),
@@ -203,6 +216,8 @@ export function drawInsideLegend({
     extraBefore += (lines.length - 1) * lineH;
   }
   ctx.restore();
+  // 네 모서리가 다 자료를 덮었는가 — 부르는 쪽이 시험지 양식에서 바깥(legendPosition)으로 다시 그린다
+  return at !== undefined || free !== undefined;
 }
 
 /** 플롯 안 범례의 아이콘 — 상자 크기에 맞춰 그린다 (바깥 범례의 고정 크기와 다르다) */

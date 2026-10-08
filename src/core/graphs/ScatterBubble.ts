@@ -2,6 +2,7 @@
 import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
+import { legendSideOf } from '../canvas/legend';
 import { xTickLabelAt, yTickLabelAt, yUnitLeft } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
@@ -60,9 +61,11 @@ export function renderScatterGraph(
   if (data.mode === 'deviation') {
     renderDeviation(ctx, w, h, data, options);
   } else if (renderNormal(ctx, w, h, data, options) === 'blocked') {
-    // exam: 플롯 안 어느 모서리도 버블을 덮지 않고는 범례를 못 놓는다 — 플롯을 줄여 오른쪽 바깥에
+    // exam: 플롯 안 어느 모서리도 버블을 덮지 않고는 범례를 못 놓는다 — 플롯을 줄여 바깥에.
+    // 쪽은 options.legendPosition 이고, 적지 않으면 2.1.0 이전처럼 오른쪽이다
     clearCanvas(ctx, w, h);
-    renderNormal(ctx, w, h, { ...data, bubbleLegendPosition: 'outside-right' }, options);
+    if (legendSideOf(options, 'right') === 'bottom') renderNormal(ctx, w, h, data, options, true);
+    else renderNormal(ctx, w, h, { ...data, bubbleLegendPosition: 'outside-right' }, options);
   }
 }
 
@@ -73,7 +76,9 @@ function renderNormal(
   w: number,
   h: number,
   data: ScatterGraphData,
-  options: GraphOptions
+  options: GraphOptions,
+  /** 범례를 플롯 아래(가로축 이름 밑)에 둔다 — exam 에서 모서리가 다 막히고 legendPosition 이 'bottom' 일 때 */
+  below = false,
 ): 'blocked' | void {
   const fs = options.fontSize;
   const t = styleOf(options);
@@ -86,11 +91,14 @@ function renderNormal(
 
   // 범례를 플롯 바깥에 둘 참이면 먼저 크기를 재서 오른쪽 여백을 확보한다.
   // 그려 놓고 자리를 잡으면 이미 늦다.
-  const outsideLegend = data.bubbleLegendPosition === 'outside-right'
-    && data.showBubble && data.points.length > 0;
-  const bubbleM = outsideLegend ? bubbleLegendMetrics(ctx, data, fs, options) : null;
-  const fillM = outsideLegend ? measureFillLegend(ctx, data, fs, options) : { boxW: 0, boxH: 0 };
-  const legendW = Math.max(bubbleM?.boxW ?? 0, fillM.boxW);
+  const hasBubbleLegend = data.showBubble && data.points.length > 0;
+  const outsideBelow = below && hasBubbleLegend;
+  const outsideLegend = !outsideBelow && data.bubbleLegendPosition === 'outside-right' && hasBubbleLegend;
+  const bubbleM = outsideLegend || outsideBelow ? bubbleLegendMetrics(ctx, data, fs, options) : null;
+  const fillM = outsideLegend || outsideBelow ? measureFillLegend(ctx, data, fs, options) : { boxW: 0, boxH: 0 };
+  const legendW = outsideLegend ? Math.max(bubbleM?.boxW ?? 0, fillM.boxW) : 0;
+  /** 아래 범례 — 버블 크기 상자와 채움 상자를 나란히, 높은 쪽만큼 */
+  const belowH = outsideBelow ? Math.max(bubbleM?.boxH ?? 0, fillM.boxH) : 0;
 
   // 시험지 틀은 x축 단위를 마지막 눈금 **옆**에 두므로 그만큼 오른쪽이 더 필요하다.
   // 60px 고정으로 두면 `(℃)` 가 캔버스 밖으로 밀린다.
@@ -139,6 +147,9 @@ function renderNormal(
       b += sourceFootnoteReserve(options, fs.dataLabel,
         (options.source && !(options.sourceInline && notes > 0) ? 30 : 0) + notes * 22,
         { sourceInline: options.sourceInline });
+      // 아래 범례 — 가로축 이름(높이 axisPx) 밑 10px 에서 시작한다. 기본 여백이 이름 아래로
+      // 남겨 둔 틈(50 - axisPx)을 넘는 만큼만 더 비운다
+      if (outsideBelow) b += Math.max(belowH + 16, axisPx + 10 + belowH + 16 - 50);
       return b;
     })(),
     // 130 은 「Y축」 정도를 담을 만큼이다. 이름이 길면 그만큼 더 비운다 —
@@ -312,7 +323,7 @@ function renderNormal(
   // 데이터 포인트 — exam 은 글자가 커서 점 이름이 플롯 안 범례 상자에 닿는다.
   // 범례 자리는 버블만 보고 정하므로 미리 셈해 이름이 비키게 한다(classic 은 1.7.0 그대로).
   const legendAvoid = byStyle(options, { classic: false, exam: true })
-    && !outsideLegend && data.showBubble && data.points.length > 0
+    && !outsideLegend && !outsideBelow && data.showBubble && data.points.length > 0
     ? insideLegendBoxes(ctx, data, plotX, plotY, plotW, plotH, fs, options,
       bubbleRects(data, toCanvasX, toCanvasY, look.dotR))
     : [];
@@ -334,6 +345,16 @@ function renderNormal(
     if (bubbleM) {
       drawBubbleLegendAt(ctx, bubbleM, x, y, options);
       y += bubbleM.boxH + 8;
+    }
+    if (fillM.boxH > 0) drawFillLegendAt(ctx, data, x, y, fillM, fs, options);
+  } else if (outsideBelow) {
+    // 플롯 아래 — 가로축 이름 밑, 플롯 오른쪽 끝에 맞춰 버블 크기·채움 상자를 나란히 둔다
+    const y = plotY + plotH + xNameOff + axisPx + 10;
+    const total = (bubbleM?.boxW ?? 0) + (fillM.boxH > 0 ? (bubbleM ? 8 : 0) + fillM.boxW : 0);
+    let x = Math.max(4, plotX + plotW - total);
+    if (bubbleM) {
+      drawBubbleLegendAt(ctx, bubbleM, x, y, options);
+      x += bubbleM.boxW + 8;
     }
     if (fillM.boxH > 0) drawFillLegendAt(ctx, data, x, y, fillM, fs, options);
   } else if (data.showBubble && data.points.length > 0) {

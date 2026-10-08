@@ -54,7 +54,7 @@ function renderStackedBar(
   const showLegend = options.showLegend;
   const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
+    ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options, 'rect', w)
     : 0;
 
   const isVertical = data.barDirection === 'vertical';
@@ -357,7 +357,7 @@ function renderPieChart(
   const showLegend = options.showLegend;
   const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
-    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options)
+    ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'rect', w)
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다

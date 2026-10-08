@@ -1,7 +1,7 @@
 // © 2026 김용현
 import { describe, it, expect } from 'vitest';
 import {
-  squarify, wrapLabel, pickLabelLayout, shouldOmitLabel, shouldOmitLayout, resolveDrawSize,
+  squarify, wrapLabel, pickLabelLayout, shouldOmitLabel, shouldOmitLayout, resolveDrawSize, isDarkFill,
   type TreemapRect,
 } from '../../src/core/graphs/TreemapGraph';
 
@@ -411,5 +411,55 @@ describe('resolveDrawSize · shouldOmitLayout — 클램프를 없애고 생략�
 
     expect(layout.scale).toBeGreaterThan(MIN_LEGIBLE_SCALE);
     expect(shouldOmitLayout(layout)).toBe(false);
+  });
+});
+
+// 2.2.0 — GeoTester 에서 올려 온 강제 줄바꿈·어두운 칸 판정
+describe('pickLabelLayout — 강제 줄바꿈', () => {
+  const ctx = fakeCtx();
+
+  it('\\n 이 있으면 그 자리에서만 나눈다', () => {
+    const layout = pickLabelLayout(ctx, '1위\n33.0', 200, 200, 24);
+    expect(layout.lines).toEqual(['1위', '33.0']);
+    expect(layout.scale).toBe(1);
+  });
+
+  it('좁아도 읽히는 한 줄은 그대로 두고 글자만 줄인다', () => {
+    const layout = pickLabelLayout(ctx, '1위\n33.0', 20, 200, 24);
+    expect(layout.lines).toEqual(['1위', '33.0']);
+    expect(layout.scale).toBeLessThan(1);
+  });
+
+  it('한 줄이 너무 넓어 못 읽으면 그 줄 안만 더 나눈다 — \\n 자리는 그대로', () => {
+    // '가나다라마바' 60px 를 20px 에 넣으면 배율 0.33 — 못 읽는다
+    const layout = pickLabelLayout(ctx, '가\n가나다라마바', 20, 200, 24);
+    expect(layout.lines[0]).toBe('가');
+    expect(layout.lines.slice(1).join('')).toBe('가나다라마바');
+    expect(layout.lines.length).toBeGreaterThan(2);
+    expect(shouldOmitLayout(layout)).toBe(false);
+  });
+});
+
+describe('isDarkFill', () => {
+  it('#999999 이하로 어두우면 true, 그보다 밝으면 false', () => {
+    expect(isDarkFill('#999999')).toBe(true);
+    expect(isDarkFill('#7f7f7f')).toBe(true);
+    expect(isDarkFill('#9a9a9a')).toBe(false);
+    expect(isDarkFill('#ffffff')).toBe(false);
+  });
+
+  it('#rgb 줄임 표기도 받는다', () => {
+    expect(isDarkFill('#fff')).toBe(false);
+    expect(isDarkFill('#999')).toBe(true);
+    expect(isDarkFill('#000')).toBe(true);
+    expect(isDarkFill('#aaa')).toBe(false);
+  });
+
+  it('값이 없거나 읽을 수 없는 색은 false', () => {
+    expect(isDarkFill(undefined)).toBe(false);
+    expect(isDarkFill('')).toBe(false);
+    expect(isDarkFill('gray')).toBe(false);
+    expect(isDarkFill('#12345')).toBe(false);
+    expect(isDarkFill('pattern:diagonal')).toBe(false);
   });
 });

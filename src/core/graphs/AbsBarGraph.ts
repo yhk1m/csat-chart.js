@@ -10,8 +10,10 @@ import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
 
 const LOOK = {
   // 눈금 0.39pt·2.5pt (§3 #24), 0 기준선 0.34–0.39pt, 범주 경계 눈금 (#25)
-  classic: { tick: 1, tickLen: 5, zero: 1.5, catTicks: false, unitAdjacent: false },
-  exam: { tick: 1.9, tickLen: 12, zero: 1.75, catTicks: true, unitAdjacent: true },
+  // 범주 구분선(categoryDividers): classic 1px 은 GeoTester 의 그림 그대로, exam 은 ≈ 플롯 틀 0.39pt
+  // (2027_09 세계지리 11번 — 구분선이 틀과 같은 굵기로 보인다, 따로 잰 적 없음)
+  classic: { tick: 1, tickLen: 5, zero: 1.5, catTicks: false, unitAdjacent: false, divider: 1 },
+  exam: { tick: 1.9, tickLen: 12, zero: 1.75, catTicks: true, unitAdjacent: true, divider: 1.9 },
 };
 
 /**
@@ -266,8 +268,22 @@ function drawAbsBarGraph(
       ctx.stroke();
     }
 
-    // 경계 눈금 (세로) — 범주 사이 경계에서 위로
-    if (look.catTicks && dir.x !== 'none') {
+    // 범주 구분선 — 이웃한 범주 사이 한가운데, 플롯 위에서 아래까지
+    if (data.categoryDividers) {
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = look.divider;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      for (let c = 1; c < n; c++) {
+        const x = Math.round(plotX + catArea * c) + 0.5;
+        ctx.moveTo(x, plotY);
+        ctx.lineTo(x, plotY + plotH);
+      }
+      ctx.stroke();
+    }
+
+    // 경계 눈금 (세로) — 범주 사이 경계에서 위로. 구분선이 있으면 그 선이 경계를 이미 긋는다
+    if (look.catTicks && dir.x !== 'none' && !data.categoryDividers) {
       const sgn = dir.x === 'in' ? -1 : 1;
       ctx.strokeStyle = '#000';
       ctx.lineWidth = t.line.tick;

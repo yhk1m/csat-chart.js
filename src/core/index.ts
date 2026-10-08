@@ -11,6 +11,7 @@ export { renderDataTable } from './graphs/DataTable';
 export { renderEconPlane } from './graphs/EconPlane';
 export { renderTreemapGraph } from './graphs/TreemapGraph';
 export { renderClimateGraph } from './graphs/ClimateGraph';
+export { renderCoordGraph } from './graphs/CoordGraph';
 export { renderCubeGraph } from './graphs/CubeGraph';
 export { renderDeviationAGraph } from './graphs/DeviationAGraph';
 export { renderDeviationBGraph } from './graphs/DeviationBGraph';

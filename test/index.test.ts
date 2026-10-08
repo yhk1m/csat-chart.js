@@ -4,7 +4,7 @@ import * as lib from '../src/index';
 import { CHART_TYPES, REGISTRY } from '../src/registry';
 
 const RENDERERS = [
-  'renderAbsBarGraph', 'renderCategoryDotGraph', 'renderClimateGraph', 'renderCubeGraph',
+  'renderAbsBarGraph', 'renderCategoryDotGraph', 'renderClimateGraph', 'renderCoordGraph', 'renderCubeGraph',
   'renderDataTable', 'renderDeviationAGraph', 'renderDeviationBGraph', 'renderEconPlane',
   'renderHythergraph',
   'renderLineGraph', 'renderMatrixTable', 'renderPyramidGraph', 'renderRadarChart',
@@ -13,7 +13,7 @@ const RENDERERS = [
 
 const DEFAULT_FACTORIES = [
   'createDefaultGraphOptions', 'createDefaultAbsBarData', 'createDefaultCategoryDotData',
-  'createDefaultClimateData', 'createDefaultCubeData', 'createDefaultDataTableData',
+  'createDefaultClimateData', 'createDefaultCoordData', 'createDefaultCubeData', 'createDefaultDataTableData',
   'createDefaultDeviationAData', 'createDefaultDeviationBData', 'createDefaultEconPlaneData',
   'createDefaultHythergraphData',
   'createDefaultLineData', 'defaultLineLeader', 'createDefaultMatrixTableData', 'createDefaultPyramidData',

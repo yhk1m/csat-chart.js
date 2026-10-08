@@ -16,3 +16,4 @@ export * from './line';
 export * from './matrix';
 export * from './datatable';
 export * from './treemap';
+export * from './coord';

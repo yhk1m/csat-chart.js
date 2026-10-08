@@ -1,5 +1,5 @@
 // © 2026 김용현
-// 넘침 진단·회귀용 케이스 17종 × 두 자료 × 두 범례 위치.
+// 넘침 진단·회귀용 케이스 18종 × 두 자료 × 두 범례 위치.
 //
 // 자료 A 는 데모 페이지(docs/index.html)의 표본을 그대로 옮긴 것이고,
 // 자료 B 는 «선생님이 실제로 칠 만한» 긴 한글 이름(시·군·구 이름 등)이다.
@@ -8,13 +8,13 @@
 import {
   renderAbsBarGraph, renderCategoryDotGraph, renderClimateGraph, renderCubeGraph,
   renderDataTable, renderDeviationAGraph, renderDeviationBGraph, renderEconPlane,
-  renderHythergraph,
+  renderHythergraph, renderCoordGraph,
   renderLineGraph, renderMatrixTable, renderPyramidGraph, renderRadarChart,
   renderScatterGraph, renderStackedGraph, renderTernaryGraph, renderTreemapGraph,
   createDefaultAbsBarData, createDefaultCategoryDotData, createDefaultClimateData,
   createDefaultCubeData, createDefaultDataTableData, createDefaultDeviationAData,
   createDefaultDeviationBData, createDefaultEconPlaneData, createDefaultHythergraphData,
-  createDefaultLineData,
+  createDefaultLineData, createDefaultCoordData,
   createDefaultMatrixTableData, createDefaultPyramidData, createDefaultRadarData,
   createDefaultScatterData, createDefaultStackedData, createDefaultTernaryData,
   createDefaultTreemapData, createDefaultGraphOptions,
@@ -474,6 +474,18 @@ const B_CUBE: Maker = () => {
   return d;
 };
 
+// 경·위도 좌표 평면 — 오른쪽·위 끝 점의 긴 이름이 캔버스 밖으로 나가지 않는지 (2.2.0)
+const A_COORD: Maker = () => ({ ...createDefaultCoordData(), showLabels: true });
+const B_COORD: Maker = () => ({
+  showLabels: true,
+  points: [
+    { lon: 178, lat: -41, label: '뉴질랜드 웰링턴 (수도)' },
+    { lon: -179, lat: 89, label: '알래스카주 서쪽 끝 섬' },
+    { lon: 37.6, lat: 55.7, label: '러시아 연방 모스크바' },
+    { lon: -70, lat: -89, label: '남극 대륙 아문센-스콧 기지' },
+  ],
+});
+
 const OPT_A: Record<string, Partial<GraphOptions>> = {
   climate: { title: '서울의 기후', source: '기상청', footnotes: ['1991~2020년의 평년값임.'] },
   scatter: { title: '시·도별 인구밀도와 1인당 지역내총생산', source: '통계청, 2023' },
@@ -496,6 +508,7 @@ const TYPES: Entry[] = [
   ['absbar(안쪽범례)', renderAbsBarGraph as ProbeCase['render'], A_ABSBAR_INSIDE, B_ABSBAR_INSIDE],
   ['category-dot', renderCategoryDotGraph as ProbeCase['render'], createDefaultCategoryDotData, B_CATEGORY_DOT],
   ['climate', renderClimateGraph as ProbeCase['render'], () => clone(A_CLIMATE), B_CLIMATE],
+  ['coord', renderCoordGraph as ProbeCase['render'], A_COORD, B_COORD],
   ['cube', renderCubeGraph as ProbeCase['render'], () => clone(A_CUBE), B_CUBE],
   ['data-table', renderDataTable as ProbeCase['render'], createDefaultDataTableData, B_DATA_TABLE],
   ['deviation-a(안쪽범례)', renderDeviationAGraph as ProbeCase['render'], () => clone(A_DEVIATION_A), B_DEVIATION_A],

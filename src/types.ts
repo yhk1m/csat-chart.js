@@ -8,6 +8,7 @@ import type {
   AbsBarGraphData,
   CategoryDotGraphData,
   ClimateGraphData,
+  CoordGraphData,
   CubeGraphData,
   DataTableData,
   DeviationAData,
@@ -29,6 +30,7 @@ export interface ChartDataMap {
   absbar: AbsBarGraphData;
   'category-dot': CategoryDotGraphData;
   climate: ClimateGraphData;
+  coord: CoordGraphData;
   cube: CubeGraphData;
   'data-table': DataTableData;
   'deviation-a': DeviationAData;
@@ -66,7 +68,7 @@ export interface ConfigFor<T extends CsatChartType> {
   options?: PartialGraphOptions;
 }
 
-/** 17종을 모은 판별 유니온. */
+/** 18종을 모은 판별 유니온. */
 export type CsatChartConfig = { [K in CsatChartType]: ConfigFor<K> }[CsatChartType];
 
 /** 한 종류의 부분 갱신. 준 것만 덮는다. */

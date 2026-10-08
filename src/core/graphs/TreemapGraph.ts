@@ -10,11 +10,14 @@ import { type TreemapGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { styleOf, byStyle } from '../canvas/style';
+import { resolveFill } from '../canvas/patterns';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 
 const LOOK = {
-  classic: { cellLine: 1 },
-  exam: { cellLine: 1.9 }, // 칸 경계 검은 선 0.39pt (§3 #47 한국지리 꼴)
+  // halo: 어두운 칸 글자의 흰 테두리 굵기(글자 크기 → px). classic 은 GeoTester 의 그림 그대로,
+  // exam 은 null — 다른 종류의 흰 테두리와 같은 토큰(haloWidth)을 쓴다
+  classic: { cellLine: 1, halo: (size: number) => Math.max(2, size / 6) },
+  exam: { cellLine: 1.9, halo: null as ((size: number) => number) | null }, // 칸 경계 검은 선 0.39pt (§3 #47 한국지리 꼴)
 };
 
 export interface TreemapRect {
@@ -50,6 +53,21 @@ const MIN_LABEL_W = 34;
 const MIN_LEGIBLE_SCALE = 0.4;
 /** `pickLabelLayout`이 시도해 보는 줄 수 후보의 상한. 라벨 글자 수보다 많이 시도하지 않는다. */
 const MAX_LABEL_LINES = 4;
+
+/**
+ * `#rrggbb`(또는 줄임 `#rgb`) 채움이 `#999999` 이거나 그보다 어두운가 — 그렇다면
+ * 글자에 흰 테두리를 두른다. 읽을 수 없는 색(이름·rgb()·패턴)은 false.
+ * (2027학년도 9월 세계지리 6번 원본은 `#999999` 쯤인 2위 칸 글자에도 테두리가 있다)
+ */
+export function isDarkFill(fill: string | undefined): boolean {
+  if (!fill) return false;
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(fill.trim());
+  if (!m) return false;
+  const hex = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+  const n = parseInt(hex, 16);
+  const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return lum <= 0x99;
+}
 
 /**
  * 한 줄의 가장 나쁜 가로세로비. 작을수록 정사각형에 가깝다.
@@ -234,9 +252,15 @@ export function pickLabelLayout(
   labelSize: number,
   maxN: number = MAX_LABEL_LINES,
 ): LabelLayout {
-  const cap = Math.max(1, Math.min(maxN, text.length));
+  // `\n` 은 쓴 사람이 정한 줄이다 — 그 자리에서 반드시 바꾸고, 줄 수 후보 n 은 나눈 한 줄
+  // 안에서만 쓴다(「1위\n33.0」 을 통째로 글자 수로 자르면 「1위 3」/「3.0」 이 된다).
+  // `\n` 이 없으면 조각이 하나라 예전과 같다.
+  const parts = text.split('\n');
+  const forced = parts.length > 1;
+  const longest = Math.max(...parts.map((p) => p.length));
+  const cap = Math.max(1, Math.min(maxN, longest));
   const layoutFor = (n: number): LabelLayout => {
-    const lines = splitIntoLines(text, n);
+    const lines = parts.flatMap((p) => splitIntoLines(p, n));
     const widest = Math.max(...lines.map((line) => ctx.measureText(line).width));
     // 글자가 없거나 너비가 0이면 폭은 제약이 아니다 — Infinity 로 두면 아래
     // Math.min 에서 자연히 빠진다.
@@ -246,6 +270,9 @@ export function pickLabelLayout(
   };
 
   let best = layoutFor(1);
+  // 쓴 사람이 줄을 정했으면 그 줄이 읽히는 한(배율이 MIN_LEGIBLE_SCALE 이상) 그대로 둔다 —
+  // 좁은 칸에서 「4.4」 가 「4.」/「4」 로 쪼개지지 않게. 너무 좁아 못 읽을 때만 한 줄 안을 더 나눈다.
+  if (forced && best.scale >= MIN_LEGIBLE_SCALE) return best;
   for (let n = 2; n <= cap; n++) {
     const candidate = layoutFor(n);
     if (candidate.scale > best.scale) best = candidate;
@@ -360,11 +387,17 @@ export function renderTreemapGraph(
   const pad = labelSize * PAD_RATIO;
 
   // ── 칸 ──────────────────────────────────────────────
+  const look = byStyle(options, LOOK);
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = byStyle(options, LOOK).cellLine;
-  rects.forEach((r) => {
+  ctx.lineWidth = look.cellLine;
+  rects.forEach((r, i) => {
     if (r.w <= 0 || r.h <= 0) return;
-    // 원본 시험지는 칸을 칠하지 않는다 — 흰 바탕에 선만 있다
+    // 원본 시험지는 대개 칸을 칠하지 않는다 — 채움을 준 칸만 칠한다
+    const fill = data.cells[i].fill;
+    if (fill) {
+      ctx.fillStyle = resolveFill(ctx, fill, styleOf(options));
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+    }
     ctx.strokeRect(r.x, r.y, r.w, r.h);
   });
 
@@ -398,7 +431,17 @@ export function renderTreemapGraph(
       // scale을 그대로 쓰므로(더는 하한으로 밀어 올리지 않으므로) 정상
       // 경로에서는 이제 실제로 걸리지 않는다. 그래도 남겨 두는 이유는
       // 부동소수 오차 같은 극단적인 경우의 마지막 방어선이기 때문이다.
-      ctx.fillText(line, r.x + r.w / 2, startY + k * drawSize * 1.2, avail);
+      const ty = startY + k * drawSize * 1.2;
+      // 어두운 칸에서는 검은 글자가 묻힌다 — 흰 테두리를 먼저 두른다
+      if (isDarkFill(data.cells[i].fill)) {
+        ctx.save();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = look.halo ? look.halo(drawSize) : styleOf(options).haloWidth;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(line, r.x + r.w / 2, ty, avail);
+        ctx.restore();
+      }
+      ctx.fillText(line, r.x + r.w / 2, ty, avail);
     });
 
     // 다음 칸의 pickLabelLayout 측정이 기준 크기를 쓰도록 되돌린다

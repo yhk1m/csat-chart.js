@@ -12,13 +12,13 @@ import {
   renderDeviationAGraph, renderDeviationBGraph, renderHythergraph,
   renderPyramidGraph, renderRadarChart, renderScatterGraph,
   renderStackedGraph, renderTernaryGraph, renderCategoryDotGraph, renderLineGraph,
-  renderMatrixTable, renderDataTable, renderTreemapGraph, renderEconPlane,
+  renderMatrixTable, renderDataTable, renderTreemapGraph, renderEconPlane, renderCoordGraph,
   createDefaultAbsBarData, createDefaultClimateData, createDefaultCubeData,
   createDefaultDeviationAData, createDefaultDeviationBData,
   createDefaultHythergraphData, createDefaultPyramidData,
   createDefaultRadarData, createDefaultScatterData,
   createDefaultStackedData, createDefaultTernaryData, createDefaultCategoryDotData,
-  createDefaultLineData, createDefaultTreemapData, createDefaultEconPlaneData,
+  createDefaultLineData, createDefaultTreemapData, createDefaultEconPlaneData, createDefaultCoordData,
   createDefaultGraphOptions,
   type EconPlaneData,
 } from '../../src/core/index';
@@ -116,6 +116,21 @@ const treemapExam = () => ({
     { label: '미국', value: 8.5 },
     { label: '오스트레일리아', value: 7.0 },
     { label: '인도네시아', value: 6.0 },
+  ],
+});
+
+/**
+ * 순위별 회색 채움 + 두 줄 라벨 — 2027학년도 9월 세계지리 6번 (GeoTester 에서 올려 옴, 2.2.0).
+ * 어두운 칸(1위·2위)은 글자에 흰 테두리를 두른다.
+ */
+const treemapRankFills = () => ({
+  cells: [
+    { label: '1위\n33.0', value: 33.0, fill: '#7f7f7f' },
+    { label: '2위\n20.3', value: 20.3, fill: '#999999' },
+    { label: '3위\n12.4', value: 12.4, fill: '#b3b3b3' },
+    { label: '4위\n5.0', value: 5.0, fill: '#cccccc' },
+    { label: '5위\n4.4', value: 4.4, fill: '#e6e6e6' },
+    { label: '기타\n24.9(%)', value: 24.9, fill: '#ffffff' },
   ],
 });
 
@@ -326,6 +341,18 @@ const absBarZeroBaseline = () => {
     { label: 'C', values: [199, 58] },
     { label: 'D', values: [-205, 210] },
   ];
+  return d;
+};
+
+/**
+ * 범주 사이 세로 구분선 — 2027학년도 9월 세계지리 11번 (GeoTester 에서 올려 옴, 2.2.0).
+ * 원본은 (가)·(나)·(다) 칸을 플롯 위아래를 잇는 실선으로 나눈다.
+ */
+const absBarCategoryDividers = () => {
+  const d = absBarZeroBaseline();
+  d.categoryDividers = true;
+  d.categoryLabelAtBaseline = false;
+  d.categories = d.categories.slice(0, 3);
   return d;
 };
 
@@ -704,8 +731,13 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['absbarStacked', renderAbsBarGraph as Renderer, absBarStacked],
   ['absbarGrouped', renderAbsBarGraph as Renderer, absBarGrouped],
   ['absbarZeroBaseline', renderAbsBarGraph as Renderer, absBarZeroBaseline],
+  ['absbarCategoryDividers', renderAbsBarGraph as Renderer, absBarCategoryDividers],
   ['categorydot', renderCategoryDotGraph as Renderer, categoryDotWithData],
   ['climate', renderClimateGraph as Renderer, climateWithData],
+  // 경·위도 좌표 평면 (GeoTester 에서 올려 옴, 2.2.0) — 2027학년도 9월 세계지리 19번
+  ['coord', renderCoordGraph as Renderer, createDefaultCoordData],
+  ['coordLabels', renderCoordGraph as Renderer, () => ({ ...createDefaultCoordData(), showLabels: true })],
+  ['coordTitled', renderCoordGraph as Renderer, createDefaultCoordData],
   ['cube', renderCubeGraph as Renderer, createDefaultCubeData],
   ['deviationA', renderDeviationAGraph as Renderer, deviationAWithData],
   ['stackedExam', renderStackedGraph as Renderer, stackedExam],
@@ -742,6 +774,7 @@ export const CASES: [string, Renderer, () => unknown][] = [
   ['treemap', renderTreemapGraph as Renderer, createDefaultTreemapData],
   ['treemapExam', renderTreemapGraph as Renderer, treemapExam],
   ['treemapLongTail', renderTreemapGraph as Renderer, treemapLongTail],
+  ['treemapRankFills', renderTreemapGraph as Renderer, treemapRankFills],
 ];
 
 /**

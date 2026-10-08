@@ -186,6 +186,22 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
     }
   }
 
+  // 원소 안의 숫자 칸 — 한 겹 더 들어가지만, 비면 점이 조용히 사라지는 자리만 적는다
+  for (const [key, fields] of Object.entries(ELEMENT_NUMBERS[type] ?? {})) {
+    const arr = given[key];
+    if (!Array.isArray(arr)) continue;
+    arr.forEach((el, i) => {
+      for (const f of fields) {
+        const v = (el as Record<string, unknown>)[f];
+        if (typeof v !== 'number') {
+          throw new CsatChartError(
+            `type "${type}" 의 data.${key}[${i}].${f}: ${shouldBe('숫자')} (지금 ${kindOf(v)})`,
+          );
+        }
+      }
+    });
+  }
+
   for (const [key, allowed] of Object.entries(DATA_WORDS[type] ?? {})) {
     const v = given[key];
     if (v === undefined || allowed.includes(v as string)) continue;
@@ -194,6 +210,14 @@ export function assertChartData(type: CsatChartType, data: unknown): void {
     );
   }
 }
+
+/**
+ * 배열 원소 가운데 숫자여야 하는 칸. 좌표 평면의 점은 경도·위도가 숫자가 아니면 렌더러가
+ * 그 점을 건너뛴다 — 문자열 `"51.5"` 를 넣은 실수가 «점이 안 보인다» 로만 드러난다.
+ */
+const ELEMENT_NUMBERS: Partial<Record<CsatChartType, Record<string, string[]>>> = {
+  coord: { points: ['lon', 'lat'] },
+};
 
 /**
  * 자료 가운데 «정해진 낱말만 받는» 칸. 모르는 낱말은 렌더러가 조용히 아무 일도 안 해

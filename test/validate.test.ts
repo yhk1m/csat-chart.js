@@ -113,6 +113,21 @@ describe('assertChartData — 정해진 낱말 칸', () => {
   });
 });
 
+describe('assertChartData — 좌표 평면의 점 (2.2.0)', () => {
+  it('경도·위도가 숫자면 통과한다', () => {
+    expect(() => assertChartData('coord', REGISTRY.coord.createDefaultData())).not.toThrow();
+  });
+
+  it('경도·위도가 숫자가 아니면 몇 번째 점인지 한국어로 말한다', () => {
+    const d = REGISTRY.coord.createDefaultData();
+    const points = [...d.points, { lon: '130', lat: -12.5 }];
+    expect(() => assertChartData('coord', { ...d, points }))
+      .toThrow(/type "coord" 의 data\.points\[4\]\.lon: 숫자여야 합니다 \(지금 문자열\)/);
+    expect(() => assertChartData('coord', { points: [{ lon: 0 }] }))
+      .toThrow(/data\.points\[0\]\.lat: 숫자여야 합니다 \(지금 undefined\)/);
+  });
+});
+
 describe('assertOptionValues', () => {
   it('아는 값·빈 값은 통과시킨다', () => {
     expect(() => assertOptionValues(undefined)).not.toThrow();

@@ -9,7 +9,7 @@ import { CASES, EXAM_ONLY_CASES, type Renderer } from './fixtures';
 const SNAP_DIR = join(__dirname, '__snapshots__');
 const W = 800;
 const H = 600;
-/** classic 43장은 1.7.0 모양의 증거로 그대로, exam 43장은 2.0.0 기본 모양 */
+/** classic 43장은 1.7.0 모양의 증거로 그대로(2.2.0 의 새 그림 5장은 GeoTester 그림 그대로), exam 은 2.0.0 기본 모양 */
 const SETS: [StyleName, string][] = [
   ['classic', SNAP_DIR],
   ['exam', join(SNAP_DIR, 'exam')],
@@ -63,6 +63,14 @@ function optionsFor(name: string, style: StyleName) {
       sourceInline: true,
     };
   }
+  // 제목·각주가 있는 틀 — 위아래 눈금 글자(좌표 평면의 90°N·90°S)와 겹치지 않는지 본다 (2.2.0)
+  if (name.endsWith('Titled')) {
+    return {
+      ...base,
+      title: '〈(가)~(라) 지역의 경·위도 좌표〉',
+      footnotes: ['점은 각 지역의 위치를 나타냄.'],
+    };
+  }
   // 범례 쪽을 적은 그림 (exam 만, 2.1.0)
   if (name.endsWith('LegendRight')) return { ...base, legendPosition: 'right' as const };
   if (name.endsWith('LegendBottom')) return { ...base, legendPosition: 'bottom' as const };
@@ -85,7 +93,7 @@ function render(fn: Renderer, data: unknown, name: string, style: StyleName): Bu
 }
 
 describe.each(SETS)('골든 이미지 — %s', (style, dir) => {
-  // classic 은 43장 그대로, exam 은 legendPosition 을 적은 그림이 더 있다
+  // classic 은 43장(+ 2.2.0 의 5장) 그대로, exam 은 legendPosition 을 적은 그림이 더 있다
   const cases = style === 'exam' ? [...CASES, ...EXAM_ONLY_CASES] : CASES;
   (SKIP_GOLDEN ? it.skip : it).each(cases)(
     '%s 렌더 결과가 기준 이미지와 같다',

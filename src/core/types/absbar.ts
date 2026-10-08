@@ -57,6 +57,13 @@ export interface AbsBarGraphData {
    * 미지정이면 기존대로 축 오른쪽에 조금 떨어뜨려 그린다.
    */
   unitAdjacent?: boolean;
+  /**
+   * 범주 사이에 플롯 위아래를 잇는 세로 실선을 긋는다 (세로 막대 전용).
+   *
+   * 2027학년도 9월 세계지리 11번 원본은 (가)·(나)·(다) 칸을 이렇게 나눈다.
+   * 미지정이면 긋지 않는다 — 기존 그래프는 그대로다.
+   */
+  categoryDividers?: boolean;
 }
 
 export function createDefaultAbsBarData(): AbsBarGraphData {

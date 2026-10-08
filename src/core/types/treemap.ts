@@ -1,9 +1,18 @@
 // © 2026 김용현
 // 트리맵(사각형 분할) 그래프 데이터
 export interface TreemapCell {
+  /**
+   * 칸 라벨. `\n` 을 넣으면 그 자리에서 반드시 줄을 바꾼다(`'1위\n33.0'`).
+   * 나눈 한 줄이 칸보다 넓으면 그 줄 안에서는 예전처럼 글자 수로 더 나눈다.
+   */
   label: string;
   /** 넓이의 근거가 되는 값. 렌더러가 합으로 나눠 비율을 낸다. */
   value: number;
+  /**
+   * 칸 채움 — 색(`'#7f7f7f'`) 또는 패턴(`'pattern:diagonal'`). 미지정이면 칠하지 않는다(원래 동작).
+   * `#999999` 이거나 그보다 어두운 색이면 라벨에 흰 테두리를 둘러 읽히게 한다(`isDarkFill`).
+   */
+  fill?: string;
 }
 
 export interface TreemapGraphData {

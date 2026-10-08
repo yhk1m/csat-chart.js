@@ -20,7 +20,8 @@ export interface ScatterPoint {
  * `outside-right` 는 플롯 **바깥** 오른쪽 여백에 세로로 쌓는다. 자료를 아예
  * 덮지 않으므로 점이 많을 때 가장 안전하다. 나머지는 플롯 안쪽 모서리이고,
  * 버블을 덜 덮는 쪽으로 알아서 옮겨 간다. 시험지 양식(exam)은 네 모서리가 모두 버블·점을
- * 덮으면 `outside-right` 로 바꿔 그린다 (일반 산점도 — 편차 모드는 그대로).
+ * 덮으면 `options.legendPosition` 쪽 바깥으로 낸다 — `'bottom'` 이면 가로축 이름 아래,
+ * `'right'` 이거나 적지 않으면 `outside-right` (일반 산점도 — 편차 모드는 그대로).
  */
 export type BubbleLegendPosition =
   | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'

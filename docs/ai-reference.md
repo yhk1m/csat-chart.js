@@ -193,8 +193,9 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `seriesGuides`: boolean — 계열 꼭짓점에서 가로축으로 내리는 파선
 
 이 종류만 아는 것 넷:
-1. **이름을 선 끝에 단다.** `showLegend`·`legendPosition`·`showDataLabels`를
-   아예 읽지 않는다. 선 이름은 `lines[].label`로 주고, 그 선의 `labelAt` 쪽 끝에
+1. **이름을 선 끝에 단다.** `showLegend`·`showDataLabels`를
+   아예 읽지 않는다. `legendPosition`은 2.1.0 부터 계열 범례 상자가 네 모서리에서 다
+   막혔을 때(exam) 나갈 쪽으로만 읽는다 — `'right'`면 플롯을 좁혀 오른쪽 위. 선 이름은 `lines[].label`로 주고, 그 선의 `labelAt` 쪽 끝에
    붙는다. 범례 상자는 계열(`series`)을 쓸 때만 있고, 옵션이 아니라 자료가
    부른다(`legend`) — `showLegend`로는 켜지지도 꺼지지도 않는다.
 2. **`ticks`는 «값» 배열이다.** 자는 언제나 고르고 눈금만 띄엄띄엄 찍힌다 —
@@ -263,7 +264,9 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 지금 이 값을 읽지 않는다**(죽은 필드 — 이식 원본에 있던 것을 그대로 둔 것).
 바꿔볼 만한 필드: `points`, `xLabel`, `yLabel`
 - `mode`: `'normal' | 'deviation'` (기본 `'normal'`)
-- `bubbleLegendPosition`: `'top-left'|'top-right'|'bottom-left'|'bottom-right'|'outside-right'` (기본 `'bottom-right'`)
+- `bubbleLegendPosition`: `'top-left'|'top-right'|'bottom-left'|'bottom-right'|'outside-right'` (기본 `'bottom-right'`).
+  exam 에서 네 모서리가 다 버블·점을 덮으면 `options.legendPosition` 쪽 바깥으로 나간다 —
+  `'bottom'` 은 가로축 이름 아래, `'right'`·적지 않음은 오른쪽(2.1.0)
 - `points`: 배열(4) of `{ x: number, y: number, size: number, label: string }` (`size: 0`이면 버블 대신 그냥 점)
 - `xLabel`: string (기본 `'X축'`)
 - `yLabel`: string (기본 `'Y축'`)
@@ -364,7 +367,7 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 | `fontSize` | exam `{ title: 40, axisLabel: 39, tick: 35, dataLabel: 40 }` · classic `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }` | px 단위. 각주·출처는 exam 에서 `tick`, classic 에서 `dataLabel`을 따름. 한 항목만 줘도 나머지는 유지됨. `update({ options: { style } })`는 그 양식의 기본 크기로 바꾸되 직접 준 값은 남긴다 |
 | `showDataLabels` | `false` | 막대·점 위에 값을 표시할지 (모든 렌더러가 지원하는 것은 아님) |
 | `showLegend` | `true` | 범례 표시 여부 |
-| `legendPosition` | `'bottom'` | `'bottom'` / `'right'` |
+| `legendPosition` | 적지 않음 | `'bottom'` / `'right'`. 다른 값은 `CsatChartError`. 범례가 있는 모든 종류가 읽는다 — 바깥 범례는 그 쪽에 바로 서고, 플롯 안 모서리를 먼저 쓰는 범례(경제 좌표평면 `legend`·산점도 버블·막대/편차 A `insideLegend`)는 exam 에서 네 모서리가 다 막혔을 때 그 쪽 바깥으로 나간다. 적지 않으면 종류의 예전 자리 — 대부분 아래, 산점도 버블은 오른쪽, `insideLegend` 는 1순위 모서리 그대로(2.1.0) |
 | `legendLabel1` | `''` | 두 계열 종류(`climate`·`deviation-a`·`deviation-b`·`pyramid`)의 첫 계열 범례 이름. 비우면 데이터가 준 이름을 씀. 나머지 12종은 이 필드를 읽지 않음 |
 | `legendLabel2` | `''` | 위와 같은 종류의 둘째 계열 범례 이름 |
 

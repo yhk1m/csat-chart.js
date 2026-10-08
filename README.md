@@ -163,7 +163,7 @@ new CsatChart('c', { type: 'econ-plane', data: data });
 | `lines[].dashed` | boolean | 그 직선을 파선으로 긋습니다. 흑백 시험지에서 선 종류가 뜻을 나릅니다 — 사적 편익만 반영한 `D_1` 은 실선, 사회적 편익까지 반영한 `D_2` 는 파선입니다 |
 | `xAxis.tickLabels`·`yAxis.tickLabels` | `string[]` | 눈금 자리에 숫자 대신 적을 **글자**입니다. `ticks` 와 자리끼리 짝을 이룹니다 — 자리는 언제나 `ticks` 가 정하고, 이 배열은 거기 무엇이라 적을지만 바꿉니다. 숫자가 하나도 없는 세로축(`P_1`·`P_2`)도, 해[年]가 눈금인 가로축(`t년`·`t+1년`)도 이 한 칸으로 그립니다 |
 | `series[]` | `{ label, points, dashed, marker, hollow }` | 점 여럿을 잇고 기호를 얹은 꺾은선. `marker` 는 `'circle'`·`'square'`, `hollow: true` 면 속을 비웁니다. 계열 둘이 한 점에서 만나면 **먼저 적은 것이 위**에 옵니다 |
-| `legend` | `'bottom-right'` 따위 네 모서리 | 계열 범례 상자를 놓을 자리. 적지 않으면 그리지 않습니다. 그 모서리가 자료에 막히면 나머지 셋을 차례로 봅니다 |
+| `legend` | `'bottom-right'` 따위 네 모서리 | 계열 범례 상자를 놓을 자리. 적지 않으면 그리지 않습니다. 그 모서리가 자료에 막히면 나머지 셋을 차례로 보고, 시험지 양식에서 넷 다 막히면 `options.legendPosition` 쪽(기본 아래) 바깥에 둡니다 — [범례 자리](#범례-자리) |
 | `seriesGuides` | boolean | 계열 꼭짓점에서 가로축으로 파선을 내립니다. 한 자리에 점이 여럿이면 가장 높은 점까지 한 번만 긋습니다 |
 
 ```js
@@ -232,14 +232,31 @@ new CsatChart('c', { type: 'econ-plane', data: {
 | `fontSize` | `{ title: 40, axisLabel: 39, tick: 35, dataLabel: 40 }` (classic 은 `{ title: 36, axisLabel: 28, tick: 26, dataLabel: 22 }`) | 제목·축 이름·눈금·데이터 값 글자 크기(px). 각주·출처는 exam 에서 `tick`, classic 에서 `dataLabel` 을 따릅니다 |
 | `showDataLabels` | `false` | 막대·점에 값을 함께 표시할지 |
 | `showLegend` | `true` | 범례를 보여줄지 |
-| `legendPosition` | `'bottom'` | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나 |
+| `legendPosition` | 적지 않음 (= 아래) | `'bottom'`(아래)·`'right'`(오른쪽) 중 하나. 범례가 있는 모든 종류가 읽습니다 — 아래 [범례 자리](#범례-자리) 참고 |
 | `legendLabel1` | `''` | 두 계열을 쓰는 종류(기후·편차·인구 피라미드)의 첫 계열 범례 이름. 비워 두면 데이터가 준 이름을 씁니다 |
 | `legendLabel2` | `''` | 같은 종류의 두 번째 계열 범례 이름 |
 
-`econ-plane` 은 `showLegend`·`legendPosition`·`showDataLabels` 를 읽지 않습니다.
+`econ-plane` 은 `showLegend`·`showDataLabels` 를 읽지 않습니다.
 시험지 경제 그림은 선 끝에 이름을 달고, 계열을 쓰는 그림의 범례 상자는 옵션이
 아니라 자료가 부르기 때문입니다(`data.legend` — 위 [경제 좌표평면](#경제-좌표평면)
 참고). 나머지 옵션(제목·출처·각주·글꼴)은 다른 종류와 똑같이 동작합니다.
+
+#### 범례 자리
+
+`legendPosition` 은 범례가 있는 **모든** 종류가 같은 낱말(`'bottom'`·`'right'`)로 읽습니다(2.1.0).
+모르는 낱말은 `CsatChartError` 로 알립니다.
+
+| 범례 | `'bottom'` | `'right'` | 적지 않으면 |
+|---|---|---|---|
+| 바깥 범례 — 막대·100% 막대·원·범주 점·기후·편차 A·B·하이서그래프·꺾은선(`labelPlacement: 'legend'`)·인구 피라미드·방사형 | 플롯 아래 | 플롯을 좁혀 오른쪽 (exam 은 캔버스 폭의 40% 까지, 넘치는 이름은 글꼴을 줄임) | 아래 |
+| 경제 좌표평면 계열 범례 (`data.legend`) | 네 모서리가 다 막히면 가로축 숫자 아래 | 네 모서리가 다 막히면 플롯을 좁혀 오른쪽 위 (가로축 눈금 글자가 닿지 않게 재고, 모자라면 이름을 두 줄로 접거나 글꼴을 줄임) | 아래 |
+| 산점도 버블 범례 (`data.bubbleLegendPosition`) | 네 모서리가 다 막히면 가로축 이름 아래 | 네 모서리가 다 막히면 오른쪽 바깥 | 오른쪽 |
+| 막대·편차 A 의 안쪽 범례 (`data.insideLegend`) | 네 모서리가 다 막히면 바깥 아래 | 네 모서리가 다 막히면 바깥 오른쪽 | 1순위 모서리 그대로 |
+
+플롯 안 모서리를 먼저 쓰는 범례는 빈 모서리가 있으면 그 자리에 앉고, `legendPosition` 은
+모서리가 **다 막혔을 때만** 읽힙니다. 이 «막힘» 판정은 시험지 양식(exam)만 합니다 —
+`style: 'classic'` 은 1.7.0 자리 그대로입니다. 꺾은선의 안쪽 범례(누적 면적, 왼쪽 위 고정)는
+면 위에 앉는 것이 시험지 모양이라 바깥으로 나가지 않습니다.
 
 `fontSize` 는 하나만 부분 지정해도 됩니다 — TypeScript·JavaScript 모두 마찬가지입니다.
 

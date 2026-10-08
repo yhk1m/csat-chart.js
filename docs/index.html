@@ -699,7 +699,9 @@ function sampleFor(type) {
  */
 const OPTIONS_OVERRIDES = {
   'climate': { 'title': '서울의 기후', 'source': '기상청', 'footnotes': ['1991~2020년의 평년값임.'] },
-  'scatter': { 'title': '시·도별 인구밀도와 1인당 지역내총생산', 'source': '통계청, 2023' },
+  // 산점도 버블 범례는 모서리가 다 막히면 오른쪽으로 나가는 것이 기본이다(legendPosition 을
+  // 적지 않았을 때). 화면의 「범례 위치」는 값을 늘 적으므로 처음 값을 그 기본에 맞춘다.
+  'scatter': { 'title': '시·도별 인구밀도와 1인당 지역내총생산', 'source': '통계청, 2023', 'legendPosition': 'right' },
   'stacked': { 'title': '(가)~(다) 지역의 산업별 취업자 비중', 'source': '통계청' },
   // 꺾은선 표본은 시험지 모양이라 각주 둘과 출처를 붙인다. 시험지처럼 출처를
   // 마지막 각주 줄에 나란히 두는 sourceInline 은 1.6.0 부터 line 도 읽지만,
@@ -847,8 +849,9 @@ function fontInstalled(name) {
  * 상대로 직접 확인했다(`grep -rL showLegend src/core/graphs`).
  *   · showDataLabels 를 안 읽는 아홉 — cube·data-table·deviation-a·econ-plane·
  *     hythergraph·line·matrix-table·radar·treemap
- *   · showLegend·legendPosition 을 안 읽는 일곱 — cube·data-table·econ-plane·
- *     matrix-table·scatter·ternary·treemap
+ *   · showLegend 를 안 읽는 일곱 — cube·data-table·econ-plane·
+ *     matrix-table·scatter·ternary·treemap. legendPosition 은 그 가운데
+ *     econ-plane·scatter 가 2.1.0 부터 읽는다(SUPPORTS_LEGEND_POSITION)
  * econ-plane 은 범례를 «옵션» 으로 켜고 끄지 않는 종류다. 시험지 경제 그림은
  * 선 끝에 이름을 달고, 계열(꺾은선)을 쓰는 그림 한 장만 범례 상자를 두는데
  * 그 상자는 자료가 부른다(`data.legend`). 계열 이름을 적을 자리가 그것뿐이라
@@ -859,6 +862,13 @@ const SUPPORTS_DATA_LABELS = ['absbar', 'category-dot', 'climate', 'deviation-b'
   'pyramid', 'scatter', 'stacked', 'ternary'];
 const SUPPORTS_LEGEND = ['absbar', 'category-dot', 'climate', 'deviation-a',
   'deviation-b', 'hythergraph', 'line', 'pyramid', 'radar', 'stacked'];
+
+/**
+ * 「범례 위치」(`options.legendPosition`, 아래·오른쪽)는 범례가 있는 **모든** 카드에 낸다(2.1.0).
+ * 위 열 종은 바깥 범례 자리 그대로이고, 경제 좌표평면·산점도는 범례를 끄고 켜는 칸은 없지만
+ * 플롯 안 모서리가 다 막혔을 때 범례 상자가 나갈 쪽을 이 칸이 정한다.
+ */
+const SUPPORTS_LEGEND_POSITION = SUPPORTS_LEGEND.concat(['econ-plane', 'scatter']);
 
 /**
  * 「막대 방향」은 options 가 아니라 **자료** 의 값이다(`data.barDirection`).
@@ -942,6 +952,15 @@ function isInert(key, type, data, options) {
     return !axis || !axis.broken;
   }
   if (key === 'showLegend') return !legendIsDrawn(type, data);
+  if (key === 'legendPosition' && type === 'econ-plane') {
+    // EconPlane.ts — 계열과 범례 모서리가 있고 시험지 양식일 때만 상자가 밖으로 나간다
+    return !data.legend || !(data.series || []).length || options.style === 'classic';
+  }
+  if (key === 'legendPosition' && type === 'scatter') {
+    // ScatterBubble.ts — 버블 크기 범례가 있고(편차 모드 아님) 시험지 양식일 때만 밖으로 나간다
+    return data.mode === 'deviation' || !data.showBubble || !(data.points || []).length
+      || options.style === 'classic';
+  }
   if (key === 'legendPosition') {
     // 범례를 끄면 놓을 자리도 없다 — 열 종 전부에서 확인했다.
     return !options.showLegend || !legendIsDrawn(type, data) || legendIsInside(type, data);
@@ -1571,6 +1590,7 @@ function card(type, ordinal) {
   const ord = String(ordinal + 1).padStart(2, '0');
 
   const hasLegend = supports(SUPPORTS_LEGEND, type);
+  const hasLegendPosition = supports(SUPPORTS_LEGEND_POSITION, type);
   const hasDataLabels = supports(SUPPORTS_DATA_LABELS, type);
   const hasBarDirection = supports(SUPPORTS_BAR_DIRECTION, type);
   const hasAxisBreak = supports(SUPPORTS_AXIS_BREAK, type);
@@ -1593,7 +1613,7 @@ function card(type, ordinal) {
     ? '<div class="checks">' + checkParts.join('') + '</div>' : '';
 
   const selectParts = [];
-  if (hasLegend) {
+  if (hasLegendPosition) {
     selectParts.push('<div class="field" data-wrap="legendPosition">' +
       '<label class="field-label" for="' + uid('legendpos') + '">범례 위치</label>' +
       '<select id="' + uid('legendpos') + '" data-opt="legendPosition">' +

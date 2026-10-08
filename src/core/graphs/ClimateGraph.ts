@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis, drawXAxis, xTickLabelAt } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
@@ -36,7 +36,7 @@ export function renderClimateGraph(
   const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
 
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendLabels = [
     options.legendLabel1 || data.precipLabel,
     options.legendLabel2 || data.tempLabel,

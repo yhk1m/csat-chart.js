@@ -4,7 +4,7 @@ import { type DeviationAData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
@@ -48,7 +48,7 @@ export function renderDeviationAGraph(
   const inLegFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.9);
 
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   // 시험지는 플롯 안 오른쪽 아래 범례가 기본
   const insideLegend = data.insideLegend ?? look.insideLegend;
   const legendLabels = [

@@ -15,7 +15,7 @@ import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawDotMarker } from '../canvas/markers';
-import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 const LOOK = {
@@ -44,7 +44,7 @@ export function renderCategoryDotGraph(
 
   // 계열이 하나뿐이면 범례가 의미 없다 (시험지도 안 넣는다)
   const showLegend = options.showLegend && sCount > 1;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'circle')
     : 0;

@@ -9,7 +9,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { LabelPlacer, drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, drawFloatingLabel } from '../canvas/fit';
-import { measureLegendWidth, layoutBottomLegend } from '../canvas/legend';
+import { measureLegendWidth, layoutBottomLegend, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
 
@@ -102,7 +102,7 @@ export function renderHythergraph(
   });
   const lfSize = textSize(options, 'legend', fs.dataLabel * 0.85 + 5);
   const showLegend = options.showLegend && data.series.length > 0;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, legendLabels, lfSize, options)

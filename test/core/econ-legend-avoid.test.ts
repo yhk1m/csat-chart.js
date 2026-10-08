@@ -27,8 +27,8 @@ const lowLeft = (): EconPlaneData => ({
   ],
 });
 
-function draw(data: EconPlaneData, style: 'exam' | 'classic' = 'exam'): DrawLog {
-  return drawLogged((ctx) => renderEconPlane(ctx, 800, 600, data, { ...createDefaultGraphOptions(style), style }));
+function draw(data: EconPlaneData, style: 'exam' | 'classic' = 'exam', legendPosition?: 'bottom' | 'right'): DrawLog {
+  return drawLogged((ctx) => renderEconPlane(ctx, 800, 600, data, { ...createDefaultGraphOptions(style), style, legendPosition }));
 }
 
 /** 범례 상자 — strokeRect 가운데 가장 큰 것 (나머지는 견본 네모) */
@@ -68,5 +68,35 @@ describe('경제 좌표평면 범례 자리 (exam)', () => {
     const tick = log.texts.find((t) => t.s === '1')!;
     expect(box.bottom).toBeLessThan(tick.box.top);
     expect(box.top).toBeLessThan(300);
+  });
+
+  it("legendPosition: 'right' 면 플롯을 좁혀 오른쪽 위에 두고 아무것도 덮지 않는다", () => {
+    const below = draw(gdp());
+    const log = draw(gdp(), 'exam', 'right');
+    const box = legendBox(log);
+    expect(covered(log, box)).toEqual([]);
+    // 가로축 끝 눈금(t+2년)보다 오른쪽, 그 글자보다 위
+    const tick = log.texts.find((t) => t.s.includes('t+2'))!;
+    expect(box.left).toBeGreaterThan(tick.box.right);
+    expect(box.bottom).toBeLessThan(tick.box.top);
+    // 캔버스 안
+    expect(box.right).toBeLessThanOrEqual(800);
+    // 아래로 나간 경우보다 높이 앉는다 (플롯 위쪽에 맞춘다)
+    expect(box.top).toBeLessThan(legendBox(below).top - 200);
+    // 축 화살촉·가로축 이름과도 겹치지 않는다
+    const xName = log.texts.find((t) => t.s === '연도')!;
+    expect(overlaps(box, xName.box)).toBe(false);
+  });
+
+  it("legendPosition: 'bottom' 은 적지 않은 것과 같다", () => {
+    const a = draw(gdp());
+    const b = draw(gdp(), 'exam', 'bottom');
+    expect(legendBox(b)).toEqual(legendBox(a));
+  });
+
+  it('비는 모서리가 있으면 legendPosition 은 읽히지 않는다', () => {
+    const a = draw(lowLeft());
+    const b = draw(lowLeft(), 'exam', 'right');
+    expect(legendBox(b)).toEqual(legendBox(a));
   });
 });

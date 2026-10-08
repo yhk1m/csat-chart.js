@@ -138,7 +138,13 @@ export interface GraphOptions {
   };
   showDataLabels: boolean;
   showLegend: boolean;
-  legendPosition: LegendPosition;
+  /**
+   * 범례를 플롯 바깥에 둘 쪽 — `'bottom'`(아래)·`'right'`(오른쪽). 범례가 있는 모든 종류가 읽는다.
+   * 플롯 안 모서리에 먼저 앉는 범례(경제 좌표평면·산점도 버블·`insideLegend`)는 시험지 양식에서
+   * 네 모서리가 다 막혔을 때 이 쪽으로 나간다. 적지 않으면 종류의 기본 자리 —
+   * 대부분 아래, 산점도 버블 범례만 오른쪽이다(2.1.0 부터 선택 항목).
+   */
+  legendPosition?: LegendPosition;
   legendLabel1: string;
   legendLabel2: string;
 }
@@ -166,7 +172,6 @@ export function createDefaultGraphOptions(style: StyleName = DEFAULT_STYLE): Gra
     fontSize: { ...t.fontSize },
     showDataLabels: false,
     showLegend: true,
-    legendPosition: 'bottom',
     legendLabel1: '',
     legendLabel2: '',
   };

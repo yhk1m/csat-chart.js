@@ -3,7 +3,7 @@ import { type RadarGraphData, type GraphOptions } from '../types/index';
 import { clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { EDGE, MIN_SCALE, fillLines, largestFitting, textExtent, wrapToWidth } from '../canvas/fit';
 import { styleOf, byStyle } from '../canvas/style';
 
@@ -54,7 +54,7 @@ export function renderRadarChart(
   if (n < 3) return;
 
   const showLegend = options.showLegend && data.series.length > 1;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendLabels = data.series.map((s) => s.label);
   const legendW = (showLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, legendLabels, legendSize, options, 'line')

@@ -121,6 +121,16 @@ describe('assertOptionValues', () => {
     expect(() => assertOptionValues({ style: 'classic', tickDirection: 'out' })).not.toThrow();
   });
 
+  it("legendPosition 은 'bottom'·'right' 를 받는다", () => {
+    expect(() => assertOptionValues({ legendPosition: 'bottom' })).not.toThrow();
+    expect(() => assertOptionValues({ legendPosition: 'right' })).not.toThrow();
+  });
+
+  it('모르는 legendPosition 을 한국어로 거부한다', () => {
+    expect(() => assertOptionValues({ legendPosition: 'outside-right' }))
+      .toThrow(/options\.legendPosition 은 'bottom'·'right' 중 하나여야 합니다 \(지금 "outside-right"\)/);
+  });
+
   it('모르는 style 을 한국어로 거부한다', () => {
     expect(() => assertOptionValues({ style: 'fancy' }))
       .toThrow(/options\.style 은 'exam'·'classic' 중 하나여야 합니다 \(지금 "fancy"\)/);

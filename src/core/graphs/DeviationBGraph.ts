@@ -5,7 +5,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawFloatingLabel, nudgeInside } from '../canvas/fit';
-import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
@@ -35,7 +35,7 @@ export function renderDeviationBGraph(
   const regionFs = textSize(options, 'symbol', options.fontSize.tick * 1.2);
 
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendLabels = [
     options.legendLabel1 || data.precipDiffLabel,
     options.legendLabel2 || data.tempDiffLabel,

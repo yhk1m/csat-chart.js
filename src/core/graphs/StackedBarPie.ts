@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, textFont, textSize } from '../canvas/rendere
 import { textCtx } from '../canvas/parens';
 import { yUnitLeft } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { EDGE, nudgeInside, textExtent } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
@@ -52,7 +52,7 @@ function renderStackedBar(
   const valueFs = textSize(options, 'value', options.fontSize.dataLabel * 0.8);
   const catFs = textSize(options, 'category', options.fontSize.tick);
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
     : 0;
@@ -355,7 +355,7 @@ function renderPieChart(
   const look = byStyle(options, PIE_LOOK);
   const catSize = textSize(options, 'category', options.fontSize.tick);
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options)
     : 0;

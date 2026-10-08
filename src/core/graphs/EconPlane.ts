@@ -5,7 +5,8 @@
 // 방식이다 — 선은 **제 끝에** 이름을 달고 선다. 실물 열여섯 장 중 열다섯 장이
 // 그렇고, 계열(꺾은선)을 쓰는 한 장만 범례 상자를 쓴다. 그 상자도
 // `options.showLegend` 가 아니라 **자료**(`data.legend`)가 부른다. 그래서 이
-// 종류는 여전히 `showLegend`·`legendPosition`·`showDataLabels` 를 읽지 않는다.
+// 종류는 `showLegend`·`showDataLabels` 를 읽지 않는다. `legendPosition` 은 2.1.0 부터
+// 읽는다 — 시험지 양식에서 네 모서리가 다 막혔을 때 상자를 낼 쪽이다.
 // 대신 `fontStack` 두 자리는 나머지 열여섯 종과 똑같이 지킨다.
 //
 // 눈금 표시선(작은 선분)도 그리지 않는다. 시험지가 그렇다 — 격자나 유도선이
@@ -25,7 +26,7 @@ import { byStyle, labelPlace, type TextPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
 import { EDGE, drawFloatingLabel, nudgeInside, wrapToWidth } from '../canvas/fit';
 import { drawFloatingRich, fillRich, nudgeRichInside, richWidth } from '../canvas/subscript';
-import { drawInsideLegend, insideLegendSize, insideLegendSpot, cornerOrder, type LegendItem } from '../canvas/legend';
+import { drawInsideLegend, insideLegendSize, insideLegendSpot, cornerOrder, legendSideOf, INSIDE_MARGIN, type LegendItem } from '../canvas/legend';
 import { recordingCtx } from '../canvas/avoid';
 
 /** 축이 자료 칸 바깥으로 내미는 길이(px). 화살촉이 이 끝에 붙는다 */
@@ -40,6 +41,10 @@ const LABEL_GAP = 13;
 const NAME_LINE_H = 1.15;
 /** exam: 플롯 아래로 나간 범례 상자의 위아래 틈 (합) */
 const LEGEND_BELOW_GAP = 24;
+/** exam: 플롯 오른쪽으로 나간 범례 상자와 캔버스 오른쪽 끝 사이 */
+const LEGEND_RIGHT_MARGIN = 12;
+/** exam: 범례를 오른쪽에 둘 때 이웃한 가로축 눈금 글자 사이에 남길 틈 */
+const TICK_GAP = 4;
 
 /**
  * 선 굵기·점 크기·점선 무늬.
@@ -128,6 +133,12 @@ function clampAxis(value: number | undefined, axis: EconAxis): number | null {
   const lo = Math.min(axis.min, axis.max);
   const hi = Math.max(axis.min, axis.max);
   return Math.min(Math.max(value, lo), hi);
+}
+
+/** 마지막 빈칸에서 두 줄로 접는다 (`명목 GDP` → `명목` / `GDP`). 빈칸이 없으면 그대로 */
+function foldAtLastSpace(label: string): string {
+  const at = label.lastIndexOf(' ');
+  return at > 0 ? label.slice(0, at) + '\n' + label.slice(at + 1) : label;
 }
 
 /** 계열 배열 — 검증기의 얕은 검사가 닿지 않는 선택 항목이라 여기서 한 번 더 본다 */
@@ -243,8 +254,14 @@ function drawBreakMark(ctx: CanvasRenderingContext2D, x: number, y: number, vert
  * - `inside` — 1.7.0 그대로: 플롯 안 모서리, 계열 꼭짓점·생략 기호만 피한다 (classic)
  * - `skip`   — 그리지 않는다. 부르는 쪽이 다 그린 그림을 보고 빈 모서리를 고른다 (exam 첫 그림)
  * - `below`  — 빈 모서리가 없다. 플롯 아래(가로축 숫자 밑)에 자리를 비워 거기 둔다 (exam)
+ * - `right`  — 빈 모서리가 없고 `options.legendPosition` 이 `'right'`. 플롯을 좁혀
+ *              오른쪽 여백, 플롯 위쪽에 둔다 (exam)
  */
-type LegendMode = { legend: 'inside' } | { legend: 'skip'; gridCtx: CanvasRenderingContext2D } | { legend: 'below'; boxH: number };
+type LegendMode =
+  | { legend: 'inside' }
+  | { legend: 'skip'; gridCtx: CanvasRenderingContext2D }
+  | { legend: 'below'; boxH: number }
+  | { legend: 'right' };
 
 /** 그림을 다 그린 뒤 범례를 놓는 데 필요한 것 */
 interface EconFrame {
@@ -257,7 +274,8 @@ interface EconFrame {
 /**
  * exam: 범례 상자는 곡선·점·이름·유도선을 덮지 않는다. 범례 없이 한 번 그리며 그은 것을
  * 모으고(recordingCtx), 네 모서리를 1순위부터 대어 아무것도 안 덮는 첫 자리에 둔다.
- * 빈 모서리가 없으면 플롯을 줄여 아래에 자리를 내고 다시 그린다.
+ * 빈 모서리가 없으면 플롯을 줄여 아래(`options.legendPosition` 이 `'right'` 면 오른쪽)에
+ * 자리를 내고 다시 그린다.
  * classic 과 범례 없는 그림은 1.7.0 그대로 한 번에 그린다.
  */
 export function renderEconPlane(
@@ -288,7 +306,9 @@ export function renderEconPlane(
     });
     return;
   }
-  drawEconPlane(ctx, w, h, data, options, { legend: 'below', boxH: size.boxH });
+  drawEconPlane(ctx, w, h, data, options, legendSideOf(options) === 'right'
+    ? { legend: 'right' }
+    : { legend: 'below', boxH: size.boxH });
 }
 
 function drawEconPlane(
@@ -370,8 +390,59 @@ function drawEconPlane(
     ),
     bottom: tickPx + 24 + bottomText,
   };
+  const items: LegendItem[] = series.map((s) => ({
+    type: 'line',
+    fillStyle: '#000',
+    strokeStyle: '#000',
+    label: s.label,
+    dash: s.dashed ? look.thickDash : [],
+    lineWidth: look.legendLine,
+    marker: s.marker,
+    hollow: s.hollow,
+  }));
+  const legendPx = textSize(options, 'legend', fs.axisLabel * 0.8);
+  const legendFont = textFont(options, 'legend', legendPx, { weight: 'normal', role: options.fontFamily ?? 'serif' });
+
   // 범례를 플롯 아래에 둘 자리 (가로축 숫자 밑)
   if (mode.legend === 'below') padding.bottom += mode.boxH + LEGEND_BELOW_GAP;
+  // 범례를 플롯 오른쪽에 둘 자리. 상자는 화살촉 끝(ARROW_EXT) 밖, 플롯 위쪽에 선다.
+  // 가로축 이름은 축 높이(아래)에 앉으므로 둘이 위아래로 비켜나면 같은 여백을 나눠 쓴다.
+  // 선 이름이 오른쪽 끝에 서거나(어느 높이일지 모른다) 축이 높이 서서 상자와 겹치면 더한다.
+  //
+  // 플롯을 좁히다 가로축 눈금 글자(`t년`·`t+1년`)끼리 닿으면 안 된다. 글자가 닿지 않을
+  // 최소 플롯 폭을 먼저 재고, 남는 폭에 상자가 안 들어가면 이름을 마지막 빈칸에서 두 줄로
+  // 접어 보고(「명목」·「GDP」), 그래도 모자라면 범례 글꼴을 줄인다(바닥 11px).
+  // 둘 가운데 글꼴이 더 큰 쪽을 쓴다.
+  let rightLegend: (ReturnType<typeof insideLegendSize> & { items: LegendItem[] }) | null = null;
+  if (mode.legend === 'right') {
+    ctx.font = tickFont;
+    const xt = data.xAxis.ticks
+      .map((v, i) => ({ v, w: richWidth(ctx, tickText(data.xAxis, i), tickPx, tickFontOf) }))
+      .filter((t) => t.v !== 0)
+      .sort((a, b) => a.v - b.v);
+    let minPlotW = 40;
+    for (let k = 1; k < xt.length; k++) {
+      const dv = xt[k].v - xt[k - 1].v;
+      if (dv > 0) minPlotW = Math.max(minPlotW, ((xt[k - 1].w + xt[k].w) / 2 + TICK_GAP) * span(data.xAxis) / dv);
+    }
+    const room = w - padding.left - minPlotW - ARROW_EXT - LEGEND_RIGHT_MARGIN;
+    const fit = (its: LegendItem[]) => ({
+      ...insideLegendSize(ctx, its, legendPx, legendFont, options, Math.max(0, room) + INSIDE_MARGIN * 2), items: its,
+    });
+    const flat = fit(items);
+    const folded = fit(items.map((it) => ({ ...it, label: foldAtLastSpace(it.label) })));
+    rightLegend = flat.fontSize >= legendPx || flat.fontSize >= folded.fontSize ? flat : folded;
+    // 글꼴이 줄면 선 견본도 짧아져, 굵은 파선 무늬(15·6.8)의 틈이 가운데 기호 밑에 숨어 실선으로
+    // 보인다. 견본 길이(2×swatch)에 맞춰 무늬를 줄여 틈이 기호 양옆에 드러나게 한다
+    if (rightLegend.fontSize < legendPx) {
+      const sw = rightLegend.swatch;
+      rightLegend.items = rightLegend.items.map((it) => (it.dash && it.dash.length > 0 ? { ...it, dash: [sw * 0.4, sw * 0.2] } : it));
+    }
+    const need = ARROW_EXT + rightLegend.boxW + LEGEND_RIGHT_MARGIN;
+    const axisTop = four ? null : h - padding.bottom - axisPx - 10;
+    const share = data.lines.length === 0 && axisTop !== null && padding.top + rightLegend.boxH < axisTop;
+    padding.right = share ? Math.max(padding.right, need) : padding.right + need;
+  }
 
   const plotX = padding.left;
   const plotY = padding.top;
@@ -740,18 +811,6 @@ function drawEconPlane(
   // 실물의 상자는 축 화살촉 바깥 오른쪽 아래에 선다. 800×600 한 장에서는 그
   // 자리가 캔버스 밖이라, 플롯 **안쪽** 모서리에 놓는다 — 자료에 막히면
   // 나머지 세 모서리를 차례로 보는 공용 배치기를 그대로 쓴다.
-  const items: LegendItem[] = series.map((s) => ({
-    type: 'line',
-    fillStyle: '#000',
-    strokeStyle: '#000',
-    label: s.label,
-    dash: s.dashed ? look.thickDash : [],
-    lineWidth: look.legendLine,
-    marker: s.marker,
-    hollow: s.hollow,
-  }));
-  const legendPx = textSize(options, 'legend', fs.axisLabel * 0.8);
-  const legendFont = textFont(options, 'legend', legendPx, { weight: 'normal', role: options.fontFamily ?? 'serif' });
   if (data.legend && series.length > 0 && mode.legend === 'below') {
     // 가로축 숫자 밑, 플롯 오른쪽 끝에 맞춘다. 네 사분면이면 아래 화살촉 밑이다
     const size = insideLegendSize(ctx, items, legendPx, legendFont, options, plotW);
@@ -760,6 +819,15 @@ function drawEconPlane(
       ctx, items, corner: data.legend, at: { x: plotX + plotW - size.boxW, y: top },
       plotX, plotY, plotW, plotH, canvasW: w, canvasH: h,
       fontSize: legendPx, font: legendFont, fonts: options,
+    });
+  }
+  if (data.legend && series.length > 0 && rightLegend) {
+    // 화살촉 끝 밖, 플롯 윗변에 윗변을 맞춘다. 글꼴은 여백을 잡을 때 줄인 그대로 쓴다 —
+    // plotW 대신 캔버스 폭을 넘겨 다시 줄이지 않게 한다
+    drawInsideLegend({
+      ctx, items: rightLegend.items, corner: data.legend, at: { x: plotX + plotW + ARROW_EXT, y: plotY },
+      plotX, plotY, plotW: w, plotH, canvasW: w, canvasH: h,
+      fontSize: rightLegend.fontSize, font: rightLegend.font, fonts: options,
     });
   }
   if (data.legend && series.length > 0 && mode.legend === 'inside') {

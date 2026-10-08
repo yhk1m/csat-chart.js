@@ -67,8 +67,20 @@ export interface InsideLegendParams {
   at?: { x: number; y: number };
 }
 
+/**
+ * 범례를 플롯 **바깥**에 둘 쪽 — `options.legendPosition`, 모든 종류가 같은 이름·낱말로 읽는다(2.1.0).
+ *
+ * 바깥에만 두는 종류(막대·꺾은선 범례·기후 …)는 이 값이 곧 자리다. 플롯 안 모서리에 먼저
+ * 앉는 종류(경제 좌표평면·산점도 버블·안쪽 범례 막대·편차·꺾은선)는 시험지 양식에서 네 모서리가
+ * 다 막혔을 때만 이 값을 읽어 밖으로 나간다. 적지 않으면 종류마다 2.1.0 이전 자리 —
+ * 대부분 `'bottom'`, 산점도 버블 범례만 `'right'` 다(그래서 `fallback` 을 받는다).
+ */
+export function legendSideOf(options: { legendPosition?: LegendPosition }, fallback: LegendPosition = 'bottom'): LegendPosition {
+  return options.legendPosition ?? fallback;
+}
+
 /** 플롯 안 범례 상자의 모서리와 플롯 사이 */
-const INSIDE_MARGIN = 8;
+export const INSIDE_MARGIN = 8;
 
 /**
  * 플롯 안 범례 상자의 크기. 상자가 플롯보다 넓어지면 이름을 자르는 대신 글꼴을 줄여
@@ -84,7 +96,7 @@ export function insideLegendSize(
     ctx.font = fs === fontSize ? font : withFontSize(font, fs);
     const swatch = fs * styleOf(fonts).legend.insideSwatchRatio;
     const maxIconW = Math.max(...items.map((i) => (i.type === 'line' ? swatch * 2 : swatch)));
-    const maxLabelW = Math.max(...items.map((i) => ctx.measureText(i.label).width));
+    const maxLabelW = Math.max(...items.flatMap((i) => labelLines(i.label).map((l) => ctx.measureText(l).width)));
     return { swatch, maxIconW, boxW: padX * 2 + maxIconW + 8 + maxLabelW, rowH: fs * 1.5 };
   };
   let fs = fontSize;
@@ -95,7 +107,17 @@ export function insideLegendSize(
     size = sizeOf(fs);
   }
   ctx.restore();
-  return { ...size, boxH: size.rowH * items.length + 8, fontSize: fs, font: fs === fontSize ? font : withFontSize(font, fs) };
+  // 여러 줄 이름은 한 줄마다 LABEL_LINE_H 만큼 더 높다 — 한 줄짜리만 있으면 0 이 더해진다
+  const extra = items.reduce((sum, i) => sum + (labelLines(i.label).length - 1) * fs * LABEL_LINE_H, 0);
+  return { ...size, boxH: size.rowH * items.length + 8 + extra, fontSize: fs, font: fs === fontSize ? font : withFontSize(font, fs) };
+}
+
+/** 범례 이름의 줄 간격 배율 — 이름에 줄바꿈(`\n`)이 있을 때만 쓴다 */
+const LABEL_LINE_H = 1.15;
+
+/** 범례 이름을 줄로 나눈다. 플롯 «안쪽»·오른쪽 상자에서 좁은 자리에 이름을 두 줄로 앉힐 때 쓴다 */
+function labelLines(label: string): string[] {
+  return label.split('\n');
 }
 
 /** 플롯 안 모서리 자리 — 상자 왼쪽 위 */
@@ -166,14 +188,19 @@ export function drawInsideLegend({
   ctx.setLineDash([]);
   ctx.strokeRect(spot.x, spot.y, boxW, boxH);
 
+  const lineH = size.fontSize * LABEL_LINE_H;
+  /** 앞 항목들의 여러 줄 이름이 더한 높이 — 한 줄짜리뿐이면 0 이라 예전 자리 그대로다 */
+  let extraBefore = 0;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const cy = spot.y + 4 + rowH * (i + 0.5);
+    const lines = labelLines(item.label);
+    const cy = spot.y + 4 + rowH * (i + 0.5) + extraBefore + (lines.length - 1) * lineH / 2;
     drawInsideIcon(ctx, item, spot.x + padX, cy, swatch, styleOf(fonts), byStyle(fonts, LOOK));
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(item.label, spot.x + padX + maxIconW + 8, cy);
+    lines.forEach((l, k) => ctx.fillText(l, spot.x + padX + maxIconW + 8, cy + (k - (lines.length - 1) / 2) * lineH));
+    extraBefore += (lines.length - 1) * lineH;
   }
   ctx.restore();
 }

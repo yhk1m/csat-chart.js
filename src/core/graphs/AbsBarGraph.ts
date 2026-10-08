@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, labelStride, widestLabel, inkText } from '../canvas/labels';
-import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type TextPlace } from '../canvas/style';
 
@@ -31,7 +31,7 @@ export function renderAbsBarGraph(
   const legendFs = textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5);
 
   const showLegend = options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendW = (showLegend && legendPos === 'right' && !data.insideLegend)
     ? measureLegendWidth(ctx, data.seriesLabels, legendFs, options)
     : 0;

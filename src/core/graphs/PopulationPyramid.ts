@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, niceStep, textFont, textSize } from '../canv
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawFloatingLabel, nudgeInside, textExtent } from '../canvas/fit';
-import { drawLegend, measureLegendWidth, measureBottomLegend } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
 import { labelStride, widestLabel } from '../canvas/labels';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
@@ -110,7 +110,7 @@ export function renderPyramidGraph(
   const sexLine = look.sexBelow ? textSize(options, 'legend', options.fontSize.axisLabel) + 8 : 0;
 
   const showLegend = options.showLegend && look.legend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendLabels = [
     options.legendLabel1 || data.maleLabel,
     options.legendLabel2 || data.femaleLabel,

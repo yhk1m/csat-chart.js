@@ -205,6 +205,7 @@ const DATA_WORDS: Partial<Record<CsatChartType, Record<string, string[]>>> = {
 
 const STYLE_NAMES = ['exam', 'classic'];
 const TICK_DIRECTIONS = ['in', 'out'];
+const LEGEND_POSITIONS = ['bottom', 'right'];
 
 function oneOf(key: string, value: unknown, allowed: string[]): void {
   if (value === undefined || allowed.includes(value as string)) return;
@@ -220,7 +221,9 @@ function oneOf(key: string, value: unknown, allowed: string[]): void {
  */
 export function assertOptionValues(options: unknown): void {
   if (typeof options !== 'object' || options === null) return;
-  const o = options as { style?: unknown; tickDirection?: unknown };
+  const o = options as { style?: unknown; tickDirection?: unknown; legendPosition?: unknown };
   oneOf('style', o.style, STYLE_NAMES);
   oneOf('tickDirection', o.tickDirection, TICK_DIRECTIONS);
+  // 모르는 쪽은 렌더러마다 달리 굴었다 — 막대는 범례를 통째로 빠뜨리고 경제 그림은 아래로 냈다
+  oneOf('legendPosition', o.legendPosition, LEGEND_POSITIONS);
 }

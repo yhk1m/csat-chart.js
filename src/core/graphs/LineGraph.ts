@@ -24,7 +24,7 @@ import {
   labelStride,
   widestLabel,
 } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, leaderOf, tickDirOf, type TickDir } from '../canvas/style';
 
 const LOOK = {
@@ -93,7 +93,7 @@ export function renderLineGraph(
 
   const n = data.xLabels.length;
   const useLegend = data.labelPlacement === 'legend' && options.showLegend;
-  const legendPos = options.legendPosition;
+  const legendPos = legendSideOf(options);
   const legendW = (useLegend && legendPos === 'right')
     ? measureLegendWidth(ctx, data.series.map((s) => s.label), textSize(options, 'legend', options.fontSize.dataLabel * 0.85 + 5), options, 'line', w)
     : 0;

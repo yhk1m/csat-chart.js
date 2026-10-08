@@ -60,9 +60,24 @@ describe('막대 insideLegend — 막히면 legendPosition 을 적었을 때만 
     lastTick: log.texts.find((t) => t.s === '다')!.box,
   });
 
+  /** 플롯 틀의 왼쪽·오른쪽 끝 — 가장 긴 가로 선분(가로축·틀 윗변) */
+  const plotSpan = (log: DrawLog) => {
+    const h = log.segs.filter(([, y1, , y2]) => Math.abs(y1 - y2) < 0.5)
+      .sort((a, b) => Math.abs(b[2] - b[0]) - Math.abs(a[2] - a[0]))[0];
+    return { left: Math.min(h[0], h[2]), right: Math.max(h[0], h[2]) };
+  };
+
+  // 범례 이름과 범주 이름의 가로 자리를 견주면 글꼴 폭(CI 대체 글꼴)에 따라 뒤집힌다 —
+  // 범례 상자가 플롯 틀 안에 있는지를 본다
   it("적지 않으면 예전 그대로 플롯 안", () => {
-    const { label, lastTick } = where(drawLogged((ctx) => renderAbsBarGraph(ctx, 800, 600, data(), opts())));
-    expect(label.left).toBeLessThan(lastTick.right);
+    const log = drawLogged((ctx) => renderAbsBarGraph(ctx, 800, 600, data(), opts()));
+    const { label } = where(log);
+    const plot = plotSpan(log);
+    const box = legendRect(log)[0];
+    expect(box.left).toBeGreaterThan(plot.left);
+    expect(box.right).toBeLessThanOrEqual(plot.right);
+    expect(label.left).toBeGreaterThan(box.left);
+    expect(label.right).toBeLessThan(box.right);
   });
 
   it("'right' 면 플롯 오른쪽 바깥으로 나가 막대를 덮지 않는다", () => {
@@ -72,5 +87,6 @@ describe('막대 insideLegend — 막히면 legendPosition 을 적었을 때만 
     const box = legendRect(log)[0];
     expect(box.right).toBeLessThanOrEqual(800);
     expect(box.left).toBeGreaterThan(lastTick.right);
+    expect(box.left).toBeGreaterThan(plotSpan(log).right);
   });
 });

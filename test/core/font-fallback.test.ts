@@ -9,7 +9,8 @@ import { EXAM_NUMERAL_STACK } from '../../src/core/canvas/style';
 
 const has = (f: string) => GlobalFonts.families.some((x) => x.family === f);
 const NUM = EXAM_NUMERAL_STACK.split(',')[0].trim().replace(/'/g, '');
-const ready = has(NUM) && has('HYGothic-Medium');
+// FALLBACK_FONTS(test/setup/fallback-fonts.ts)는 글꼴 목록을 바꿔 찍는다 — 글꼴 섞임을 볼 수 없다
+const ready = has(NUM) && has('HYGothic-Medium') && !process.env.FALLBACK_FONTS;
 
 describe.runIf(ready)('한 글줄 안 글꼴 섞임 (@napi-rs/canvas)', () => {
   const ctx = createCanvas(10, 10).getContext('2d');

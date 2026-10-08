@@ -40,9 +40,10 @@ function zeroSizeCanvas(): CanvasLike {
  * 빈 함수로 바꿔치기) 이 검사를 통과한다. 렌더러는 항상 clearCanvas 로 불투명한
  * 흰 바탕을 먼저 칠하므로, 알파가 255 인 픽셀만 세면 «실제로 그렸는가» 를 묻게 된다.
  */
-function nonWhitePixels(c: CanvasLike): number {
+/** 흰색이 아닌 픽셀 수 — rows 를 주면 맨 위 그 줄 수만 센다 */
+function nonWhitePixels(c: CanvasLike, rows = c.height): number {
   const ctx = c.getContext('2d') as unknown as CanvasRenderingContext2D;
-  const raw = ctx.getImageData(0, 0, c.width, c.height).data;
+  const raw = ctx.getImageData(0, 0, c.width, rows).data;
   let n = 0;
   for (let i = 0; i < raw.length; i += 4) {
     if (raw[i + 3] !== 255) continue; // 투명 = 아무것도 그리지 않은 것
@@ -186,9 +187,10 @@ describe('CsatChart', () => {
   it('update(options) 로 제목만 바꿀 수 있다', () => {
     const c = canvas();
     const chart = new CsatChart(c, { type: 'ternary', data: createDefaultTernaryData() });
-    const before = nonWhitePixels(c);
+    // 제목이 들어서면 그림이 줄어 전체 잉크는 글꼴에 따라 줄 수도 있다 — 제목 자리(맨 위 띠)만 센다
+    const before = nonWhitePixels(c, 50);
     chart.update({ options: { title: '토지 이용 구성' } });
-    expect(nonWhitePixels(c)).toBeGreaterThan(before);
+    expect(nonWhitePixels(c, 50)).toBeGreaterThan(before);
   });
 
   it('update 의 어긋난 data 는 거부하고 이전 상태를 지킨다', () => {

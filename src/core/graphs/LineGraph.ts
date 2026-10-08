@@ -446,7 +446,17 @@ export function renderLineGraph(
       ctx.moveTo(e.x + startGap, e.y);
       ctx.lineTo(columnX - 4, cy);
       ctx.stroke();
-      ctx.fillText(e.label, columnX, cy);
+      // exam: 유도선 끝 = 이름 잉크(따로 찍은 괄호까지)의 세로 가운데. 'middle' 기준선은 글꼴
+      // em 상자의 가운데라, 한글 잉크가 em 가운데에 있지 않은 대체 글꼴에서는 이름이 선 끝에서 처진다.
+      // classic 은 1.7.0 그림 그대로 둔다.
+      let inkDy = 0;
+      if (byStyle(options, { classic: false, exam: true })) {
+        const m = ctx.measureText(e.label);
+        const up = m.actualBoundingBoxAscent;
+        const down = m.actualBoundingBoxDescent;
+        if (typeof up === 'number' && typeof down === 'number' && up + down > 0) inkDy = (up - down) / 2;
+      }
+      ctx.fillText(e.label, columnX, cy + inkDy);
     });
     ctx.restore();
   }

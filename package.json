@@ -48,9 +48,10 @@
   "scripts": {
     "build": "tsup && node scripts/fix-esm-dts-ext.mjs",
     "test": "vitest run",
+    "test:fallback": "vitest run --mode fallback",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern src test",
-    "verify": "npm run typecheck && npm run lint && npm run build && npm run test",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run test && npm run test:fallback",
     "prepublishOnly": "npm run verify"
   },
   "devDependencies": {

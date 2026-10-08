@@ -1,5 +1,43 @@
 # 변경 기록 — csat-chart.js
 
+## 2.2.0 — 2026-10-08
+
+GeoTester 의 밀봉 사본(geo-graph)에만 있던 기능 셋을 올려 왔다 — 2027학년도 9월 세계지리
+6·11·19번이 쓴다. GeoTester 가 이 패키지로 갈아탈 수 있게 하는 것이 목적이다. 기존 기준 이미지는
+classic·exam 모두 바이트까지 같고, 새 그림 몫으로 classic 5장·exam 5장을 더했다.
+
+### 새 기능
+
+- **새 종류 `coord` — 경·위도 좌표 평면** (`renderCoordGraph`·`createDefaultCoordData`·`CoordGraphData`·
+  `CoordPoint`). 지점을 경도·위도 위치에 검은 점으로 찍는다. 가로:세로 2:1 틀, 경도 60°·위도 30°
+  점선 격자, 0° 두 선은 실선, 눈금 숫자는 흰 바탕 위에(끝 눈금만 180°W·180°E·90°N·90°S).
+  `showLabels: true` 면 점 이름을 쓰고, `pointRadius` 로 점 크기를 바꾼다. 18종이 됐다.
+  - classic 은 GeoTester 의 그림과 바이트까지 같다(`coord`·`coordLabels`·`coordTitled`).
+  - exam 은 다른 축 그림과 같은 토큰 — 격자는 축 격자 점선, 틀·0° 선은 축 굵기(≈ 0.39pt, 표본에서
+    따로 잰 적 없음), 눈금은 숫자 글꼴, 점은 꺾은선 점 기호 지름 2.8pt. 점 이름은 눈금 숫자·점을
+    피해(LabelPlacer) 흰 바탕을 깔고 쓴다.
+  - 작은 캔버스에서 이웃한 눈금 숫자가 겹치면 눈금·점 이름 글자를 그만큼 줄인다(두 양식 모두,
+    800×600 에서는 걸리지 않는다). 오른쪽 끝 점의 이름은 점 왼쪽에 쓴다.
+  - 검증: `points[].lon`·`lat` 이 숫자가 아니면 몇 번째 점인지 짚어 `CsatChartError` 로 알린다
+    (렌더러는 그 점을 조용히 건너뛰었다).
+- **막대 `categoryDividers`** — 세로 막대에서 이웃한 범주 사이 한가운데를 플롯 위아래를 잇는
+  실선으로 나눈다. classic 1px, exam 은 ≈ 틀 굵기이고 경계 눈금 대신 그린다.
+- **트리맵 `cells[].fill`** — 칸 채움 색 또는 `'pattern:…'` 패턴. `#999999` 이거나 그보다 어두운
+  색(`#rgb` 줄임 표기도 읽는다)이면 글자에 흰 테두리를 두른다(classic 은 글자 크기 ÷ 6, 최소 2px —
+  GeoTester 그대로, exam 은 양식의 `haloWidth`).
+- **트리맵 라벨의 `\n`** — 그 자리에서 반드시 줄을 바꾼다(`'1위\n33.0'`). 나눈 한 줄이 칸에
+  못 읽을 만큼(배율 0.4 미만) 넓을 때만 그 줄 안을 예전 자동 나눔으로 더 나눈다 — 좁은 칸에서
+  「4.4」 가 「4.」/「4」 로 쪼개지지 않게. `\n` 이 없는 라벨은 예전과 같다.
+
+### GeoTester 그림과의 차이
+
+새 classic 기준 5장 중 4장(`coord` 셋·`treemapRankFills`)은 GeoTester 의 기준 이미지와 바이트까지
+같다. `absbarCategoryDividers` 는 1.2.0 에서 고친 축 위 단위 「(mm)」 자리(y 0~32)만 다르다 —
+구분선·막대는 픽셀까지 같다. GeoTester 기준 이미지 가운데 이 패키지 classic 과 다른 9장
+(`absbarZeroBaseline`·`categorydot`·`climate`·`line` — 1.2.0 단위 윗머리 잘림,
+`scatterDenseTicks` — 1.2.0 세로축 이름 여백, `radar` — 1.1.1 범례 상자, `stacked`·`stackedExam`·
+`deviationB` — 1.1.0 막대 폭 상한)은 GeoTester 가 그 고침 전에 갈라져 나간 탓이다.
+
 ## 2.1.1 — 2026-10-08
 
 ### 고침

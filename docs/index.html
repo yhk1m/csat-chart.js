@@ -366,7 +366,7 @@
   <div class="topbar-inner">
     <a class="brand" href="#top">csat-chart.js</a>
     <nav aria-label="바로가기">
-      <a class="hide-sm" href="#gallery">그래프 17종</a>
+      <a class="hide-sm" href="#gallery">그래프 18종</a>
       <a class="hide-sm" href="https://github.com/yhk1m/csat-chart.js#내-자료-넣기">내 자료 넣기</a>
       <a class="gh" href="https://github.com/yhk1m/csat-chart.js">GitHub</a>
     </nav>
@@ -393,7 +393,7 @@
 
     <section class="hero" aria-label="예시 그래프">
       <div class="hero-head">
-        <h2 id="hero-caption">예시 — 아래 17종 중 하나</h2>
+        <h2 id="hero-caption">예시 — 아래 18종 중 하나</h2>
         <a href="#card-climate">데이터 편집하러 가기
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
@@ -429,13 +429,13 @@
      두면 안내 문구가 제목과 색인까지 지워 버린다. -->
 <div class="band">
   <div class="wrap gallery-head">
-    <h2 class="section-title">그래프 <span class="num">17</span>종</h2>
+    <h2 class="section-title">그래프 <span class="num">18</span>종</h2>
     <p class="section-sub">오른쪽 칸에서 제목·출처를 바꾸고, 「각주·범례·이름 바꾸기」를 펼치면
       그래프 안의 (가)(나)(다)까지 글자칸으로 고칩니다. 숫자와 구조는 JSON 칸에 그대로 남아
       있습니다. 마음에 들면 PNG로 저장하거나, 아래 코드를 그대로 복사해 쓰세요.
       만들고 계신 프로그램에 이 라이브러리를 붙이시려면 「AI에게 시킬 프롬프트」를 복사해,
       평소 쓰시는 AI에 붙여넣으세요. HTML 한 장만 필요한 경우도 같은 프롬프트로 됩니다.</p>
-    <nav class="index" aria-label="그래프 17종 색인">
+    <nav class="index" aria-label="그래프 18종 색인">
       <ul id="index-list"></ul>
     </nav>
   </div>
@@ -461,7 +461,7 @@
 <script>
 const LABELS = {
   'absbar': '절댓값 막대', 'category-dot': '범주 점', 'climate': '기후 그래프',
-  'cube': '정육면체', 'data-table': '항목×지역 표', 'deviation-a': '월별 편차',
+  'coord': '경·위도 좌표', 'cube': '정육면체', 'data-table': '항목×지역 표', 'deviation-a': '월별 편차',
   'deviation-b': '지역별 편차', 'econ-plane': '경제 좌표평면',
   'hythergraph': '하이서그래프', 'line': '꺾은선',
   'matrix-table': '계단식 행렬표', 'pyramid': '인구 피라미드', 'radar': '방사형',
@@ -473,6 +473,7 @@ const USAGE_HINTS = {
   'absbar': '이럴 때 씁니다 — 두세 항목을 지역별로 나란히 비교할 때',
   'category-dot': '이럴 때 씁니다 — 범주별 값을 점으로 흩어 비교할 때',
   'climate': '이럴 때 씁니다 — 기온·강수량의 월별 변화를 함께 볼 때',
+  'coord': '이럴 때 씁니다 — 여러 지역의 위치를 경도·위도 좌표 위의 점으로 보일 때',
   'cube': '이럴 때 씁니다 — 세 요인의 상대적 위치로 대상을 분류할 때',
   'data-table': '이럴 때 씁니다 — 항목과 지역을 표로 정리해 수치를 비교할 때',
   'deviation-a': '이럴 때 씁니다 — 월별로 평년값과의 편차를 볼 때',
@@ -491,7 +492,8 @@ const USAGE_HINTS = {
 
 const FACTORY = {
   'absbar': 'createDefaultAbsBarData', 'category-dot': 'createDefaultCategoryDotData',
-  'climate': 'createDefaultClimateData', 'cube': 'createDefaultCubeData',
+  'climate': 'createDefaultClimateData', 'coord': 'createDefaultCoordData',
+  'cube': 'createDefaultCubeData',
   'data-table': 'createDefaultDataTableData', 'deviation-a': 'createDefaultDeviationAData',
   'deviation-b': 'createDefaultDeviationBData', 'econ-plane': 'createDefaultEconPlaneData',
   'hythergraph': 'createDefaultHythergraphData',
@@ -662,6 +664,17 @@ const SAMPLE_OVERRIDES = {
     'zAxis': { 'name': 'Z축', 'lowLabel': '낮음', 'highLabel': '높음',
       'lowOffset': { 'x': 0, 'y': 0 }, 'highOffset': { 'x': 0, 'y': 0 } },
   },
+  // 2027학년도 9월 세계지리 19번 모양(2.2.0). 원본은 점 이름을 안 쓰지만, 카드에서는
+  // 「그래프 안의 이름」 칸이 닿도록 켠다 — showLabels 를 지우면 원본 그대로다
+  'coord': {
+    'points': [
+      { 'lon': 0, 'lat': 51.5, 'label': '(가)' },
+      { 'lon': 80, 'lat': 73, 'label': '(나)' },
+      { 'lon': -58, 'lat': -34.6, 'label': '(다)' },
+      { 'lon': 130.8, 'lat': -12.5, 'label': '(라)' },
+    ],
+    'showLabels': true,
+  },
   // 1.6.0 이 넓힌 자리를 한 장에 다 보인다 — 2027학년도 6월 모평 한국지리 17번
   // 모양. 자료는 5년마다인데 라벨·세로 격자는 10년마다(빈 이름), 계열은
   // 굵은 일점쇄선·굵은 회색 실선·가는 검정 실선로 가르고, 이름은 선 끝이 아니라
@@ -752,7 +765,7 @@ function sampleWithPatch(type) {
 
 /* ── 옵션 ──────────────────────────────────────────────────────────────────
  *
- * options 는 17종이 함께 쓰는 유일한 덩어리다. 여기서 노출하는 것과 «일부러»
+ * options 는 18종이 함께 쓰는 유일한 덩어리다. 여기서 노출하는 것과 «일부러»
  * 빼는 것을 갈라 둔다.
  *
  * 내는 것 가운데 설명이 필요한 것:
@@ -845,18 +858,18 @@ function fontInstalled(name) {
 
 /**
  * 그 옵션을 «실제로 읽는» 종류만 적는다. 읽지 않는 카드에서는 조작칸을 아예
- * 그리지 않는다 — sourceInline 을 뺀 것과 같은 이유다. 목록은 렌더러 17종을
+ * 그리지 않는다 — sourceInline 을 뺀 것과 같은 이유다. 목록은 렌더러 18종을
  * 상대로 직접 확인했다(`grep -rL showLegend src/core/graphs`).
- *   · showDataLabels 를 안 읽는 아홉 — cube·data-table·deviation-a·econ-plane·
+ *   · showDataLabels 를 안 읽는 열 — coord·cube·data-table·deviation-a·econ-plane·
  *     hythergraph·line·matrix-table·radar·treemap
- *   · showLegend 를 안 읽는 일곱 — cube·data-table·econ-plane·
+ *   · showLegend 를 안 읽는 여덟 — coord·cube·data-table·econ-plane·
  *     matrix-table·scatter·ternary·treemap. legendPosition 은 그 가운데
  *     econ-plane·scatter 가 2.1.0 부터 읽는다(SUPPORTS_LEGEND_POSITION)
  * econ-plane 은 범례를 «옵션» 으로 켜고 끄지 않는 종류다. 시험지 경제 그림은
  * 선 끝에 이름을 달고, 계열(꺾은선)을 쓰는 그림 한 장만 범례 상자를 두는데
  * 그 상자는 자료가 부른다(`data.legend`). 계열 이름을 적을 자리가 그것뿐이라
  * 끌 수 있게 두면 어느 선이 무엇인지 알 길이 없어진다.
- * title·source·footnotes·fontFamily 는 17종 전부가 읽는다.
+ * title·source·footnotes·fontFamily 는 18종 전부가 읽는다.
  */
 const SUPPORTS_DATA_LABELS = ['absbar', 'category-dot', 'climate', 'deviation-b',
   'pyramid', 'scatter', 'stacked', 'ternary'];
@@ -1027,8 +1040,8 @@ function changedOptions(opts) {
  * 칸에 「서울」이라고 적으면 그림이 깨진다. 그런데 이름과 열거값을 «낱말»로는
  * 가를 수 없다 — pyramid 의 `unit` 은 열거값('percent')인데 같은 pyramid 의
  * `ageUnit` 과 deviation-b 의 `precipUnit` 은 이름이다. 그래서 낱말 규칙을
- * 쓰지 않고, 17종의 문자열 잎 100개를 전수 조사해(src/core/types/*.ts) 이름인
- * 66개만 «경로 모양» 으로 적어 둔다. 여기 없는 문자열은 전부 손대지 않는다.
+ * 쓰지 않고, 18종의 문자열 잎 101개를 전수 조사해(src/core/types/*.ts) 이름인
+ * 67개만 «경로 모양» 으로 적어 둔다. 여기 없는 문자열은 전부 손대지 않는다.
  *
  * scatter 의 `quadrantLabels` 는 이름이지만 뺀다 — 지금 어느 렌더러도 읽지
  * 않는 죽은 필드다(validate.ts 에도 그렇게 적혀 있다). 고쳐도 그림이 안 변하는
@@ -1041,6 +1054,7 @@ const LABEL_PATHS = {
   'absbar': ['categories[].label', 'seriesLabels[]', 'unit', 'groups[].label'],
   'category-dot': ['categories[].label', 'seriesLabels[]', 'unit'],
   'climate': ['tempLabel', 'precipLabel'],
+  'coord': ['points[].label'],
   'cube': ['points[].label',
     'xAxis.name', 'xAxis.lowLabel', 'xAxis.highLabel',
     'yAxis.name', 'yAxis.lowLabel', 'yAxis.highLabel',
@@ -1301,7 +1315,8 @@ const PROMPT_DOC_URL = 'https://yhk1m.github.io/csat-chart.js/ai-reference.md';
  */
 const RENDERER = {
   'absbar': 'renderAbsBarGraph', 'category-dot': 'renderCategoryDotGraph',
-  'climate': 'renderClimateGraph', 'cube': 'renderCubeGraph',
+  'climate': 'renderClimateGraph', 'coord': 'renderCoordGraph',
+  'cube': 'renderCubeGraph',
   'data-table': 'renderDataTable', 'deviation-a': 'renderDeviationAGraph',
   'deviation-b': 'renderDeviationBGraph', 'econ-plane': 'renderEconPlane',
   'hythergraph': 'renderHythergraph',
@@ -1320,6 +1335,7 @@ const PROMPT_EXAMPLES = {
   'absbar': '강원·충북·전남의 논 면적과 밭 면적. 출처는 통계청 농업면적조사.',
   'category-dot': '서울·대전·광주·강릉의 연평균 열대야 일수. 출처는 기상청.',
   'climate': '제주의 월별 기온과 강수량. 출처는 기상청 1991~2020년 평년값.',
+  'coord': '런던·노릴스크·부에노스아이레스·다윈 네 지역의 경도와 위도를 (가)~(라)로 표시하기.',
   'cube': '(가)~(다) 세 지역을 노년층 인구 비율·제조업 종사자 비율·1인당 지역내총생산 세 축으로 나누어 보기.',
   'data-table': '(가)~(라) 네 지역의 연평균 기온·연강수량·기온의 연교차. 출처는 기상청.',
   'deviation-a': '2024년 대구의 월별 기온과 강수량이 평년값과 얼마나 달랐는지. 출처는 기상청.',
@@ -1360,7 +1376,7 @@ function shapeOf(v) {
  * 길이를 마음대로 바꿀 수 없는 배열. 여기 적힌 개수와 다르면 그리기 전에
  * 검증이 막는다(`src/validate.ts` 의 FIXED_LENGTHS). 프롬프트에 이 한 줄이
  * 없으면 처음 보는 모델이 「달을 여섯 개만 넣자」 같은 판단을 하고 그림이
- * 아예 안 나온다. 이 지도는 외워 적은 것이 아니라, 17종의 모든 배열 칸에
+ * 아예 안 나온다. 이 지도는 외워 적은 것이 아니라, 18종의 모든 배열 칸에
  * 원소를 하나씩 더해 보며 던지는 칸만 골라 확인한 것이다.
  */
 const FIXED_LENGTHS = {
@@ -1515,7 +1531,7 @@ function promptFor(type) {
     PROMPT_TS,
     '',
     '[번들 크기 — 이 종류 하나만 쓰신다면]',
-    'CsatChart 를 가져오면 렌더러 17종이 전부 딸려옵니다(약 110 KB). 한 종류만 쓸 거라면',
+    'CsatChart 를 가져오면 렌더러 18종이 전부 딸려옵니다(약 110 KB). 한 종류만 쓸 거라면',
     '저수준 함수 ' + RENDERER[type] + '(ctx, 가로, 세로, 데이터, 옵션) 하나만 가져오는',
     '편이 훨씬 작습니다(종류에 따라 4~19 KB). 대신 파사드가 해 주던 것이 없어집니다 —',
     '옵션은 createDefaultGraphOptions() 로 온전한 것을 만들어 넘기고, 구형 브라우저를',
@@ -2191,7 +2207,7 @@ function buildHero() {
   img.src = chart.toDataURL({ scale: 2 });
   img.alt = (options.title || LABELS[type]) + ' 예시 그래프';
   document.getElementById('hero-caption').textContent =
-    '예시 — ' + LABELS[type] + ' (전체 17종 중 하나)';
+    '예시 — ' + LABELS[type] + ' (전체 18종 중 하나)';
 }
 
 function buildStartCode() {

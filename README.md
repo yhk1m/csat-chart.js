@@ -71,13 +71,14 @@
 `tempRange`·`precipRange` 는 `auto: true` 라 값에 맞춰 알아서 잡힙니다. 눈금을 고정하고
 싶으면 `auto: false` 로 두고 `min`·`max` 를 적으세요.
 
-## 그래프 17종
+## 그래프 18종
 
 | `type` | 그래프 | 기본 데이터 | 저수준 렌더러 | 데이터 타입 |
 |---|---|---|---|---|
 | `absbar` | 절댓값 막대 | `createDefaultAbsBarData()` | `renderAbsBarGraph` | `AbsBarGraphData` |
 | `category-dot` | 범주 점 | `createDefaultCategoryDotData()` | `renderCategoryDotGraph` | `CategoryDotGraphData` |
 | `climate` | 기후 그래프 | `createDefaultClimateData()` | `renderClimateGraph` | `ClimateGraphData` |
+| `coord` | 경·위도 좌표 | `createDefaultCoordData()` | `renderCoordGraph` | `CoordGraphData` |
 | `cube` | 정육면체 | `createDefaultCubeData()` | `renderCubeGraph` | `CubeGraphData` |
 | `data-table` | 항목×지역 표 | `createDefaultDataTableData()` | `renderDataTable` | `DataTableData` |
 | `deviation-a` | 월별 편차 | `createDefaultDeviationAData()` | `renderDeviationAGraph` | `DeviationAData` |
@@ -99,6 +100,15 @@
 를 따르지 않으니 표에서 확인하세요. 저수준 렌더러 이름에는 `renderEconPlane`
 처럼 `Graph` 가 안 붙는 것도 있습니다. 데이터 모양이 어긋나면 한국어 메시지로
 알려줍니다 — [오류 가려내기](#오류-가려내기) 참고.
+
+### 2.2.0 에 더한 자리 — 2027학년도 9월 세계지리
+
+| 종류 · 칸 | 값 | 하는 일 |
+|---|---|---|
+| `coord` (새 종류) | `{ points: [{ lon: 0, lat: 51.5, label: '(가)' }, …] }` | 가로:세로 2:1 틀에 경도 60°·위도 30° 점선 격자, 0° 두 선은 실선. 지점을 검은 점으로 찍는다(19번). `showLabels: true` 면 점 이름도 쓰고, `pointRadius` 로 점 크기를 바꾼다 |
+| `absbar` 의 `categoryDividers` | `true` | 세로 막대에서 범주 사이를 플롯 위아래를 잇는 실선으로 나눈다(11번) |
+| `treemap` 의 `cells[].fill` | `'#7f7f7f'` · `'pattern:diagonal'` | 칸을 칠한다. `#999999` 이거나 그보다 어두운 칸은 글자에 흰 테두리를 두른다(6번) |
+| `treemap` 의 `cells[].label` 안 `\n` | `'1위\n33.0'` | 그 자리에서 반드시 줄을 바꾼다. 나눈 한 줄이 못 읽을 만큼 넓을 때만 그 줄 안을 더 나눈다 |
 
 ### 꺾은선 — 시험지 관습 다섯 가지
 
@@ -377,7 +387,7 @@ chart.download('시험지그림.png', { scale: 2 });
 ## 지원 환경
 
 - Chrome 99, Firefox 112, Safari 16.4(iOS 16.4) 이상은 아무것도 하지 않아도
-  17종 전부가 그대로 그려집니다 (빌드 타깃 ES2020).
+  18종 전부가 그대로 그려집니다 (빌드 타깃 ES2020).
 - 그 아래 — Chrome 80·Firefox 74·Safari 13.1 까지 — 도 그려집니다. **다만
   `absbar`·`climate`·`deviation-a`·`deviation-b`·`hythergraph`·`pyramid`·
   `scatter`·`stacked` 여덟 종류는 범례 박스를 그릴 때 `ctx.roundRect()` 를
@@ -516,7 +526,7 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
 `LINE_MARKER_ORDER`·`LINE_STYLE_ORDER`·`MONTH_LABELS_EN`·`MONTH_LABELS_NUM`·
 `LINE_DASH`. 모두 **얼려서** 내보냅니다. 렌더러가 기본값으로 읽는 바로 그 객체라서,
 얼지 않으면 `DOT_MARKER_ORDER.reverse()` 한 번에 이후 모든 그림의 기호 배정이
-조용히 어긋납니다. `CHART_TYPES`(그래프 17종 목록)도 같은 이유로 따로 얼려서
+조용히 어긋납니다. `CHART_TYPES`(그래프 18종 목록)도 같은 이유로 따로 얼려서
 내보냅니다.
 
 ESM/CJS 로 쓸 때는 각각 이름으로 가져옵니다.
@@ -547,7 +557,7 @@ render○○(ctx, width, height, data, options): void
 | `CsatChart` 만 | 110.0 KB |
 | `renderClimateGraph` 만 | **12.0 KB** |
 
-`CsatChart` 는 `type` 을 문자열로 받아 그때그때 렌더러를 고르므로 17종을 전부
+`CsatChart` 는 `type` 을 문자열로 받아 그때그때 렌더러를 고르므로 18종을 전부
 붙들고 있어야 합니다. 기후 그래프 하나만 필요한 앱이라면 저수준 렌더러를 직접
 부르는 편이 아홉 배 가볍습니다. CDN 으로 쓰면 어차피 한 벌을 통째로 받으므로 이
 이야기는 해당하지 않습니다.

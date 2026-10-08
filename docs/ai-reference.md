@@ -82,7 +82,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
    (`{ fontSize: { title: 44 } }`). `footnotes`는 배열이고, 빈 문자열
    `''`은 무시된다.
 
-## 3. 그래프 17종
+## 3. 그래프 18종
 
 아래 표는 빌드된 라이브러리(`dist/csat-chart.cjs`)를 직접 불러와
 `createDefault○○Data()`의 실제 반환값을 찍어서 만들었다 — 손으로 옮겨 적지
@@ -97,6 +97,7 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 | `absbar` | 범주별 값을 절댓값 막대로 비교 (세로/가로, 누적 가능) | `createDefaultAbsBarData` | `renderAbsBarGraph` |
 | `category-dot` | 범주별 값을 막대 대신 점으로 찍음 | `createDefaultCategoryDotData` | `renderCategoryDotGraph` |
 | `climate` | 기후 그래프 — 기온 꺾은선 + 강수량 막대, 좌우 이중축 | `createDefaultClimateData` | `renderClimateGraph` |
+| `coord` | 경·위도 좌표 평면 — 지점을 경도·위도 위치에 검은 점으로 찍음 (2.2.0) | `createDefaultCoordData` | `renderCoordGraph` |
 | `cube` | 정육면체 좌표에 점을 찍어 세 변수의 상대 위치를 비교 | `createDefaultCubeData` | `renderCubeGraph` |
 | `data-table` | 항목×지역 수치 표 (그래프 아님) | `createDefaultDataTableData` | `renderDataTable` |
 | `deviation-a` | 기준값 대비 월별 기온·강수량 편차 (시계열, climate와 같은 틀) | `createDefaultDeviationAData` | `renderDeviationAGraph` |
@@ -142,6 +143,11 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 - `precipLabel`: string (기본 `'(mm)'`)
 - `tempRange`: `{ min: -10, max: 40, auto: true }`
 - `precipRange`: `{ min: 0, max: 400, auto: true }`
+
+**coord** (2.2.0) — 바꿔볼 만한 필드: `points`
+- `points`: 배열(4) of `{ lon: number, lat: number, label: string }` (경도 −180~180·위도 −90~90, 서경·남위는 음수. `lon`·`lat` 이 숫자가 아니면 검증기가 몇 번째 점인지 짚어 던진다)
+- 선택: `showLabels`: boolean (기본 없음 — 원본 시험지처럼 점 이름을 안 쓴다), `pointRadius`: number
+- 틀은 가로:세로 2:1, 격자 간격(경도 60°·위도 30°)은 고정이다. 범례·자료값 라벨은 없다
 
 **cube** — 좌표는 0~1 범위. 바꿔볼 만한 필드: `points`, 각 축의 `name`/`lowLabel`/`highLabel`
 - `points`: 배열(3) of `{ x: number, y: number, z: number, label: string, labelDx: number, labelDy: number }`
@@ -290,9 +296,10 @@ Node.js에서 캔버스 없이 PNG만 뽑을 때는 저수준 렌더러를 쓴�
 
 **treemap** — 바꿔볼 만한 필드: `cells`
 - `cells`: 배열(4) of `{ label: string, value: number }` (넓이는 `value`의 비율대로 나뉜다. 내림차순으로 주면 칸이 정사각형에 가깝게 나온다)
+- 선택(2.2.0): `cells[].fill` — 칸 채움 색(`'#7f7f7f'`) 또는 `'pattern:diagonal'` 꼴 패턴. `#999999` 이거나 그보다 어두우면 글자에 흰 테두리가 붙는다. `label` 안의 `\n` 은 그 자리에서 반드시 줄을 바꾼다(`{ label: '1위\n33.0', value: 33, fill: '#7f7f7f' }`). 나눈 한 줄이 못 읽을 만큼 넓을 때만 그 줄 안을 더 나눈다
 
 각 타입 데이터 인터페이스에는 위에 없는 **선택적(optional) 필드**도 있다 —
-시험지의 세부 배치를 재현하는 고급 옵션들이다(예: `absbar.zeroBaseline`, `category-dot.signedTicks` — 양수 눈금에 `+`,
+시험지의 세부 배치를 재현하는 고급 옵션들이다(예: `absbar.zeroBaseline`, `absbar.categoryDividers` — 범주 사이 세로 실선(2.2.0), `category-dot.signedTicks` — 양수 눈금에 `+`,
 `scatter.examFrame`, `pyramid.sexFills`, `line.frame` — `'open'`이면 L 자 틀). 검증기는 이 필드들을 요구하지
 않으므로 빠뜨려도 오류가 나지 않고, 완전한 목록은 `dist/csat-chart.d.ts`의
 타입 선언에 있다. 이 문서는 **항상 있는** 필드만 표로 만들었다 — 없어도
@@ -358,8 +365,8 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 | `style` | `'exam'` | 그림 양식. `'exam'`(2.0.0 기본, 평가원 시험지 실측 양식)·`'classic'`(1.7.0 그림 그대로, 바이트까지 같다) |
 | `tickDirection` | `undefined`(종류별) | 눈금 방향 `'in'`·`'out'` — 모든 축에 한 번에. 미지정이면 종류별 기본(막대 범주 경계 안쪽, 꺾은선·피라미드 안쪽, 편차 A 바깥, 산점 없음) |
 | `source` | `''` | 출처. 각주 위(또는 `sourceInline`이면 각주와 같은 줄)에 오른쪽 정렬 |
-| `sourceLeft` | `undefined` | 출처 줄 왼쪽에 함께 적을 글(예: 연도). **`absbar`·`stacked`·`econ-plane`에서만 동작한다** — 다른 14종은 이 값을 아예 읽지 않는다 |
-| `sourceInline` | `undefined`(양식을 따름 — exam 은 켜짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. 안 들어가면 아래 줄로. exam 은 17종 모두 켜지고, 옵션 값은 **`scatter`·`econ-plane`·`line`에서만 읽는다** |
+| `sourceLeft` | `undefined` | 출처 줄 왼쪽에 함께 적을 글(예: 연도). **`absbar`·`stacked`·`econ-plane`에서만 동작한다** — 다른 15종은 이 값을 아예 읽지 않는다 |
+| `sourceInline` | `undefined`(양식을 따름 — exam 은 켜짐) | 출처를 마지막 각주와 같은 줄 오른쪽 끝에 붙인다. 안 들어가면 아래 줄로. exam 은 18종 모두 켜지고, 옵션 값은 **`scatter`·`econ-plane`·`line`에서만 읽는다** |
 | `footnotes` | `['']` | 각주 목록. `* `를 자동으로 붙인다. 빈 문자열은 무시 |
 | `fontFamily` | `'serif'` | `'serif'`(명조) / `'sans'`(고딕) / `'custom'` |
 | `customFont` | `''` | `fontFamily`가 `'custom'`일 때 쓸 글꼴 이름. **축 쪽만 바꾼다** — 제목·범례는 못 건드린다 |
@@ -368,7 +375,7 @@ Node에서 `false`를 돌려줘도 그림 자체는 대체 글꼴로 정상 렌�
 | `showDataLabels` | `false` | 막대·점 위에 값을 표시할지 (모든 렌더러가 지원하는 것은 아님) |
 | `showLegend` | `true` | 범례 표시 여부 |
 | `legendPosition` | 적지 않음 | `'bottom'` / `'right'`. 다른 값은 `CsatChartError`. 범례가 있는 모든 종류가 읽는다 — 바깥 범례는 그 쪽에 바로 서고, 플롯 안 모서리를 먼저 쓰는 범례(경제 좌표평면 `legend`·산점도 버블·막대/편차 A `insideLegend`)는 exam 에서 네 모서리가 다 막혔을 때 그 쪽 바깥으로 나간다. 적지 않으면 종류의 예전 자리 — 대부분 아래, 산점도 버블은 오른쪽, `insideLegend` 는 1순위 모서리 그대로(2.1.0) |
-| `legendLabel1` | `''` | 두 계열 종류(`climate`·`deviation-a`·`deviation-b`·`pyramid`)의 첫 계열 범례 이름. 비우면 데이터가 준 이름을 씀. 나머지 12종은 이 필드를 읽지 않음 |
+| `legendLabel1` | `''` | 두 계열 종류(`climate`·`deviation-a`·`deviation-b`·`pyramid`)의 첫 계열 범례 이름. 비우면 데이터가 준 이름을 씀. 나머지 14종은 이 필드를 읽지 않음 |
 | `legendLabel2` | `''` | 위와 같은 종류의 둘째 계열 범례 이름 |
 
 `fontSize`는 부분 지정이 된다:
@@ -460,7 +467,7 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
 ```
 
 - 첫째: `type`을 잘못 적으면 편집 거리(Levenshtein) 3 이내의 가장 가까운
-  이름을 제안한다. 못 찾으면 대신 17종 전체 목록을 보여준다.
+  이름을 제안한다. 못 찾으면 대신 18종 전체 목록을 보여준다.
 - 둘째: 기본 데이터에 있는 키가 `data`에 없으면 어떤 키인지 짚어 준다.
 - 셋째: 배열의 **원소** 자료형까지 검사한다 — `months: [1,2,...,12]`처럼
   달마다 숫자 하나만 넣는 실수(배열이고 길이도 12라 겉보기엔 통과할 법함)를
@@ -468,7 +475,8 @@ csat-chart: type "climate" 의 data.months[0]: 객체여야 합니다 (지금 �
   캔버스에서는 네이티브 프로세스 크래시가 나기 때문에 미리 막는다.
 
 그 밖에 같은 형태로 던지는 상황: 길이 고정 배열의 길이가 다름
-(`data.months: 12개여야 합니다 (지금 6개)`), `config` 자체가 객체가 아님,
+(`data.months: 12개여야 합니다 (지금 6개)`), 좌표 평면 점의 경도·위도가 숫자가
+아님(`data.points[4].lon: 숫자여야 합니다 (지금 문자열)`), `config` 자체가 객체가 아님,
 `config.options`가 객체가 아님, `resize(0,0)`처럼 0 이하 크기, `toDataURL({
 scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destroy()`된
 차트에 `update()`, 브라우저 밖에서 캔버스 id 문자열 사용, `getElementById`가
@@ -509,7 +517,7 @@ scale: -1 })`처럼 0 이하이거나 유한하지 않은 `scale`, 이미 `destr
 
 ## 8. 저수준 경로
 
-`CsatChart` 파사드를 거치지 않고 렌더러 17종을 직접 부를 수 있다. 모두 같은
+`CsatChart` 파사드를 거치지 않고 렌더러 18종을 직접 부를 수 있다. 모두 같은
 시그니처다:
 
 ```ts

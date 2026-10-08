@@ -1,6 +1,7 @@
 // © 2026 김용현
 import { currentMeasurer, textFont, textSize, type FontOptions } from './renderer';
 import { styleOf, type StyleTokens } from './style';
+import { inkExtent } from './fit';
 import type { GraphOptions } from '../types/common';
 
 /** 출처·각주 도우미가 받는 옵션 — 렌더러는 options 를 통째로 넘긴다 */
@@ -382,24 +383,62 @@ export class LabelPlacer {
        * 첫 후보(남의 이름 위일 수 있다)에 놓지 않는다.
        */
       wide?: boolean;
+      /**
+       * 시험지 점 이름 (2.2.2, exam 산점). 줄 높이 상자 대신 **실제 잉크**로 자리를 잡는다 —
+       * 줄 높이 상자는 글자 위아래에 빈 데가 있어 이름이 점에서 떠 보이고, 틀에 닿아도 모른다.
+       * - 점 **옆**(오른쪽·왼쪽 가운데)을 먼저 본다 — 시험지는 이름을 점 옆에 붙인다.
+       * - 영역 가장자리(틀 선)에서 `clearance` 만큼 띄운다.
+       * - 놓인 잉크가 점 **가장자리**(반지름 `r`)에서 잉크 높이의 `leaderAt` 배보다 멀면
+       *   유도선(`t.leader`)으로 잇는다.
+       */
+      ink?: { clearance: number; leaderAt: number; r: number };
     }
   ) {
     const w = ctx.measureText(label).width;
-    const h = opts.lineHeight;
-    const { gap, bounds } = opts;
+    // 잉크 모드: 상자는 잉크 윗끝~아랫끝, 「top」 기준선에서 inkTop 만큼 아래가 잉크 윗끝이다
+    let inkTop = 0;
+    let h = opts.lineHeight;
+    if (opts.ink) {
+      ctx.textBaseline = 'top';
+      const e = inkExtent(ctx, label);
+      inkTop = -e.up;
+      h = e.up + e.down;
+    }
+    const { gap } = opts;
+    const c = opts.ink?.clearance ?? 0;
+    const bounds = { left: opts.bounds.left + c, right: opts.bounds.right - c, top: opts.bounds.top + c, bottom: opts.bounds.bottom - c };
+    const draw = (x: number, y: number) => {
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(label, x, y - inkTop);
+    };
+    /** 잉크가 점에서 너무 멀면 유도선 — 잉크 모드에서만 */
+    const leaderIfFar = (x: number, y: number) => {
+      if (!opts.ink) return;
+      const dx = Math.max(x - cx, 0, cx - (x + w));
+      const dy = Math.max(y - cy, 0, cy - (y + h));
+      if (Math.hypot(dx, dy) - opts.ink.r > h * opts.ink.leaderAt) this.leaderLine(ctx, cx, cy, x, y, w, h);
+    };
 
-    // 가까운 곳부터 — 오른쪽 위를 먼저 본다(기존 기본 위치)
-    const dirs: [number, number][] = [
-      [1, -1], [1, 0], [0, -1], [-1, -1],
-      [-1, 0], [0, 1], [1, 1], [-1, 1],
-    ];
+    // 가까운 곳부터 — 오른쪽 위를 먼저 본다(기존 기본 위치). 잉크 모드(시험지)는 옆부터
+    const dirs: [number, number][] = opts.ink
+      ? [[1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1], [0, -1], [0, 1]]
+      : [
+        [1, -1], [1, 0], [0, -1], [-1, -1],
+        [-1, 0], [0, 1], [1, 1], [-1, 1],
+      ];
 
     let fallback: { x: number; y: number } | null = null;
 
     for (const dist of [gap, gap * 2, gap * 3.5]) {
       for (const [dx, dy] of dirs) {
-        const x = cx + dx * dist - (dx < 0 ? w : dx === 0 ? w / 2 : 0);
-        const y = cy + dy * dist - (dy > 0 ? 0 : dy === 0 ? h / 2 : h);
+        // 대각 자리는 잉크 모드에서 가로·세로를 0.7 배로 — 모서리까지 거리가 옆 자리와 같다
+        const dd = opts.ink && dx !== 0 && dy !== 0 ? dist * Math.SQRT1_2 : dist;
+        const x = cx + dx * dd - (dx < 0 ? w : dx === 0 ? w / 2 : 0);
+        let y = cy + dy * dd - (dy > 0 ? 0 : dy === 0 ? h / 2 : h);
+        // 잉크 모드의 옆 자리는 틀 안으로 위아래만 당긴다 — 틀에 붙은 점도 이름이 옆에 남는다
+        // (대각으로 비키면 점에서 떠 보인다). 점 높이는 여전히 이름 잉크 안에 든다
+        if (opts.ink && dy === 0) y = Math.max(bounds.top, Math.min(y, bounds.bottom - h));
         const box = { left: x, right: x + w, top: y, bottom: y + h };
 
         if (box.left < bounds.left || box.right > bounds.right) continue;
@@ -407,9 +446,8 @@ export class LabelPlacer {
 
         if (!this.overlaps(box)) {
           this.used.push(box);
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
-          ctx.fillText(label, x, y);
+          leaderIfFar(x, y);
+          draw(x, y);
           return;
         }
         if (!fallback) fallback = { x, y };
@@ -419,13 +457,15 @@ export class LabelPlacer {
     if (opts.wide) {
       const spot = this.wideSearch(cx, cy, w, h, gap, bounds);
       this.used.push({ left: spot.x, right: spot.x + w, top: spot.y, bottom: spot.y + h });
-      // 점에서 떨어져 놓였으면(가장 가까운 변까지 gap 의 두 배 넘게) 유도선으로 잇는다
-      const dx = Math.max(spot.x - cx, 0, cx - (spot.x + w));
-      const dy = Math.max(spot.y - cy, 0, cy - (spot.y + h));
-      if (Math.hypot(dx, dy) > gap * 2) this.leaderLine(ctx, cx, cy, spot.x, spot.y, w, h);
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(label, spot.x, spot.y);
+      if (opts.ink) {
+        leaderIfFar(spot.x, spot.y);
+      } else {
+        // 점에서 떨어져 놓였으면(가장 가까운 변까지 gap 의 두 배 넘게) 유도선으로 잇는다
+        const dx = Math.max(spot.x - cx, 0, cx - (spot.x + w));
+        const dy = Math.max(spot.y - cy, 0, cy - (spot.y + h));
+        if (Math.hypot(dx, dy) > gap * 2) this.leaderLine(ctx, cx, cy, spot.x, spot.y, w, h);
+      }
+      draw(spot.x, spot.y);
       return;
     }
 

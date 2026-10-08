@@ -530,6 +530,10 @@ function renderDeviation(
   devXTicks.forEach((v, i) => {
     if (Math.abs(v) < xStep * 0.01) return;
     const x = toCanvasX(v);
+    // 숫자 자리 비우기는 눈금 표시보다 먼저 — 비운 띠가 축선에 닿으므로 표시를 덮지 않게
+    if (knockout && i % devXStride === 0) {
+      tickBoxes.push(knockOut(ctx, formatTick(v), x, xTickBase + 10, { top: originY + look.crossW / 2 }));
+    }
     const [a, b] = tickSeg(t, dir.x);
     if (a !== b) {
       ctx.lineWidth = look.tickW;
@@ -539,7 +543,6 @@ function renderDeviation(
       ctx.stroke();
     }
     if (i % devXStride === 0) {
-      if (knockout) tickBoxes.push(knockOut(ctx, formatTick(v), x, xTickBase + 10));
       ctx.fillText(formatTick(v), x, xTickBase + 10);
     }
   });
@@ -554,6 +557,9 @@ function renderDeviation(
   devYTicks.forEach((v, i) => {
     if (Math.abs(v) < yStep * 0.01) return;
     const y = toCanvasY(v);
+    if (knockout && i % devYStride === 0) {
+      tickBoxes.push(knockOut(ctx, formatTick(v), yTickBase - 10, y, { right: originX - look.crossW / 2 }));
+    }
     const [a, b] = tickSeg(t, dir.y);
     if (a !== b) {
       ctx.lineWidth = look.tickW;
@@ -563,7 +569,6 @@ function renderDeviation(
       ctx.stroke();
     }
     if (i % devYStride === 0) {
-      if (knockout) tickBoxes.push(knockOut(ctx, formatTick(v), yTickBase - 10, y));
       ctx.fillText(formatTick(v), yTickBase - 10, y);
     }
   });
@@ -734,6 +739,12 @@ function drawPoints(
           bounds,
           // exam: 다 막혀도 남의 이름 위에 얹지 않는다 — 더 넓게 찾는다 (2.2.1)
           wide: byStyle(options, { classic: false, exam: true }),
+          // exam: 잉크로 재서 점 옆에 붙이고, 틀 선에서 띄우고, 멀어지면 유도선 (2.2.2).
+          // 격자 점선은 비킬 것이 아니다 — 시험지 이름은 격자 위에 얹힌다
+          ink: byStyle<{ clearance: number; leaderAt: number; r: number } | undefined>(options, {
+            classic: undefined,
+            exam: { clearance: Math.max(3, lpx * 0.1), leaderAt: 0.8, r: offset - labelGap },
+          }),
         });
       } else {
         // 경계를 모르면 겹침 회피를 할 수 없다 — 기존처럼 오른쪽 위에 둔다
@@ -1154,10 +1165,23 @@ function boxedLabelSize(ctx: CanvasRenderingContext2D, text: string, fontSize: n
   };
 }
 
-/** 글자 자리를 흰 바탕으로 비운다 — 지금 ctx 의 글꼴·맞춤으로 잰 잉크 상자 + 2 */
-function knockOut(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): LabelBox {
+/**
+ * 글자 자리를 흰 바탕으로 비운다 — 지금 ctx 의 글꼴·맞춤으로 잰 잉크 상자 + 둘레 틈.
+ * `reach` 를 주면 그 변을 축선까지 늘린다 — 숫자와 축선 사이로 격자 점선 토막이 비쳐
+ * 숫자를 지나는 것처럼 보이지 않게 (2.2.2). 틈은 글자 크기의 0.12 (적어도 2).
+ */
+function knockOut(
+  ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
+  reach: { top?: number; right?: number } = {},
+): LabelBox {
   const e = textExtent(ctx, text);
-  const box = { left: x - e.left - 2, right: x + e.right + 2, top: y - e.up - 2, bottom: y + e.down + 2 };
+  const pad = Math.max(2, fontSizeOf(ctx.font) * 0.12);
+  const box = {
+    left: x - e.left - pad,
+    right: reach.right ?? x + e.right + pad,
+    top: reach.top ?? y - e.up - pad,
+    bottom: y + e.down + pad,
+  };
   const fill = ctx.fillStyle;
   ctx.fillStyle = '#fff';
   ctx.fillRect(box.left, box.top, box.right - box.left, box.bottom - box.top);

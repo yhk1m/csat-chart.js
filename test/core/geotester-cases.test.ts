@@ -1,5 +1,5 @@
 // © 2026 김용현
-// GeoTester v2 문항 그림 다섯 가지 결함의 회귀 시험 (2.2.1).
+// GeoTester v2 문항 그림 결함의 회귀 시험 (2.2.1, 2.2.2).
 // 자료·크기·배율은 geotester-cases.ts — GeoTester 어댑터가 넘기는 그대로다.
 // `npm run test:fallback` 에서도 돈다 — 시험지 글꼴이 없는 CI 처럼 넓은 대체 글꼴로 한 번 더.
 import { describe, it, expect } from 'vitest';
@@ -55,6 +55,29 @@ describe.each(['k13', 'k13_axis39'])('GeoTester — 십자축 편차 산점도 (
     }
   });
 
+  it('숫자와 축선 사이도 비운다 — 격자 점선 토막이 숫자 위아래·옆으로 비치지 않는다 (2.2.2)', () => {
+    // x 숫자는 십자 가로축 아래, y 숫자는 세로축 왼쪽에 있다. 숫자에서 축 쪽으로 5px 넓힌 띠를
+    // 지나는 점선은 그 띠를 통째로 덮는 흰 칠 아래에 있어야 한다
+    let checked = 0;
+    for (const t of ticks) {
+      const isX = /\.|^-?1$/.test(t.s); // x 눈금은 -1.5 ~ 1.5, y 는 ±10 ~ ±30
+      const band = isX ? { ...t.box, top: t.box.top - 5 } : { ...t.box, right: t.box.right + 5 };
+      if (!log.dashed.some((s) => crosses(s, band))) continue;
+      checked++;
+      const cleared = log.whiteRects.some((w) => w.right - w.left < c.width / 4 && covers(w, band));
+      expect(cleared, `${t.s} ${JSON.stringify(band)}`).toBe(true);
+    }
+    expect(checked).toBeGreaterThanOrEqual(8);
+  });
+
+  it('점 이름이 눈금 숫자와 겹치지 않는다', () => {
+    for (const s of ['A', 'B', 'C', 'D']) {
+      const r = run(log, s)!;
+      expect(r, s).toBeDefined();
+      for (const t of ticks) expect(overlaps(r.box, t.box), `${s} ↔ ${t.s}`).toBe(false);
+    }
+  });
+
   it('y 단위 「(mm)」 가 맨 위 눈금 「30」 과 떨어져 있다', () => {
     const unit = run(log, '(mm)')!;
     const top = ticks.find((t) => t.s === '30')!;
@@ -89,6 +112,37 @@ describe('GeoTester — 점 이름이 서로 겹치지 않는다 (w18)', () => {
     });
     for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) {
       expect(overlaps(labels[i].box, labels[j].box), `${labels[i].s} ↔ ${labels[j].s}`).toBe(false);
+    }
+  });
+});
+
+describe('GeoTester — 시험지 틀 산점도 점 이름 자리 (w18, 2.2.2)', () => {
+  const c = byName('w18');
+  const log = logOf(c);
+  const frame = log.strokeRects.reduce((a, b) => (b.right - b.left > a.right - a.left ? b : a));
+  const labels = ['(가)', '(나)', '(다)', '(라)'].map((s) => run(log, s)!);
+
+  it('이름이 틀 선에 닿지 않는다 — 안쪽으로 2px 넘게 띄운다', () => {
+    for (const r of labels) {
+      expect(r).toBeDefined();
+      const gap = Math.min(r.box.left - frame.left, frame.right - r.box.right, r.box.top - frame.top, frame.bottom - r.box.bottom);
+      expect(gap, `${r.s} ${JSON.stringify(r.box)}`).toBeGreaterThan(2);
+    }
+  });
+
+  it('이름은 제 점 옆에 붙는다 — 대각이거나 잉크 높이 0.8 배보다 멀면 유도선이 있다', () => {
+    const dots = log.circles.filter((d) => d.r > 2 && d.r < 10);
+    expect(dots.length).toBe(4);
+    for (const r of labels) {
+      const dist = (d: { x: number; y: number }) => Math.hypot(
+        Math.max(r.box.left - d.x, 0, d.x - r.box.right), Math.max(r.box.top - d.y, 0, d.y - r.box.bottom));
+      const dot = dots.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      // 옆(또는 위·아래)이다 — 점 높이가 이름 잉크 안에 들거나 점 가로 자리가 이름 폭 안에 든다.
+      // 대각으로 비킨 이름은 점에서 떠 보인다 (2.2.1 의 (가))
+      const beside = (dot.y >= r.box.top && dot.y <= r.box.bottom) || (dot.x >= r.box.left && dot.x <= r.box.right);
+      const near = beside && dist(dot) <= 0.8 * (r.box.bottom - r.box.top);
+      const leader = log.solid.some(([x1, y1]) => Math.hypot(x1 - dot.x, y1 - dot.y) < 1);
+      expect(near || leader, `${r.s} ${dist(dot).toFixed(1)}`).toBe(true);
     }
   });
 });

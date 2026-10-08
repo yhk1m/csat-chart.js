@@ -106,6 +106,10 @@ export interface InkLog {
   whiteRects: Drawn[];
   /** 테두리 사각형 (범례·축 이름 상자) */
   strokeRects: Drawn[];
+  /** 그린 원 (점) — 중심·반지름 (2.2.2) */
+  circles: { x: number; y: number; r: number }[];
+  /** 실선으로 그은 선분 (유도선·축선) (2.2.2) */
+  solid: [number, number, number, number][];
 }
 
 export function inkLogged(
@@ -113,7 +117,7 @@ export function inkLogged(
 ): InkLog {
   const canvas = createCanvas(w, h);
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
-  const log: InkLog = { texts: [], runs: [], dashed: [], whiteRects: [], strokeRects: [] };
+  const log: InkLog = { texts: [], runs: [], dashed: [], whiteRects: [], strokeRects: [], circles: [], solid: [] };
   let path: [number, number][][] = [];
   let seq = 0;
   const tf = (x: number, y: number): [number, number] => {
@@ -125,7 +129,7 @@ export function inkLogged(
     beginPath: ctx.beginPath.bind(ctx), moveTo: ctx.moveTo.bind(ctx), lineTo: ctx.lineTo.bind(ctx),
     stroke: ctx.stroke.bind(ctx), fillText: ctx.fillText.bind(ctx),
     strokeRect: ctx.strokeRect.bind(ctx), fillRect: ctx.fillRect.bind(ctx),
-    measureText: ctx.measureText.bind(ctx),
+    measureText: ctx.measureText.bind(ctx), arc: ctx.arc.bind(ctx),
   };
   const white = () => /^#fff(fff)?$/i.test(String(ctx.fillStyle));
   c.fillRect = (x: number, y: number, w2: number, h2: number) => {
@@ -138,11 +142,16 @@ export function inkLogged(
   c.beginPath = () => { path = []; o.beginPath(); };
   c.moveTo = (x: number, y: number) => { path.push([tf(x, y)]); o.moveTo(x, y); };
   c.lineTo = (x: number, y: number) => { (path[path.length - 1] ?? (path[0] = [])).push(tf(x, y)); o.lineTo(x, y); };
+  c.arc = (x: number, y: number, r: number, s: number, e: number, ccw?: boolean) => {
+    const [cx, cy] = tf(x, y);
+    const m = ctx.getTransform();
+    log.circles.push({ x: cx, y: cy, r: r * Math.hypot(m.a, m.b) });
+    o.arc(x, y, r, s, e, ccw);
+  };
   c.stroke = () => {
-    if (ctx.getLineDash().length > 0) {
-      for (const sub of path) for (let i = 1; i < sub.length; i++) {
-        log.dashed.push([sub[i - 1][0], sub[i - 1][1], sub[i][0], sub[i][1]]);
-      }
+    const into = ctx.getLineDash().length > 0 ? log.dashed : log.solid;
+    for (const sub of path) for (let i = 1; i < sub.length; i++) {
+      into.push([sub[i - 1][0], sub[i - 1][1], sub[i][0], sub[i][1]]);
     }
     o.stroke();
   };

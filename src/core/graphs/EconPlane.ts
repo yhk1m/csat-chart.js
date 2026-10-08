@@ -24,7 +24,7 @@ import { clearCanvas, textFont, textSize, type Padding } from '../canvas/rendere
 import { textCtx } from '../canvas/parens';
 import { byStyle, labelPlace, type TextPlace } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote } from '../canvas/labels';
-import { EDGE, drawFloatingLabel, nudgeInside, wrapToWidth } from '../canvas/fit';
+import { EDGE, MIN_SCALE, drawFloatingLabel, largestFitting, nudgeInside, wrapToWidth } from '../canvas/fit';
 import { drawFloatingRich, fillRich, nudgeRichInside, richWidth } from '../canvas/subscript';
 import { drawInsideLegend, insideLegendSize, insideLegendSpot, cornerOrder, legendSideOf, INSIDE_MARGIN, type LegendItem } from '../canvas/legend';
 import { recordingCtx } from '../canvas/avoid';
@@ -43,8 +43,15 @@ const NAME_LINE_H = 1.15;
 const LEGEND_BELOW_GAP = 24;
 /** exam: 플롯 오른쪽으로 나간 범례 상자와 캔버스 오른쪽 끝 사이 */
 const LEGEND_RIGHT_MARGIN = 12;
-/** exam: 범례를 오른쪽에 둘 때 이웃한 가로축 눈금 글자 사이에 남길 틈 */
-const TICK_GAP = 4;
+/** exam: 이웃한 가로축 눈금 글자 사이에 남길 틈 — 그 눈금 글자 크기에 대한 배율. 이만큼 안 되면 글자를 줄인다 */
+const TICK_GAP_EM = 0.5;
+/** exam: 오른쪽 범례에 폭을 내줄 때 바닥(MIN_SCALE) 눈금 글자 사이에 적어도 남길 틈 (배율) */
+const TICK_MIN_GAP_EM = 0.25;
+/**
+ * exam: 오른쪽 범례 상자(+ 오른쪽 끝 틈)가 차지해도 되는 캔버스 폭의 몫. 이름이 한 줄로 이만큼
+ * 안에 들어가면 플롯이 폭을 내준다(눈금 글자는 줄여서라도 맞춘다). 넘을 때만 이름을 접거나 줄인다
+ */
+const RIGHT_LEGEND_CAP = 0.4;
 
 /**
  * 선 굵기·점 크기·점선 무늬.
@@ -405,27 +412,38 @@ function drawEconPlane(
 
   // 범례를 플롯 아래에 둘 자리 (가로축 숫자 밑)
   if (mode.legend === 'below') padding.bottom += mode.boxH + LEGEND_BELOW_GAP;
+  // 가로축 눈금 글자(1사분면이면 원점의 0 까지)가 이웃끼리 gapEm 만큼 떨어지는 최소 플롯 폭.
+  // 0 은 세로축과 함께 쓰는 글자라 줄이지 않는다 — 언제나 tickPx 로 잰다
+  const xTickTexts = data.xAxis.ticks
+    .map((v, i) => ({ v, text: tickText(data.xAxis, i), zero: false }))
+    .filter((t) => t.v !== 0);
+  if (!four) xTickTexts.push({ v: data.xAxis.min, text: '0', zero: true });
+  const xTickNeed = (px: number, gapEm = TICK_GAP_EM): number => {
+    ctx.save();
+    const ws = xTickTexts
+      .map((t) => ({ v: t.v, w: richWidth(ctx, t.text, t.zero ? tickPx : px, tickFontOf) }))
+      .sort((a, b) => a.v - b.v);
+    ctx.restore();
+    let need = 0;
+    for (let k = 1; k < ws.length; k++) {
+      const dv = ws[k].v - ws[k - 1].v;
+      if (dv > 0) need = Math.max(need, ((ws[k - 1].w + ws[k].w) / 2 + px * gapEm) * Math.abs(span(data.xAxis)) / dv);
+    }
+    return need;
+  };
+
   // 범례를 플롯 오른쪽에 둘 자리. 상자는 화살촉 끝(ARROW_EXT) 밖, 플롯 위쪽에 선다.
   // 가로축 이름은 축 높이(아래)에 앉으므로 둘이 위아래로 비켜나면 같은 여백을 나눠 쓴다.
   // 선 이름이 오른쪽 끝에 서거나(어느 높이일지 모른다) 축이 높이 서서 상자와 겹치면 더한다.
   //
-  // 플롯을 좁히다 가로축 눈금 글자(`t년`·`t+1년`)끼리 닿으면 안 된다. 글자가 닿지 않을
-  // 최소 플롯 폭을 먼저 재고, 남는 폭에 상자가 안 들어가면 이름을 마지막 빈칸에서 두 줄로
-  // 접어 보고(「명목」·「GDP」), 그래도 모자라면 범례 글꼴을 줄인다(바닥 11px).
-  // 둘 가운데 글꼴이 더 큰 쪽을 쓴다.
+  // 폭은 플롯이 먼저 내준다 — 이름이 한 줄로 캔버스 폭의 RIGHT_LEGEND_CAP 안에 들고, 눈금 글자를
+  // 바닥(MIN_SCALE)까지 줄여 이웃 사이에 TICK_MIN_GAP_EM 이 남을 플롯 폭이 있으면 범례 글꼴 그대로 한 줄이다.
+  // 그 안에 안 들어갈 때만 이름을 마지막 빈칸에서 두 줄로 접어 보고(「명목」·「GDP」), 그래도
+  // 모자라면 범례 글꼴을 줄인다(바닥 11px). 둘 가운데 글꼴이 더 큰 쪽을 쓴다.
   let rightLegend: (ReturnType<typeof insideLegendSize> & { items: LegendItem[] }) | null = null;
   if (mode.legend === 'right') {
-    ctx.font = tickFont;
-    const xt = data.xAxis.ticks
-      .map((v, i) => ({ v, w: richWidth(ctx, tickText(data.xAxis, i), tickPx, tickFontOf) }))
-      .filter((t) => t.v !== 0)
-      .sort((a, b) => a.v - b.v);
-    let minPlotW = 40;
-    for (let k = 1; k < xt.length; k++) {
-      const dv = xt[k].v - xt[k - 1].v;
-      if (dv > 0) minPlotW = Math.max(minPlotW, ((xt[k - 1].w + xt[k].w) / 2 + TICK_GAP) * span(data.xAxis) / dv);
-    }
-    const room = w - padding.left - minPlotW - ARROW_EXT - LEGEND_RIGHT_MARGIN;
+    const minPlotW = Math.max(40, xTickNeed(tickPx * MIN_SCALE, TICK_MIN_GAP_EM));
+    const room = Math.min(w * RIGHT_LEGEND_CAP, w - padding.left - minPlotW - ARROW_EXT) - LEGEND_RIGHT_MARGIN;
     const fit = (its: LegendItem[]) => ({
       ...insideLegendSize(ctx, its, legendPx, legendFont, options, Math.max(0, room) + INSIDE_MARGIN * 2), items: its,
     });
@@ -448,6 +466,11 @@ function drawEconPlane(
   const plotY = padding.top;
   const plotW = Math.max(40, w - padding.left - padding.right);
   const plotH = Math.max(40, h - padding.top - padding.bottom);
+  // exam: 가로축 눈금 글자 사이가 TICK_GAP_EM 보다 좁으면 그 글자만 줄인다(바닥 MIN_SCALE).
+  // classic 은 1.7.0 그대로 둔다
+  const xTickPx = byStyle(options, { classic: false, exam: true }) && xTickNeed(tickPx) > plotW
+    ? largestFitting(tickPx * MIN_SCALE, tickPx, (px) => xTickNeed(px) <= plotW)
+    : tickPx;
 
   const toX = (v: number) => plotX + ((v - data.xAxis.min) / span(data.xAxis)) * plotW;
   const toY = (v: number) => plotY + plotH - ((v - data.yAxis.min) / span(data.yAxis)) * plotH;
@@ -718,18 +741,18 @@ function drawEconPlane(
   // 네 사분면에서는 숫자가 플롯 **안쪽**에 놓여 유도선이 그 뒤로 지나간다.
   // 그때만 글자 자리를 희게 지운다 — 실물도 「−5」 자리에서 점선이 끊긴다.
   // 1사분면 숫자는 축 바깥이라 뒤로 지나갈 것이 없으므로 손대지 않는다.
-  const tickInk = (text: string, x: number, y: number) => {
+  const tickInk = (text: string, x: number, y: number, px = tickPx) => {
     if (four) {
-      const tw = richWidth(ctx, text, tickPx, tickFontOf);
+      const tw = richWidth(ctx, text, px, tickFontOf);
       const left = ctx.textAlign === 'right' ? tw : ctx.textAlign === 'center' ? tw / 2 : 0;
-      const up = ctx.textBaseline === 'top' ? 0 : tickPx * 0.5;
+      const up = ctx.textBaseline === 'top' ? 0 : px * 0.5;
       const rx = clamp(x - left - 3, 0, w);
       const ry = clamp(y - up - 2, 0, h);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(rx, ry, Math.min(tw + 6, w - rx), Math.min(tickPx + 4, h - ry));
+      ctx.fillRect(rx, ry, Math.min(tw + 6, w - rx), Math.min(px + 4, h - ry));
       ctx.fillStyle = '#000';
     }
-    fillRich(ctx, text, x, y, tickPx, tickFontOf);
+    fillRich(ctx, text, x, y, px, tickFontOf);
   };
 
   ctx.save();
@@ -743,12 +766,13 @@ function drawEconPlane(
     let tx = toX(v);
     // exam(네 사분면): 원점 가까운 숫자(−1)가 세로축선에 걸린다 — 축선에서 비켜 놓는다
     if (four && byStyle(options, { classic: false, exam: true })) {
-      const half = richWidth(ctx, text, tickPx, tickFontOf) / 2 + 4;
+      const half = richWidth(ctx, text, xTickPx, tickFontOf) / 2 + 4;
       if (Math.abs(tx - axX) < half) tx = tx < axX ? axX - half : axX + half;
     }
-    const at = nudgeRichInside(ctx, text, tx, axY + 10, w, h, tickPx, tickFontOf);
-    tickInk(text, at.x, at.y);
+    const at = nudgeRichInside(ctx, text, tx, axY + 10, w, h, xTickPx, tickFontOf);
+    tickInk(text, at.x, at.y, xTickPx);
   });
+  ctx.font = tickFont;
   // 네 사분면에서는 세로축 숫자가 축 **오른쪽**에 붙는다 (2027학년도 6월 16번).
   ctx.textAlign = four ? 'left' : 'right';
   ctx.textBaseline = 'middle';

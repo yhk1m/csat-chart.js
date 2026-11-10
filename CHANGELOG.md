@@ -1,5 +1,13 @@
 # 변경 기록 — csat-chart.js
 
+## 2.2.3 — 2026-11-10
+
+### 더함
+
+- **`examFont(px, role, weight)`·`examFontFamily(role)`** — 그래프 밖(지도 위 기호 등)에서 시험지
+  글꼴을 쓰는 창구. 렌더러와 같은 `fontStackOf` 를 거쳐 exam 양식의 명조·고딕·숫자 순서를 내준다.
+  GeoTester 지도 편집기의 기호를 명조로 바꾸려고 더했다. 렌더러 출력은 바뀌지 않는다.
+
 ## 2.2.2 — 2026-10-09
 
 GeoTester 그림에 남은 결함 둘(exam, 0.7 배율). classic 기준 이미지는 바이트까지 같고, exam 은

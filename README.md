@@ -325,6 +325,23 @@ new CsatChart('c', {
 두 자리 중 하나만 줘도 됩니다. 적지 않은 자리는 기본 글꼴(Noto Serif KR·Noto Sans KR)
 그대로입니다.
 
+### 그래프 밖에서 시험지 글꼴 쓰기 — `examFont`
+
+지도 위 기호((가)·A·㉠)처럼 그래프가 아닌 그림도 시험지는 명조로 씁니다. 렌더러와
+같은 글꼴 순서를 그대로 받아 쓰세요. 순서를 손으로 베끼면 이 패키지가 순서를 바꿀 때
+어긋납니다.
+
+```js
+import { examFont, examFontFamily, ensureFonts } from 'csat-chart.js';
+
+await ensureFonts();
+ctx.font = examFont(20, 'serif', 'bold');      // 캔버스
+el.style.fontFamily = examFontFamily('serif'); // HTML·CSS
+```
+
+자리는 `'serif'`(기본)·`'sans'`·`'numeral'` 셋입니다. 숫자·라틴·괄호는 Garamond 로,
+한글은 신명조 → HY신명조 → Noto Serif KR 로 넘어갑니다.
+
 `fontFamily` 와는 층이 다릅니다. `fontFamily` 는 **축이 어느 자리를 쓸지**(명조냐
 고딕이냐) 고르고, `fontStack` 은 **그 자리가 무슨 글꼴인지**를 정합니다. 둘을 함께
 써도 됩니다 — `fontFamily: 'sans'` + `fontStack.sans` 면 축까지 그 고딕으로 그립니다.

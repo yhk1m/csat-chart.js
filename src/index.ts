@@ -26,6 +26,8 @@ export { CsatChartError } from './validate';
 // ── 글꼴 ───────────────────────────────────────────────
 export { ensureFonts } from './fonts';
 export type { EnsureFontsOptions } from './fonts';
+export { examFont, examFontFamily } from './exam-font';
+export type { ExamFontRole } from './exam-font';
 
 // ── roundRect 폴리필 ───────────────────────────────────
 // `CsatChart` 생성자가 첫 렌더 전에 자동으로 부른다. 파사드를 거치지 않고

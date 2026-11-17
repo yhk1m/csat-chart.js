@@ -158,14 +158,21 @@ export function drawSourceAndFootnote({
   const footnoteAvailable = Math.max(0, available - inlineSourceW);
 
   let lastFootnoteY = y;
+  const makeFont = (size: number) => textFont(fonts, 'footnote', size);
+  // 같은 줄 출처는 마지막 각주 줄에만 놓인다 — exam 은 그 앞 줄들에 온 폭을 준다
+  // (classic 은 1.7.0 그대로 모든 줄을 좁힌다)
+  const roomOf = (i: number) => (t.name === 'exam' && i < filtered.length - 1 ? available : footnoteAvailable);
+  const fitOf = (i: number) => fitFontSize(ctx, t.footnoteMark(i) + filtered[i], noteSize, roomOf(i), makeFont);
+  // exam: 한 줄이라도 폭에 맞춰 줄어들면 모든 각주를 그 크기로 맞춘다. 줄마다 크기가 다르면
+  // 시험지에서 글씨체가 다른 것처럼 보인다(GeoTester 6모 한국지리 15번, 2026-11-17 제보).
+  const sharedSize = t.name === 'exam' && filtered.length > 1
+    ? Math.min(...filtered.map((_, i) => fitOf(i)))
+    : null;
   for (let i = 0; i < filtered.length; i++) {
     const text = t.footnoteMark(i) + filtered[i];
     ctx.fillStyle = t.ink.footnote;
-    const makeFont = (size: number) => textFont(fonts, 'footnote', size);
-    // 같은 줄 출처는 마지막 각주 줄에만 놓인다 — exam 은 그 앞 줄들에 온 폭을 준다
-    // (classic 은 1.7.0 그대로 모든 줄을 좁힌다)
-    const room = t.name === 'exam' && i < filtered.length - 1 ? available : footnoteAvailable;
-    const size = fitFontSize(ctx, text, noteSize, room, makeFont);
+    const room = roomOf(i);
+    const size = sharedSize ?? fitOf(i);
     ctx.font = makeFont(size);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';

@@ -135,6 +135,11 @@ export interface GraphOptions {
     axisLabel: number;
     tick: number;
     dataLabel: number;
+    /**
+     * 눈금 숫자만의 크기 (2.4.0~, exam). `tick` 은 범례·단위·출처·각주 크기도 함께 정하므로,
+     * 그것들은 두고 축 눈금 숫자만 키울 때 쓴다. 미지정이면 `tick` 과 같다.
+     */
+    tickNumber?: number;
   };
   showDataLabels: boolean;
   showLegend: boolean;

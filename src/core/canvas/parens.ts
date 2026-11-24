@@ -30,7 +30,19 @@ export interface Run {
   paren: boolean;
   /** 숫자 조각 — `splitRuns(text, true)` 에서만 붙는다 */
   digit?: true;
+  /**
+   * 글자 갈래 — `splitRuns(text, digits, true)` 에서만 붙는다 (2.4.0).
+   * `symbol`: 기호 `(가)` 의 한글·`㉠` — 시험지는 명조. `hangul`: 그 밖의 한글 — 시험지는 돋움.
+   */
+  script?: 'symbol' | 'hangul';
 }
+
+/** 기호로 쓰는 한글 — 「(가)」~「(하)」 의 안쪽 글자 */
+const SYMBOL_HANGUL = '가나다라마바사아자차카타파하';
+/** 동그라미 기호 ㉠~㉭·㉮~㉻ */
+const CIRCLED = /[\u3260-\u327F]/;
+/** 한글 음절·자모 */
+const HANGUL_CHAR = /[\u1100-\u11FF\u3131-\u318E\uAC00-\uD7A3]/;
 
 /** 숫자 조각 — 숫자 사이의 쉼표·점(`1,234.5`)까지 한 조각 */
 const DIGIT_RUN = /[0-9]+(?:[.,][0-9]+)*/y;
@@ -39,10 +51,23 @@ const DIGIT_RUN = /[0-9]+(?:[.,][0-9]+)*/y;
  * 괄호 조각·(digits 면) 숫자 조각·나머지를 차례로 가른다. 이어진 괄호는 한 조각이다.
  * `1991~2020년` → `1991` · `~` · `2020` · `년`.
  */
-export function splitRuns(text: string, digits: boolean): Run[] {
+export function splitRuns(text: string, digits: boolean, scripts = false): Run[] {
   const runs: Run[] = [];
   let pos = 0; // UTF-16 위치
+  const push = (t: string, paren: boolean, script?: Run['script']) => {
+    const last = runs[runs.length - 1];
+    if (last && !last.digit && last.paren === paren && last.script === script) last.text += t;
+    else runs.push(script ? { text: t, paren, script } : { text: t, paren });
+  };
   while (pos < text.length) {
+    // 「(가)」 — 괄호 둘은 괄호 조각, 안쪽 한 글자는 기호 조각
+    if (scripts && text[pos] === '(' && text[pos + 2] === ')' && SYMBOL_HANGUL.includes(text[pos + 1] ?? '-')) {
+      push('(', true);
+      push(text[pos + 1], false, 'symbol');
+      push(')', true);
+      pos += 3;
+      continue;
+    }
     if (digits) {
       DIGIT_RUN.lastIndex = pos;
       const m = DIGIT_RUN.exec(text);
@@ -54,9 +79,11 @@ export function splitRuns(text: string, digits: boolean): Run[] {
     }
     const ch = String.fromCodePoint(text.codePointAt(pos)!);
     const paren = ch === '(' || ch === ')';
-    const last = runs[runs.length - 1];
-    if (last && !last.digit && last.paren === paren) last.text += ch;
-    else runs.push({ text: ch, paren });
+    const script: Run['script'] = !scripts || paren ? undefined
+      : CIRCLED.test(ch) ? 'symbol'
+        : HANGUL_CHAR.test(ch) ? 'hangul'
+          : undefined;
+    push(ch, paren, script);
     pos += ch.length;
   }
   return runs;
@@ -72,8 +99,19 @@ const HANGUL = /[가-힣]/;
 
 const hasParen = (text: string) => text.includes('(') || text.includes(')');
 const hasDigit = (text: string) => /[0-9]/.test(text);
+/**
+ * 글자 갈래별 글꼴 (2.4.0) — 지금 자리 글꼴과 갈래가 다를 때만 준다.
+ * 고딕 자리의 기호는 `symbol`(명조)로, 명조·숫자 자리의 한글은 `hangul`(돋움)로 찍는다.
+ */
+export interface ScriptFonts {
+  symbol?: string;
+  hangul?: string;
+}
+
 /** 갈라 찍을 것이 있는가 — 숫자 조각 글꼴(digitFont)이 없으면 괄호만 본다 */
-const needsSplit = (text: string, digitFont?: string | null) => hasParen(text) || (!!digitFont && hasDigit(text));
+const needsSplit = (text: string, digitFont?: string | null, sf?: ScriptFonts | null) =>
+  hasParen(text) || (!!digitFont && hasDigit(text))
+  || (!!sf?.hangul && HANGUL_CHAR.test(text)) || (!!sf?.symbol && CIRCLED.test(text));
 
 interface ParenFit {
   /** 괄호 조각의 글꼴 문자열 */
@@ -175,17 +213,28 @@ interface Layout {
 }
 
 /** 조각마다 폭을 재서 왼쪽부터 놓는다. ctx.font 는 원래대로 돌려놓는다. */
-function layout(ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1, digitFont?: string | null): Layout {
+function layout(
+  ctx: CanvasRenderingContext2D, text: string, stack: string, refScale = 1, digitFont?: string | null,
+  sf?: ScriptFonts | null,
+): Layout {
   const main = ctx.font;
   const align = ctx.textAlign;
   const fit = hasParen(text) ? parenFit(ctx, stack, refScale) : { font: main, dy: 0 };
   const ddy = digitFont ? digitDy(ctx, digitFont) : 0;
-  const fontOf = (r: Run) => (r.paren ? fit.font : r.digit && digitFont ? digitFont : main);
-  const dyOf = (r: Run) => (r.paren ? fit.dy : r.digit ? ddy : 0);
+  const scriptFont = (r: Run) => (r.script ? sf?.[r.script] : undefined);
+  const sdy = new Map<string, number>();
+  for (const f of [sf?.symbol, sf?.hangul]) if (f) sdy.set(f, digitDy(ctx, f));
+  const fontOf = (r: Run) => (r.paren ? fit.font : r.digit && digitFont ? digitFont : scriptFont(r) ?? main);
+  const dyOf = (r: Run) => {
+    if (r.paren) return fit.dy;
+    if (r.digit) return ddy;
+    const f = scriptFont(r);
+    return f ? sdy.get(f) ?? 0 : 0;
+  };
   ctx.textAlign = 'left';
   let x = 0;
   const runs: Placed[] = [];
-  for (const r of splitRuns(text, !!digitFont)) {
+  for (const r of splitRuns(text, !!digitFont, !!sf)) {
     ctx.font = fontOf(r);
     const metrics = ctx.measureText(r.text);
     runs.push({ ...r, x, width: metrics.width, metrics });
@@ -214,9 +263,11 @@ export function measureMixed(
   refScale = 1,
   /** 숫자 조각 글꼴 — 주면 숫자도 갈라 잰다 */
   digitFont?: string | null,
+  /** 글자 갈래별 글꼴 — 주면 기호·한글도 갈라 잰다 */
+  sf?: ScriptFonts | null,
 ): TextMetrics {
-  if (!needsSplit(text, digitFont)) return ctx.measureText(text);
-  const { runs, width, dyOf } = layout(ctx, text, stack, refScale, digitFont);
+  if (!needsSplit(text, digitFont, sf)) return ctx.measureText(text);
+  const { runs, width, dyOf } = layout(ctx, text, stack, refScale, digitFont, sf);
   const a = alignOffset(ctx.textAlign, width);
   let left = Infinity;
   let right = -Infinity;
@@ -258,6 +309,8 @@ export function fillMixed(
   refScale = 1,
   /** 숫자 조각 글꼴 — 주면 숫자도 갈라 찍는다 */
   digitFont?: string | null,
+  /** 글자 갈래별 글꼴 — 주면 기호·한글도 갈라 찍는다 */
+  sf?: ScriptFonts | null,
 ): void {
   const draw = (t: string, dx: number, dy: number, mw?: number) => {
     if (stroke) {
@@ -266,11 +319,11 @@ export function fillMixed(
     } else if (mw === undefined) ctx.fillText(t, dx, dy);
     else ctx.fillText(t, dx, dy, mw);
   };
-  if (!needsSplit(text, digitFont)) {
+  if (!needsSplit(text, digitFont, sf)) {
     draw(text, x, y, maxWidth);
     return;
   }
-  const { runs, width, fontOf, dyOf } = layout(ctx, text, stack, refScale, digitFont);
+  const { runs, width, fontOf, dyOf } = layout(ctx, text, stack, refScale, digitFont, sf);
   const squeeze = maxWidth !== undefined && maxWidth > 0 && width > maxWidth ? maxWidth / width : 1;
   const start = x - alignOffset(ctx.textAlign, width * squeeze);
   ctx.save();
@@ -321,15 +374,31 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
     return size !== px ? `${m[1]}${size}px ${numeralStack}` : null;
   };
   const digitFont = () => digitFonts.get(ctx.font) ?? null;
+
+  // 글자 갈래 (2.4.0) — 시험지는 기호 (가)·㉠ 을 명조로, 그 밖의 한글을 돋움으로 쓴다.
+  // 자리 글꼴이 양식의 고딕 목록이면 기호만 명조로, 명조·숫자 목록이면 한글만 돋움으로 바꾼다.
+  // 사용자가 고른 다른 글꼴이면 건드리지 않는다.
+  const serifStack = fontStackOf(o, 'serif');
+  const sansStack = fontStackOf(o, 'sans');
+  const scriptFonts = new Map<string, ScriptFonts | null>();
+  const scriptFontsOf = (raw: string): ScriptFonts | null => {
+    const m = /^(.*?)(\d+(?:\.\d+)?)px\s+(.*)$/.exec(raw);
+    if (!m) return null;
+    const at = (st: string) => `${m[1]}${m[2]}px ${st}`;
+    if (m[3] === sansStack) return { symbol: at(serifStack) };
+    if (m[3] === serifStack || m[3] === numeralStack) return { hangul: at(sansStack) };
+    return null;
+  };
+  const sfNow = () => scriptFonts.get(ctx.font) ?? null;
   return new Proxy(ctx, {
     get(target_, prop) {
       if (prop === 'fillText') {
-        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, false, refScale(String(s)), digitFont());
+        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, false, refScale(String(s)), digitFont(), sfNow());
       }
       if (prop === 'strokeText') {
-        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, true, refScale(String(s)), digitFont());
+        return (s: string, x: number, y: number, mw?: number) => fillMixed(target_, String(s), x, y, stack, mw, true, refScale(String(s)), digitFont(), sfNow());
       }
-      if (prop === 'measureText') return (s: string) => measureMixed(target_, String(s), stack, refScale(String(s)), digitFont());
+      if (prop === 'measureText') return (s: string) => measureMixed(target_, String(s), stack, refScale(String(s)), digitFont(), sfNow());
       if (prop === RAW_CTX) return target_;
       const v = Reflect.get(target_, prop, target_);
       return typeof v === 'function' ? v.bind(target_) : v;
@@ -339,6 +408,7 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
       if (prop === 'font' && typeof value === 'string') {
         scales.set(target_.font, numeralScaleOf(value));
         digitFonts.set(target_.font, digitFontOf(value));
+        scriptFonts.set(target_.font, scriptFontsOf(value));
       }
       return ok;
     },

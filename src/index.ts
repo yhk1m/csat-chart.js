@@ -35,7 +35,7 @@ export type { ExamFontRole } from './exam-font';
 // 사정은 `./roundrect` 참고.
 export { installRoundRectPolyfill } from './roundrect';
 
-// ── 저수준 렌더러 18종 ─────────────────────────────────
+// ── 저수준 렌더러 18종 + 범례 띠(2.4.0) ─────────────────────────────────
 export {
   renderAbsBarGraph,
   renderCategoryDotGraph,
@@ -55,6 +55,7 @@ export {
   renderStackedGraph,
   renderTernaryGraph,
   renderTreemapGraph,
+  renderLegendStrip,
 } from './core/index';
 
 // ── 축 계산 유틸 ───────────────────────────────────────
@@ -154,6 +155,8 @@ export type {
   ClimateMode,
   ClimateMonthData,
   CoordGraphData,
+  LegendStripData,
+  LegendStripItem,
   CoordPoint,
   MonthInterval,
   DeviationAData,

@@ -17,3 +17,4 @@ export * from './matrix';
 export * from './datatable';
 export * from './treemap';
 export * from './coord';
+export * from './legendstrip';

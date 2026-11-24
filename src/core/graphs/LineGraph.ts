@@ -125,7 +125,8 @@ export function renderLineGraph(
     top: options.title ? 100 : 50,
     right: padRight,
     bottom: (() => {
-      let b = 70;
+      // 눈금 숫자를 키웠으면(fontSize.tickNumber, 2.4.0) 그만큼 아래 각주를 내린다
+      let b = 70 + Math.max(0, tickSize - options.fontSize.tick) * 1.3;
       // 범례를 플롯 **안쪽**에 두면 아래에 자리를 비울 필요가 없다.
       // 예전에는 그래도 60을 비워, 연도 눈금 밑에 빈 띠가 남고 플롯만 눌렸다.
       if (useLegend && legendPos === 'bottom' && !data.insideLegend) b += 60;

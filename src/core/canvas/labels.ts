@@ -399,6 +399,8 @@ export class LabelPlacer {
        *   유도선(`t.leader`)으로 잇는다.
        */
       ink?: { clearance: number; leaderAt: number; r: number };
+      /** 글자에 두를 흰 테두리 굵기(px) — 선 위에 놓여도 읽히게 (2.4.0). 0·미지정이면 두르지 않는다 */
+      halo?: number;
     }
   ) {
     const w = ctx.measureText(label).width;
@@ -414,10 +416,21 @@ export class LabelPlacer {
     const { gap } = opts;
     const c = opts.ink?.clearance ?? 0;
     const bounds = { left: opts.bounds.left + c, right: opts.bounds.right - c, top: opts.bounds.top + c, bottom: opts.bounds.bottom - c };
+    const paint = (x: number, y: number) => {
+      if (opts.halo && opts.halo > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = opts.halo;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(label, x, y);
+        ctx.restore();
+      }
+      ctx.fillText(label, x, y);
+    };
     const draw = (x: number, y: number) => {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(label, x, y - inkTop);
+      paint(x, y - inkTop);
     };
     /** 잉크가 점에서 너무 멀면 유도선 — 잉크 모드에서만 */
     const leaderIfFar = (x: number, y: number) => {
@@ -496,7 +509,7 @@ export class LabelPlacer {
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(label, far.x, far.y);
+    paint(far.x, far.y);
   }
 
   /** 겹친 넓이의 합 */

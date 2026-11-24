@@ -95,9 +95,11 @@ describe.each(['k13', 'k13_axis39'])('GeoTester — 십자축 편차 산점도 (
     expect(gapBetween(box, unit.box)).toBeGreaterThanOrEqual(4);
     for (const r of log.runs) expect(inside(r.box, c), `${r.s} ${JSON.stringify(r.box)}`).toBe(true);
     // 상자 안 글자가 상자를 넘지 않는다
+    // 위 상자에도 같은 낱말이 있다 — 오른쪽 상자 쪽(가로 가운데가 상자 안) 조각만 본다 (2.4.0: 한글을 따로 찍는다)
     for (const s of ['시기', '평균', '기온', '차이']) {
-      const t = run(log, s)!;
-      expect(covers(box, t.box), s).toBe(true);
+      const t = log.runs.find((r) => r.s === s && (r.box.left + r.box.right) / 2 > box.left);
+      expect(t, s).toBeDefined();
+      expect(covers(box, t!.box), s).toBe(true);
     }
   });
 });

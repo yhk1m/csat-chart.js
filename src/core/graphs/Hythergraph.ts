@@ -125,11 +125,23 @@ export function renderHythergraph(
   const yTicksW = Math.max(...[yMin, yMax, yMin + yStep].map((v) => ctx.measureText(formatTick(v)).width));
   const padLeft = byStyle(options, { classic: 80, exam: Math.max(80, yTicksW + t.line.axis / 2 + (t.tickText?.yGap ?? 0) + EDGE) });
 
+  // 아래 범례 상자를 플롯 바닥에서 띄우는 거리. exam 은 눈금 숫자·x 단위 「(mm)」 아래로 내린다 —
+  // 65 로 두면 큰 글자(눈금 숫자를 키운 그림)에서 단위가 상자 윗변에 닿았다 (2.4.0)
+  const unitPx = textSize(options, 'unit', fs.axisLabel);
+  const tickPx = textSize(options, 'tick', fs.tick);
+  const legendTop = byStyle(options, {
+    classic: 65,
+    exam: Math.max(65, 4 + t.line.tickLen + tickPx * 1.1 + 14, data.xUnit ? 35 + unitPx * 1.15 + 24 : 0),
+  });
+  // 상자 아래에 출처·각주가 오면 exam 은 그만큼 띄운다 (2.3.1 아래 범례와 같은 16)
+  const hasBelow = !!options.source || options.footnotes.some((f) => f.trim());
+  const afterBox = byStyle(options, { classic: 2, exam: hasBelow ? 16 : 2 });
+
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다.
   // 아이콘 너비·간격은 아래 범례 그리기와 같은 값을 써야 한다.
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? 65 + layoutBottomLegend(ctx, legendLabels, data.series.map(() => t.legend.lineIcon),
-        lfSize, w - padLeft - (80 + legendW), options, { iconGap: look.iconGap }).boxH + 2
+    ? legendTop + layoutBottomLegend(ctx, legendLabels, data.series.map(() => t.legend.lineIcon),
+        lfSize, w - padLeft - (80 + legendW), options, { iconGap: look.iconGap }).boxH + afterBox
     : 0;
 
   const padding: Padding = {
@@ -313,6 +325,14 @@ export function renderHythergraph(
           ctx.font = textFont(options, 'value', textSize(options, 'value', fs.dataLabel));
           ctx.textAlign = 'left';
           ctx.textBaseline = 'bottom';
+          if (data.monthLabelHalo) {
+            ctx.save();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(3, fs.dataLabel * 0.25);
+            ctx.lineJoin = 'round';
+            ctx.strokeText(mLabels[i] as string, cx + look.markerR + 4, cy - look.markerR);
+            ctx.restore();
+          }
           ctx.fillText(mLabels[i] as string, cx + look.markerR + 4, cy - look.markerR);
         }
       }
@@ -331,7 +351,12 @@ export function renderHythergraph(
     for (const pts of all) {
       pts.forEach((p, i) => {
         const label = mLabels[i];
-        if (label) placer.place(ctx, label, p.cx, p.cy, { gap: look.markerR + 3, lineHeight: size * 0.8, bounds });
+        if (label) {
+          placer.place(ctx, label, p.cx, p.cy, {
+            gap: look.markerR + 3, lineHeight: size * 0.8, bounds,
+            halo: data.monthLabelHalo ? Math.max(3, size * 0.25) : 0,
+          });
+        }
       });
     }
     ctx.restore();
@@ -374,7 +399,7 @@ export function renderHythergraph(
         data.series.map(() => iconW), lfSize, boxW, options, { iconGap, padding: pad, spacing });
       const boxH = layout.boxH;
       const boxX = plotX;
-      const boxY = Math.max(0, Math.min(plotY + plotH + 65, h - boxH - 1));
+      const boxY = Math.max(0, Math.min(plotY + plotH + legendTop, h - boxH - 1));
 
       ctx.strokeStyle = t.legend.boxColor;
       ctx.lineWidth = t.legend.boxLine;

@@ -31,6 +31,10 @@ export interface HythergraphData {
    * 모든 달을 적는다. 시험지는 처음과 끝만 「1월」·「12월」로 적기도 한다 (2.3.0~).
    */
   monthLabels?: (string | null)[];
+  /**
+   * 달 이름에 흰 테두리를 두른다 — 이름이 선·기호 위에 놓여도 읽힌다. 미지정이면 두르지 않는다 (2.4.0~).
+   */
+  monthLabelHalo?: boolean;
 }
 
 export function createDefaultHythergraphData(): HythergraphData {

@@ -583,6 +583,23 @@ render○○(ctx, width, height, data, options): void
 (캔버스 자동 크기 보정, 글꼴이 늦게 도착했을 때 다시 그리기)가 필요 없을 때입니다.
 위 [Node.js 에서 PNG 뽑기](#nodejs-에서-png-뽑기)가 그런 경우입니다.
 
+### 범례 띠 (2.4.0~)
+
+시험지는 같은 모양 그래프 여러 장((가)·(나)·(다))을 나란히 두고 범례와 각주를 그 아래에
+한 번만 적습니다. `renderLegendStrip(ctx, width, height, data, options)` 는 그 띠만
+그립니다 — 범례 상자는 항목 폭에 맞춰 가운데에, 각주·출처는 다른 그래프와 같은 자리에
+둡니다. 그래프들을 그린 캔버스 아래쪽에 같은 폭으로 붙이면 됩니다. `CsatChart` 의
+`type` 에는 없습니다(그래프가 아니라 그래프에 붙는 부품이라서).
+
+```ts
+renderLegendStrip(ctx, 1320, 150, {
+  items: [
+    { type: 'circle', label: '월평균 기온 차이' },
+    { type: 'rect', label: '월 강수량 차이', fill: '#bfbfbf' },
+  ],
+}, { ...createDefaultGraphOptions('exam'), footnotes: ['월평균 기온 차이 = …'] });
+```
+
 렌더러가 눈금 간격을 잡을 때 쓰는 두 축 계산 유틸도 함께 내보냅니다 —
 `niceStep(range, maxTicks = 8)` 은 범위를 주면 1·2·5 배수 규칙으로 보기 좋은
 눈금 간격 하나를 돌려주고(범위가 0 이하거나 유한하지 않으면 1을 돌려줍니다 —

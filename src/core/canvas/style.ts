@@ -266,7 +266,8 @@ export const examStyle: StyleTokens = {
   // 같은 px 면 10–14% 작다 (실측 명세 «숫자 글꼴 대조»)
   digitHeight: 0.758,
   text: {
-    tick: examText('numeral', true, same),
+    // 눈금 숫자만 따로 키울 수 있다 (fontSize.tickNumber, 2.4.0) — 렌더러가 넘긴 크기를 그 비율로 늘린다
+    tick: examText('numeral', true, (fs, px) => (fs.tickNumber && fs.tick > 0 ? px * fs.tickNumber / fs.tick : px)),
     unit: examText('sans', true, (fs) => fs.tick),
     axisName: examText('sans', true, (fs) => fs.axisLabel),
     axisNameV: examText('sans', true, (fs) => fs.tick * 0.93),

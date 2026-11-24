@@ -361,10 +361,16 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
   const tok = styleOf(o);
   const numeralList = o.fontStack?.numeral || tok.stack.numeral;
   const numeralStack = fontStackOf(o, 'numeral');
+  const serifStack = fontStackOf(o, 'serif');
+  const sansStack = fontStackOf(o, 'sans');
   const digitFonts = new Map<string, string | null>();
+  // 돋움 자리(범례, 각주, 표 이름)의 숫자는 돋움으로 — 숫자만 명조(Garamond)라 한 줄에 글꼴이
+  // 둘로 보였다(사용자 결정 2026-11-24, 2.4.1). 양식 돋움 목록 앞의 숫자 글꼴을 뗀 목록이다
+  const sansOnly = o.fontStack?.sans || tok.stack.sans;
   const digitFontOf = (raw: string): string | null => {
     if (!tok.digitHeight || !numeralList || numeralScaleOf(raw) !== 1) return null;
     const m = /^(.*?)(\d+(?:\.\d+)?)px\s+(.*)$/.exec(raw);
+    if (m && m[3] === sansStack && sansStack !== sansOnly) return `${m[1]}${m[2]}px ${sansOnly}`;
     if (!m || !m[3].startsWith(numeralList)) return null;
     const px = parseFloat(m[2]);
     // 잴 ctx 는 감싸지 않은 원래 것 — 감싼 ctx 로 재면 글꼴 쓰기가 여기로 되돌아온다.
@@ -378,8 +384,6 @@ export function textCtx(ctx: CanvasRenderingContext2D, o: FontOptions): CanvasRe
   // 글자 갈래 (2.4.0) — 시험지는 기호 (가)·㉠ 을 명조로, 그 밖의 한글을 돋움으로 쓴다.
   // 자리 글꼴이 양식의 고딕 목록이면 기호만 명조로, 명조·숫자 목록이면 한글만 돋움으로 바꾼다.
   // 사용자가 고른 다른 글꼴이면 건드리지 않는다.
-  const serifStack = fontStackOf(o, 'serif');
-  const sansStack = fontStackOf(o, 'sans');
   const scriptFonts = new Map<string, ScriptFonts | null>();
   const scriptFontsOf = (raw: string): ScriptFonts | null => {
     const m = /^(.*?)(\d+(?:\.\d+)?)px\s+(.*)$/.exec(raw);

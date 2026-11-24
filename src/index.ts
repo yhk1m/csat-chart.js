@@ -56,6 +56,7 @@ export {
   renderTernaryGraph,
   renderTreemapGraph,
   renderLegendStrip,
+  measureLegendStrip,
 } from './core/index';
 
 // ── 축 계산 유틸 ───────────────────────────────────────

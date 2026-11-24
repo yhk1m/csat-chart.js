@@ -5,7 +5,8 @@ import { type Padding, type SpacedAxis, clearCanvas, autoRange, textFont, textSi
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { EDGE, drawFloatingLabel, nudgeInside } from '../canvas/fit';
-import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { yUnitBottom } from '../canvas/axes';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf, legendBelowLabels } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
@@ -56,9 +57,11 @@ export function renderDeviationBGraph(
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  // 지역 이름 줄 아래로 상자를 띄운다 (2.4.1)
+  const belowOff = legendBelowLabels(options, 12 + styleOf(options).categoryGap, regionFs);
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, legendLabels, legendFs,
-        w - 130 - (130 + legendW), options, ['rect', 'circle'])
+        w - 130 - (130 + legendW), options, ['rect', 'circle'], belowOff)
     : 0;
 
   const padding: Padding = {
@@ -254,6 +257,7 @@ export function renderDeviationBGraph(
       canvasW: w, canvasH: h,
       fontSize: legendFs,
       rightGap: legendGap,
+      bottomOffset: belowOff,
     });
   }
 
@@ -317,7 +321,7 @@ function drawDevBYAxis(
   const labelX = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
   ctx.textAlign = side === 'left' ? 'right' : 'left';
   // 안에 있으면 그 자리 그대로 — exam 의 괄호(한글 가운데로 올라선다)가 위로 넘칠 때만 민다
-  const at = nudgeInside(ctx, label, labelX, plotY - 16, width, height);
+  const at = nudgeInside(ctx, label, labelX, yUnitBottom(o, plotY), width, height);
   ctx.fillText(label, at.x, at.y);
   ctx.restore();
 }

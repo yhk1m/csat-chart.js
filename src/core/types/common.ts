@@ -140,6 +140,11 @@ export interface GraphOptions {
      * 그것들은 두고 축 눈금 숫자만 키울 때 쓴다. 미지정이면 `tick` 과 같다.
      */
     tickNumber?: number;
+    /**
+     * 기호 글자 배율 (2.4.1~, exam). 「(가)」·「A」 처럼 그림 속 점·선·막대에 붙는 기호
+     * (symbol·category 자리)만 이 배율로 키운다. 미지정이면 1.
+     */
+    symbolScale?: number;
   };
   showDataLabels: boolean;
   showLegend: boolean;

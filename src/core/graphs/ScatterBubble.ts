@@ -3,7 +3,7 @@ import { type ScatterGraphData, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, autoRange, fillTextMultiline, textFont, textSize, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { legendSideOf } from '../canvas/legend';
-import { xTickLabelAt, yTickLabelAt, yUnitLeft } from '../canvas/axes';
+import { xTickLabelAt, yTickLabelAt, yUnitLeft, yUnitBottom } from '../canvas/axes';
 import { styleOf, byStyle, labelPlace, leaderOf, tickDirOf, type StyleTokens, type TickDir } from '../canvas/style';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, LabelPlacer, labelStride, widestLabel, type LabelBox } from '../canvas/labels';
 import { EDGE, clampLinesMiddle, drawFloatingLabel, fillLines, fontSizeOf, inkExtent, nudgeInside, shrinkToWidth, textExtent, widestLine, wrapToWidth } from '../canvas/fit';
@@ -136,9 +136,19 @@ function renderNormal(
     return at ? Math.max(40, at.y + tickPx * 0.3) : 40;
   })();
 
+  // 단위는 마지막 눈금 숫자의 오른쪽 끝(가운데 맞춤이라 절반이 축 밖)에서 6px 뒤에 붙는다.
+  // 34 로 두면 눈금 숫자를 키운 그림(fontSize.tickNumber)에서 「(%)」 가 캔버스 밖으로 잘렸다 (2.4.1)
+  const lastTickHalf = examUnitW > 0 ? (() => {
+    ctx.save();
+    ctx.font = textFont(options, 'tick', tickPx);
+    const half = ctx.measureText(formatTick(xMax)).width / 2;
+    ctx.restore();
+    return half;
+  })() : 0;
+
   const padding: Padding = {
     top: options.title ? 100 : 50,
-    right: legendW > 0 ? legendW + 40 : Math.max(60, examUnitW + 34),
+    right: Math.max(legendW > 0 ? legendW + 40 : 60, examUnitW + Math.max(34, Math.ceil(lastTickHalf + 6 + EDGE))),
     bottom: (() => {
       // 축 이름을 민 만큼 아래 여백도 늘린다
       let b = 90 + (xNameOff - 40);
@@ -307,7 +317,7 @@ function renderNormal(
     const examLeft = yUnitLeft(options, plotX, yTickLeft);
     ctx.textAlign = examLeft === null ? 'right' : 'left';
     ctx.textBaseline = 'bottom';
-    drawFloatingLabel(ctx, data.yUnit, examLeft ?? plotX - 10, plotY - 16, w, h,
+    drawFloatingLabel(ctx, data.yUnit, examLeft ?? plotX - 10, yUnitBottom(options, plotY), w, h,
       textSize(options, 'unit', fs.axisLabel), (size) => textFont(options, 'unit', size));
   }
 
@@ -603,7 +613,7 @@ function renderDeviation(
     // 십자축이면 맨 위 눈금 숫자(가운데 맞춤)의 잉크 윗끝에서 띄운다 — 단위·숫자 모두 실제로
     // 찍히는 글꼴·크기(숫자 높이 맞춤 뒤, 괄호 조각 포함)의 잉크로 잰다. 틈은 글꼴 크기에서
     // 잡는다 — 어느 글꼴이 대체로 들어와도(리눅스 CI) 붙지 않는다 (2.2.1)
-    let unitY = plotY - 16;
+    let unitY = yUnitBottom(options, plotY);
     if (data.ticksOnAxis) {
       const unitFont = ctx.font;
       ctx.font = textFont(options, 'tick', textSize(options, 'tick', fs.tick));

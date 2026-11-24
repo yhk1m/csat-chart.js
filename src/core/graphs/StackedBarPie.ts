@@ -2,9 +2,9 @@
 import { type StackedGraphData, type StackedCategory, type GraphOptions } from '../types/index';
 import { type Padding, clearCanvas, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
-import { yUnitLeft } from '../canvas/axes';
+import { yUnitLeft, yUnitBottom, topWithYUnit } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve, inkText } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf, legendBelowLabels } from '../canvas/legend';
 import { EDGE, nudgeInside, shrinkToWidth, textExtent } from '../canvas/fit';
 import { getStackedFill, isLightFill, resolveFill, isLightFillValue } from '../canvas/patterns';
 import { styleOf, byStyle, tickDirOf, type StyleTokens } from '../canvas/style';
@@ -78,13 +78,17 @@ function renderStackedBar(
   }
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  // 세로 막대는 범주 이름 줄 아래로 상자를 띄운다 (2.4.1)
+  const belowOff = isVertical
+    ? legendBelowLabels(options, 12 + styleOf(options).categoryGap, catFs)
+    : legendBelowLabels(options, 10, textSize(options, 'tick', options.fontSize.tick));
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, data.seriesLabels, legendFs,
-        w - (isVertical ? vLeft : hLeft) - (isVertical ? 60 + legendW : 160 + legendW), options)
+        w - (isVertical ? vLeft : hLeft) - (isVertical ? 60 + legendW : 160 + legendW), options, 'rect', belowOff)
     : 0;
 
   const padding: Padding = {
-    top: options.title ? 100 : 50,
+    top: topWithYUnit(options, options.title ? 100 : 50, data.unit),
     right: isVertical ? 60 + legendW : 160 + legendW,
     bottom: (() => {
       let b = isVertical ? 70 : 60;
@@ -167,7 +171,7 @@ function renderStackedBar(
       const examLeft = yUnitLeft(options, plotX, tickLeft);
       if (examLeft !== null) ctx.textAlign = 'left';
       // 안에 있으면 그 자리 그대로 — 넓은 글꼴에서 괄호가 왼쪽으로 넘칠 때만 민다
-      const at = nudgeInside(ctx, data.unit, examLeft ?? plotX - 10, plotY - 16, w, h);
+      const at = nudgeInside(ctx, data.unit, examLeft ?? plotX - 10, yUnitBottom(options, plotY), w, h);
       ctx.fillText(data.unit, at.x, at.y);
     }
 
@@ -351,6 +355,7 @@ function renderStackedBar(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
+      bottomOffset: belowOff,
     });
   }
 

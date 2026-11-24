@@ -15,8 +15,8 @@ const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: num
   classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity, belowPlot: 50, afterBox: 2 },
   // 오른쪽 범례는 캔버스 폭의 40% 까지 — 넘는 이름은 글꼴을 줄여 담는다 (exam 글자가 커서 플롯이 사라졌다)
   // 아래 범례 상자는 플롯 바닥에서 belowPlot 만큼 — exam 의 큰 「(가)」 괄호가 상자 윗변에 닿아 8 더 내린다
-  // afterBox: 상자 아래에 출처·연도·각주가 있을 때 비우는 칸. exam 은 그 줄이 상자 밑변에 붙어 보여 띄운다 (2.3.1)
-  exam: { rightMaxRatio: 0.4, belowPlot: 58, afterBox: 16 },
+  // afterBox: 상자 아래에 출처·연도·각주가 있을 때 비우는 칸. exam 은 그 줄이 상자 밑변에 붙어 보여 띄운다 (2.3.1, 2.4.1 에서 16 → 22)
+  exam: { rightMaxRatio: 0.4, belowPlot: 58, afterBox: 22 },
 };
 
 export interface LegendItem {
@@ -421,6 +421,16 @@ export function layoutBottomLegend(
     rows,
     boxH: rows.length * lineHeight + (rows.length - 1) * ROW_GAP + padding * 2,
   };
+}
+
+/**
+ * exam: 아래 범례 상자를 가로축 글자 줄 **아래로** 띄우는 거리 (2.4.1).
+ * 고정 거리(58)면 큰 글자(달 숫자, 지역 이름)가 상자 윗변에 거의 닿았다(사용자 요청 「따닥따닥 붙은 건 없어야」).
+ * labelTop: 플롯 바닥에서 글자 윗변까지, labelPx: 글자 크기. classic 은 예전 값 그대로.
+ */
+export function legendBelowLabels(fonts: FontOptions, labelTop: number, labelPx: number): number {
+  if (styleOf(fonts).name !== 'exam') return byStyle(fonts, LOOK).belowPlot;
+  return Math.max(LOOK.exam.belowPlot, Math.ceil(labelTop + labelPx + Math.max(16, labelPx * 0.45)));
 }
 
 /** 아래 범례 상자를 플롯 바닥에서 띄우는 기본 거리 (양식별) */

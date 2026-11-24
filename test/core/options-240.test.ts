@@ -99,3 +99,24 @@ describe('Hythergraph monthLabelHalo', () => {
     expect(strokes(false)).toEqual([]);
   });
 });
+
+describe('2.4.1 fontSize.symbolScale', () => {
+  it('기호·범주 자리만 키우고 범례·눈금은 그대로', () => {
+    const o = createDefaultGraphOptions('exam');
+    const big = { ...o, fontSize: { ...o.fontSize, symbolScale: 1.5 } };
+    expect(textSize(big, 'symbol', 40)).toBeCloseTo(60);
+    expect(textSize(big, 'category', 0)).toBeCloseTo(textSize(o, 'category', 0) * 1.5);
+    expect(textSize(big, 'legend', 35)).toBe(textSize(o, 'legend', 35));
+    expect(textSize(big, 'tick', 35)).toBe(textSize(o, 'tick', 35));
+  });
+});
+
+describe('2.4.1 yUnitBottom', () => {
+  it('눈금 숫자를 키우면 세로축 단위가 더 올라간다', async () => {
+    const { yUnitBottom } = await import('../../src/core/canvas/axes');
+    const o = createDefaultGraphOptions('exam');
+    const big = { ...o, fontSize: { ...o.fontSize, tickNumber: 60 } };
+    expect(yUnitBottom(big, 100)).toBeLessThan(yUnitBottom(o, 100));
+    expect(yUnitBottom(createDefaultGraphOptions('classic'), 100)).toBe(84);
+  });
+});

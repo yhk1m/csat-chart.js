@@ -268,12 +268,16 @@ export const examStyle: StyleTokens = {
   text: {
     // 눈금 숫자만 따로 키울 수 있다 (fontSize.tickNumber, 2.4.0) — 렌더러가 넘긴 크기를 그 비율로 늘린다
     tick: examText('numeral', true, (fs, px) => (fs.tickNumber && fs.tick > 0 ? px * fs.tickNumber / fs.tick : px)),
-    unit: examText('sans', true, (fs) => fs.tick),
+    // 단위 「(mm)」·「(°C)」 는 눈금 숫자와 같은 명조(숫자 글꼴 + 신명조), 같은 크기 — 돋움 35px 라 숫자보다
+    // 작고 글꼴도 달라 보였다(사용자 요청 2026-11-24, 2.4.1). 숫자 글꼴은 숫자 높이로 키워 그리므로(numeralSize)
+    // 0.8 배면 원본 시험지처럼 숫자보다 조금 작다. 「(만 명)」 의 한글은 글자 갈래 규칙대로 돋움
+    unit: examText('numeral', true, (fs) => (fs.tickNumber ?? fs.tick) * 0.8),
     axisName: examText('sans', true, (fs) => fs.axisLabel),
     axisNameV: examText('sans', true, (fs) => fs.tick * 0.93),
-    category: examText('serif', true, (fs) => fs.tick * 1.37),
+    // 기호만 따로 키울 수 있다 (fontSize.symbolScale, 2.4.1)
+    category: examText('serif', true, (fs) => fs.tick * 1.37 * (fs.symbolScale ?? 1)),
     region: examText('sans', true, (fs) => fs.axisLabel),
-    symbol: examText('numeral', true, same),
+    symbol: examText('numeral', true, (fs, px) => px * (fs.symbolScale ?? 1)),
     value: examText('numeral', true, same),
     legend: examText('sans', false, (fs) => fs.tick),
     title: examText('sans', false, same),

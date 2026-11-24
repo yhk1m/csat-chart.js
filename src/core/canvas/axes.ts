@@ -55,13 +55,16 @@ const plotArea = (p: Padding, w: number, h: number) => ({
 export function drawYAxis({
   ctx, padding, width, height,
   min, max, step, label, side,
-  fonts, tickFontSize, labelFontSize,
+  fonts, tickFontSize: tickBase, labelFontSize,
   drawGrid = false,
   gridColor,
   gridWidth,
   tickDir = 'out',
   signed = false,
 }: YAxisParams) {
+  // 렌더러는 fontSize.tick 을 넘긴다 — 눈금 숫자 크기(fontSize.tickNumber)는 여기서 적용한다 (2.4.1).
+  // 예전에는 꺾은선·막대 등 이 함수로 그리는 세로축만 tickNumber 를 무시했다
+  const tickFontSize = textSize(fonts, 'tick', tickBase);
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
   const tickLen = t.line.tickLen;
@@ -168,6 +171,33 @@ export function drawYAxis({
 }
 
 /**
+ * 세로축 단위 「(%)」·「(°C)」 의 아랫변 y (textBaseline 'bottom'). classic 은 1.7.0 그대로 플롯 위 16px.
+ * exam 은 눈금 숫자를 키우면(fontSize.tickNumber) 맨 위 숫자가 단위에 닿았다 — 숫자 크기의 절반 + 4 를
+ * 띄운다 (2.4.1). 기본 크기(35)에서도 조금 올라간다.
+ */
+export function yUnitBottom(o: FontOptions & { fontSize?: GraphOptions['fontSize'] }, plotY: number): number {
+  if (styleOf(o).name !== 'exam' || !o.fontSize) return plotY - 16;
+  const px = textSize(o, 'tick', o.fontSize.tick);
+  return plotY - Math.max(16, Math.round(px * 0.5 + 4));
+}
+
+/**
+ * 세로축 단위가 있을 때 플롯 위 여백 (2.4.1). 단위를 키우자(눈금 숫자와 같은 명조) 제목 아래 고정 여백(100)에서
+ * 「(%)」 가 제목 줄에 올라탔다. 제목 자리(64) + 단위 높이 + 단위와 플롯 사이를 더한 값과 base 중 큰 쪽.
+ */
+export function topWithYUnit(
+  o: FontOptions & { fontSize?: GraphOptions['fontSize']; title?: string },
+  base: number,
+  unit: string | undefined,
+): number {
+  if (!unit || styleOf(o).name !== 'exam' || !o.fontSize) return base;
+  const unitPx = textSize(o, 'unit', o.fontSize.tick);
+  // 공용 축(drawYAxis)은 단위를 눈금 크기의 절반 + 8 위에 둔다 — 둘 중 높은 쪽으로 잰다
+  const above = Math.max(0 - yUnitBottom(o, 0), textSize(o, 'tick', o.fontSize.tick) * 0.5 + 8);
+  return Math.max(base, Math.ceil((o.title ? 64 : 8) + unitPx * 1.25 + above));
+}
+
+/**
  * exam 세로축(왼쪽) 단위의 왼쪽 끝 x. `tickLeft` 는 눈금 숫자 열의 왼쪽 끝.
  * classic 이면 null — 1.7.0 자리(숫자 열에 오른쪽 맞춤)를 그대로 쓴다.
  */
@@ -179,10 +209,12 @@ export function yUnitLeft(fonts: FontOptions, axisX: number, tickLeft: number): 
 export function drawXAxis({
   ctx, padding, width, height,
   labels, indices,
-  fonts, tickFontSize,
+  fonts, tickFontSize: tickBase,
   tickDir = 'out',
   extraGap = 0,
 }: XAxisParams) {
+  // 눈금 숫자 크기(fontSize.tickNumber)를 여기서 적용한다 (2.4.1)
+  const tickFontSize = textSize(fonts, 'tick', tickBase);
   const plot = plotArea(padding, width, height);
   const t = styleOf(fonts);
   const y = plot.y + plot.h;

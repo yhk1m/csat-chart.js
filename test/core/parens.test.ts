@@ -5,7 +5,8 @@ import {
   splitParenRuns, splitRuns, measureMixed, fillMixed, textCtx, resetParenCache, PAREN_HEIGHT,
 } from '../../src/core/canvas/parens';
 import { createDefaultGraphOptions } from '../../src/core/index';
-import { setFontMeasurer, resetDigitCache, textFont, getFont, fontStackOf, numeralSize } from '../../src/core/canvas/renderer';
+import { setFontMeasurer, resetDigitCache, textFont, getFont } from '../../src/core/canvas/renderer';
+import { styleOf } from '../../src/core/canvas/style';
 
 const PAREN = "'PARENFONT'";
 
@@ -214,17 +215,16 @@ describe('숫자 조각 — 고딕·명조 자리 글줄의 숫자를 숫자 자
     expect(t.calls[1].y).toBe(100);
   });
 
-  it('textCtx(exam): 고딕 자리 글꼴이면 숫자 조각을 numeralSize 로, 숫자 자리 글꼴이면 가르지 않는다', () => {
+  it('textCtx(exam): 고딕 자리 숫자는 돋움(숫자 글꼴을 뗀 목록)으로, 숫자 자리 글꼴이면 가르지 않는다', () => {
+    // 2.4.1 — 돋움 줄 안의 숫자만 명조로 보이던 것을 돋움으로 맞췄다 (사용자 결정 2026-11-24)
     const { ctx, calls } = fakeCtx();
     setFontMeasurer(ctx);
     const o = { ...createDefaultGraphOptions('exam'), style: 'exam' as const, fontStack: { serif: PAREN, numeral: "'NUM'" } };
     const c = textCtx(ctx, o);
     c.font = getFont(35, o, 'normal', 'sans');
     c.fillText('1991~2020년', 0, 0);
-    const numStack = fontStackOf(o, 'numeral');
-    const size = numeralSize(35, 'normal', numStack, 0.758, ctx);
-    expect(size).not.toBe(35);
-    expect(calls[0]).toMatchObject({ text: '1991', font: `normal ${size}px ${numStack}` });
+    expect(calls[0]).toMatchObject({ text: '1991', font: `normal 35px ${styleOf(o).stack.sans}` });
+    expect(calls[0].font).not.toContain('NUM');
     expect(calls[1].font).toBe(getFont(35, o, 'normal', 'sans'));
 
     calls.length = 0;

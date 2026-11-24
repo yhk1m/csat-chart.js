@@ -21,7 +21,7 @@ export { renderRadarChart } from './graphs/RadarChart';
 export { renderScatterGraph } from './graphs/ScatterBubble';
 export { renderStackedGraph } from './graphs/StackedBarPie';
 export { renderTernaryGraph } from './graphs/TernaryDiagram';
-export { renderLegendStrip } from './graphs/LegendStrip';
+export { renderLegendStrip, measureLegendStrip } from './graphs/LegendStrip';
 
 // ── 공용 유틸 ───────────────────────────────────────────
 export {

@@ -105,7 +105,7 @@ function drawAbsBarGraph(
     let down = 0;
     for (const c of data.categories) down = Math.max(down, textExtent(ctx, c.label).down);
     ctx.restore();
-    legendOffset = Math.max(legendOffset, Math.ceil(12 + t.categoryGap + down + Math.max(8, catFs * 0.3)));
+    legendOffset = Math.max(legendOffset, Math.ceil(12 + t.categoryGap + down + Math.max(16, catFs * 0.45)));
   }
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
   const legendReserve = (showLegend && legendPos === 'bottom' && !data.insideLegend)

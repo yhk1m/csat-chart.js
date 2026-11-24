@@ -4,8 +4,9 @@ import { type DeviationAData, type GraphOptions } from '../types/index';
 import { type Padding, type SpacedAxis, clearCanvas, autoRange, textFont, textSize, spaceTicks, tickLabelHeight, type FontOptions } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { insideFallsBack, drawLegend, drawInsideLegend, measureLegendWidth, measureBottomLegend, legendSideOf, legendBelowLabels } from '../canvas/legend';
 import { EDGE, MIN_SCALE, nudgeInside, shrinkToWidth } from '../canvas/fit';
+import { yUnitBottom } from '../canvas/axes';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
@@ -90,16 +91,24 @@ function drawDeviationAGraph(
   const padRight = 130 + legendW + (data.precipAxisName ? nameW : 0);
   const padLeft = 130 + (data.tempAxisName ? nameW : 0);
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  // 달 숫자 줄 아래로 상자를 띄운다 (2.4.1) — monthY 와 같은 계산
+  const belowOff = legendBelowLabels(options,
+    (look.xTicks ? styleOf(options).line.tickLen + 6 : 12) + styleOf(options).categoryGap, tickFs);
   const legendReserve = (showLegend && legendPos === 'bottom' && !insideLegend)
     ? measureBottomLegend(ctx, legendLabels, legendFs,
-        w - padLeft - padRight, options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+        w - padLeft - padRight, options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'], belowOff)
     : 0;
 
   const padding: Padding = {
     top: options.title ? 100 : 50,
     right: padRight,
     bottom: (() => {
-      let b = 60;
+      // exam: 달 숫자(칸 이름) 줄이 들어갈 자리 — 눈금 숫자를 키우면 60 으로는 ㉠·㉡ 아래가 잘렸다 (2.4.1)
+      let b = byStyle(options, {
+        classic: 60,
+        exam: Math.max(60, Math.ceil((look.xTicks ? styleOf(options).line.tickLen + 6 : 12)
+          + styleOf(options).categoryGap + tickFs * 1.15 + 6)),
+      });
       // 플롯 안에 범례를 그릴 때는 아래에 자리를 비워 둘 이유가 없다
       if (showLegend && legendPos === 'bottom' && !insideLegend) b += 60;
       b = Math.max(b, legendReserve);
@@ -305,7 +314,8 @@ function drawDeviationAGraph(
     const half = ctx.measureText(MONTH_LABELS[indices[totalSlots - 1]]).width / 2;
     ctx.font = unitFont;
     ctx.textAlign = 'left';
-    ctx.fillText('(월)', lastCx + half, monthY);
+    // 「12(월)」이 붙어 보이지 않게 글자 0.15배 띄운다 (2.4.1)
+    ctx.fillText('(월)', lastCx + half + Math.round(textSize(options, 'unit', options.fontSize.tick) * 0.15), monthY);
   } else {
     ctx.font = unitFont;
     ctx.textAlign = 'center';
@@ -352,6 +362,7 @@ function drawDeviationAGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: legendFs,
+      bottomOffset: belowOff,
       // exam: 오른쪽 축 숫자·세로 축 이름 바깥에서 시작한다 — 80 이면 긴 축 이름 위에 상자가 얹혔다
       rightGap: byStyle(options, {
         classic: 80,
@@ -445,7 +456,7 @@ function drawDeviationYAxis(
     ctx.textAlign = side === 'left' ? 'right' : 'left';
     ctx.font = makeFont(shrinkToWidth(ctx, [label], textSize(o, 'unit', o.fontSize.axisLabel), width - EDGE * 2, makeFont));
     const labelX = side === 'left' ? x - tickLabelGap(t) : x + tickLabelGap(t);
-    const at = nudgeInside(ctx, label, labelX, plotY - 16, width, height);
+    const at = nudgeInside(ctx, label, labelX, yUnitBottom(o, plotY), width, height);
     ctx.fillText(label, at.x, at.y);
     ctx.restore();
   }

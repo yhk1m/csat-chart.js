@@ -4,7 +4,7 @@ import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../can
 import { textCtx } from '../canvas/parens';
 import { drawYAxis, drawXAxis, xTickLabelAt } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
-import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, legendSideOf, legendBelowLabels } from '../canvas/legend';
 import { styleOf, byStyle, tickLabelGap } from '../canvas/style';
 
 const LOOK = {
@@ -46,9 +46,12 @@ export function renderClimateGraph(
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  // 달 숫자 줄 아래로 상자를 띄운다 (2.4.1)
+  const belowOff = legendBelowLabels(options, tickLabelGap(styleOf(options)) + styleOf(options).categoryGap,
+    textSize(options, 'tick', options.fontSize.tick));
   const legendReserve = (showLegend && legendPos === 'bottom')
     ? measureBottomLegend(ctx, legendLabels, legendFs,
-        w - 130 - (130 + legendW), options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'])
+        w - 130 - (130 + legendW), options, ['rect', data.monthInterval === 12 ? 'line' : 'circle'], belowOff)
     : 0;
 
   const padding: Padding = {
@@ -238,7 +241,9 @@ export function renderClimateGraph(
     ctx.font = unitFont;
     ctx.textAlign = 'left';
     if (at) ctx.textBaseline = at.baseline;
-    ctx.fillText('(월)', lastCx + half, (at ? at.y : plotY + plotH + tickLabelGap(t)) + t.categoryGap);
+    // 「12(월)」이 붙어 보이지 않게 글자 0.15배 띄운다 (2.4.1)
+    const unitGap = Math.round(textSize(options, 'unit', options.fontSize.tick) * 0.15);
+    ctx.fillText('(월)', lastCx + half + unitGap, (at ? at.y : plotY + plotH + tickLabelGap(t)) + t.categoryGap);
   } else {
     ctx.font = unitFont;
     ctx.textAlign = 'center';
@@ -259,6 +264,7 @@ export function renderClimateGraph(
       canvasW: w, canvasH: h,
       fontSize: legendFs,
       rightGap: 80,
+      bottomOffset: belowOff,
     });
   }
 

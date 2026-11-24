@@ -92,6 +92,14 @@ interface SourceFootnoteParams {
  */
 const BELOW_GAP = 16;
 
+/**
+ * 각주 한 줄이 차지하는 높이(윗줄 바닥에서 아랫줄 바닥까지). classic 은 1.7.0 그대로 글자 + 4.
+ * exam 은 줄 사이가 4px 뿐이라 각주 두 줄이 붙어 보였다(사용자 요청 2026-11-24) — 글자의 0.3배를 띄운다 (2.4.1)
+ */
+export function noteStep(fonts: LabelFonts, noteSize: number): number {
+  return styleOf(fonts).name === 'exam' ? noteSize + Math.max(4, Math.round(noteSize * 0.3)) : noteSize + 4;
+}
+
 /** 출처·각주를 캔버스 좌우 끝에서 얼마나 띄울지 */
 const EDGE_MARGIN = 10;
 
@@ -116,7 +124,8 @@ export function drawSourceAndFootnote({
   // 위에서 아래로: 출처 → 각주들.
   // 단 sourceLeft 를 주면 순서가 뒤집힌다 — 각주 아래에 "(연도) ... (출처)" 한 줄.
   const filtered = footnotes.filter((f) => f.trim());
-  const totalFootnoteH = filtered.length * (noteSize + 4);
+  const step = noteStep(fonts, noteSize);
+  const totalFootnoteH = filtered.length * step;
   const sourceBelow = !!sourceLeft;
   // 시험지 관습 — 출처를 마지막 각주와 **같은 줄** 오른쪽 끝에 둔다.
   // 주지 않으면 양식의 기본값(exam 은 켜짐). 각주가 없으면 놓을 줄이 없으므로 기존 배치.
@@ -138,7 +147,7 @@ export function drawSourceAndFootnote({
   let y = height - 6 - totalFootnoteH - (sourceBelow || sourceUnder ? sourceH : 0);
   // 각주는 글자 아래끝(bottom)에 맞춰 찍으므로 묶음이 한 줄 높다 — 아래 출처 줄과의 사이가 빈 줄
   // 하나만큼 벌어졌다(겹침 비교 stacked: 9.3pt ↔ 시험지 4.6pt). exam 은 그 한 줄에서 BELOW_GAP 만 남긴다
-  if ((sourceBelow || sourceUnder) && t.name === 'exam' && filtered.length > 0) y += noteSize + 4 - BELOW_GAP;
+  if ((sourceBelow || sourceUnder) && t.name === 'exam' && filtered.length > 0) y += step - BELOW_GAP;
 
   const sourceFont = (size: number) => textFont(fonts, 'source', size);
 
@@ -178,7 +187,7 @@ export function drawSourceAndFootnote({
     ctx.textBaseline = 'bottom';
     ctx.fillText(text, leftX, y, room > 0 ? room : undefined);
     lastFootnoteY = y;
-    y += noteSize + 4;
+    y += step;
   }
 
   // 마지막 각주와 같은 줄, 오른쪽 끝
@@ -257,7 +266,7 @@ export function sourceFootnoteReserve(
   if (t.name === 'classic') return classic;
   const notes = o.footnotes.filter((f) => f.trim()).length;
   const srcLine = textSize(o, 'source', fontSize) + 8;
-  const noteLine = textSize(o, 'footnote', fontSize * 0.9) + 4;
+  const noteLine = noteStep(o, textSize(o, 'footnote', fontSize * 0.9));
   const inline = !draws.sourceLeft && !!(draws.sourceInline ?? t.sourceInline) && notes > 0;
   // 같은 줄에 안 들어가 출처가 각주 아래로 내려가는 경우 (drawSourceAndFootnote 의 sourceUnder).
   // 렌더러는 출처·각주를 캔버스 좌우 끝(EDGE_MARGIN)까지 쓴다 — 그 폭으로 잰다
@@ -433,11 +442,12 @@ export class LabelPlacer {
       paint(x, y - inkTop);
     };
     /** 잉크가 점에서 너무 멀면 유도선 — 잉크 모드에서만 */
-    const leaderIfFar = (x: number, y: number) => {
+    const leaderIfFar = (x: number, y: number, diagonal = false) => {
       if (!opts.ink) return;
       const dx = Math.max(x - cx, 0, cx - (x + w));
       const dy = Math.max(y - cy, 0, cy - (y + h));
-      if (Math.hypot(dx, dy) - opts.ink.r > h * opts.ink.leaderAt) this.leaderLine(ctx, cx, cy, x, y, w, h);
+      // 대각 자리는 가까워도 점에서 떠 보인다 — 어느 점의 이름인지 유도선으로 잇는다 (2.4.1)
+      if (diagonal || Math.hypot(dx, dy) - opts.ink.r > h * opts.ink.leaderAt) this.leaderLine(ctx, cx, cy, x, y, w, h);
     };
 
     // 가까운 곳부터 — 오른쪽 위를 먼저 본다(기존 기본 위치). 잉크 모드(시험지)는 옆부터
@@ -466,7 +476,7 @@ export class LabelPlacer {
 
         if (!this.overlaps(box)) {
           this.used.push(box);
-          leaderIfFar(x, y);
+          leaderIfFar(x, y, dx !== 0 && dy !== 0);
           draw(x, y);
           return;
         }

@@ -15,7 +15,7 @@ import {
 } from '../types/index';
 import { type Padding, clearCanvas, autoRange, textFont, textSize } from '../canvas/renderer';
 import { textCtx } from '../canvas/parens';
-import { drawYAxis, xTickLabelAt } from '../canvas/axes';
+import { drawYAxis, xTickLabelAt, topWithYUnit } from '../canvas/axes';
 import {
   drawTitle,
   drawSourceAndFootnote,
@@ -110,8 +110,10 @@ export function renderLineGraph(
   // 안 그러면 좁은 패널에서 잘린다.
   const tickSize = textSize(options, 'tick', options.fontSize.tick);
   ctx.font = textFont(options, 'tick', tickSize);
+  // exam: 「2025(년)」 처럼 붙어 보이지 않게 단위를 글자 0.25배 띄운다 (2.4.1)
+  const xUnitGap = byStyle(options, { classic: 6, exam: Math.max(6, Math.round(textSize(options, 'unit', options.fontSize.tick) * 0.25)) });
   const xUnitW = data.xUnit
-    ? ctx.measureText(data.xUnit).width + ctx.measureText(data.xLabels[n - 1] ?? '').width / 2 + 12
+    ? ctx.measureText(data.xUnit).width + ctx.measureText(data.xLabels[n - 1] ?? '').width / 2 + 6 + xUnitGap
     : 0;
 
   const padRight = 24 + legendW + Math.max(endLabelW, xUnitW);
@@ -122,7 +124,7 @@ export function renderLineGraph(
     : 0;
 
   const padding: Padding = {
-    top: options.title ? 100 : 50,
+    top: topWithYUnit(options, options.title ? 100 : 50, data.yUnit),
     right: padRight,
     bottom: (() => {
       // 눈금 숫자를 키웠으면(fontSize.tickNumber, 2.4.0) 그만큼 아래 각주를 내린다
@@ -218,7 +220,9 @@ export function renderLineGraph(
   const namedGap = named.length > 1
     ? Math.min(...named.slice(1).map((v, k) => v - named[k]))
     : 1;
-  const xStride = labelStride(stepX * namedGap, widestLabel(ctx, data.xLabels));
+  // exam: 이름 사이를 6px 만 두면 「1990 1995 2000」이 한 덩어리로 보였다 — 글자의 0.3배는 띄운다 (2.4.1)
+  const xMinGap = byStyle(options, { classic: 6, exam: Math.max(6, tickSize * 0.3) });
+  const xStride = labelStride(stepX * namedGap, widestLabel(ctx, data.xLabels), xMinGap);
   const shownSet = new Set(named.filter((_, k) => k % xStride === 0));
   const labelShown = (i: number) => shownSet.has(i);
 
@@ -531,7 +535,7 @@ export function renderLineGraph(
     const lastLabelHalf = ctx.measureText(data.xLabels[n - 1] ?? '').width / 2;
     ctx.textAlign = 'left';
     ctx.font = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
-    ctx.fillText(data.xUnit, plotX + plotW + lastLabelHalf + 6, xLabelY);
+    ctx.fillText(data.xUnit, plotX + plotW + lastLabelHalf + xUnitGap, xLabelY);
   }
 
   if (options.title) {

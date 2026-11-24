@@ -77,7 +77,8 @@ describe('exam 글꼴', () => {
 
   it('지명·단위·범례·출처·각주는 고딕, 항목 이름은 명조', () => {
     expect(textFont(o, 'region', 30)).toContain(sansFont(o));
-    expect(textFont(o, 'unit', 30)).toContain(sansFont(o));
+    // 2.4.1 — 단위는 눈금 숫자와 같은 명조(숫자 글꼴 + 신명조)
+    expect(textFont(o, 'unit', 30)).toBe(textFont(o, 'tick', 30));
     expect(textFont(o, 'legend', 30)).toContain(sansFont(o));
     expect(textFont(o, 'category', 30)).toBe(getFont(30, o, 'normal', 'serif'));
   });
@@ -91,7 +92,8 @@ describe('exam 글꼴', () => {
   it('크기는 자리 규칙 — 단위·범례·출처는 눈금 크기, 항목 이름은 ×1.37', () => {
     const fs = { title: 40, axisLabel: 39, tick: 35, dataLabel: 40 };
     const e = { ...o, fontSize: fs };
-    expect(textSize(e, 'unit', 999)).toBe(35);
+    // 2.4.1 — 단위는 눈금 숫자 크기의 0.8 배(숫자 글꼴은 숫자 높이로 다시 키워 그린다)
+    expect(textSize(e, 'unit', 999)).toBeCloseTo(28, 5);
     expect(textSize(e, 'legend', 999)).toBe(35);
     expect(textSize(e, 'source', 999)).toBe(35);
     expect(textSize(e, 'category', 999)).toBeCloseTo(47.95, 2);

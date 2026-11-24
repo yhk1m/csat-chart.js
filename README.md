@@ -600,6 +600,9 @@ renderLegendStrip(ctx, 1320, 150, {
 }, { ...createDefaultGraphOptions('exam'), footnotes: ['월평균 기온 차이 = …'] });
 ```
 
+띠 높이는 `measureLegendStrip(ctx, width, data, options)` 로 재면 됩니다(2.4.1~). 상자와 각주가
+붙지 않는 가장 작은 높이를 돌려줍니다. 각주는 상자 바로 아래에 적히므로 띠를 더 높게 잡으면 아래가 빕니다.
+
 렌더러가 눈금 간격을 잡을 때 쓰는 두 축 계산 유틸도 함께 내보냅니다 —
 `niceStep(range, maxTicks = 8)` 은 범위를 주면 1·2·5 배수 규칙으로 보기 좋은
 눈금 간격 하나를 돌려주고(범위가 0 이하거나 유한하지 않으면 1을 돌려줍니다 —

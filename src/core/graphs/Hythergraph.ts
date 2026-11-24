@@ -11,7 +11,7 @@ import { LabelPlacer, drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } 
 import { EDGE, drawFloatingLabel } from '../canvas/fit';
 import { measureLegendWidth, layoutBottomLegend, legendSideOf } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
-import { xTickLabelAt, yTickLabelAt } from '../canvas/axes';
+import { xTickLabelAt, yTickLabelAt, yUnitBottom, topWithYUnit } from '../canvas/axes';
 
 // 계열별 점선 (classic) — 굵기는 t.line.series
 const LINE_DASHES: number[][] = [
@@ -133,9 +133,9 @@ export function renderHythergraph(
     classic: 65,
     exam: Math.max(65, 4 + t.line.tickLen + tickPx * 1.1 + 14, data.xUnit ? 35 + unitPx * 1.15 + 24 : 0),
   });
-  // 상자 아래에 출처·각주가 오면 exam 은 그만큼 띄운다 (2.3.1 아래 범례와 같은 16)
+  // 상자 아래에 출처·각주가 오면 exam 은 그만큼 띄운다 (2.3.1 아래 범례와 같은 값, 2.4.1 에서 22)
   const hasBelow = !!options.source || options.footnotes.some((f) => f.trim());
-  const afterBox = byStyle(options, { classic: 2, exam: hasBelow ? 16 : 2 });
+  const afterBox = byStyle(options, { classic: 2, exam: hasBelow ? 22 : 2 });
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다.
   // 아이콘 너비·간격은 아래 범례 그리기와 같은 값을 써야 한다.
@@ -145,7 +145,7 @@ export function renderHythergraph(
     : 0;
 
   const padding: Padding = {
-    top: options.title ? 110 : 60,
+    top: topWithYUnit(options, options.title ? 110 : 60, data.yUnit),
     right: 80 + legendW,
     bottom: (() => {
       let b = 90;
@@ -273,7 +273,7 @@ export function renderHythergraph(
   if (data.yUnit) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    drawFloatingLabel(ctx, data.yUnit, plotX, plotY - 16, w, h, unitSize, unitFont);
+    drawFloatingLabel(ctx, data.yUnit, plotX, yUnitBottom(options, plotY), w, h, unitSize, unitFont);
   }
 
   // 계열별 렌더링

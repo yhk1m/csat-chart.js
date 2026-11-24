@@ -15,7 +15,7 @@ import { textCtx } from '../canvas/parens';
 import { drawYAxis } from '../canvas/axes';
 import { drawTitle, drawSourceAndFootnote, sourceFootnoteReserve } from '../canvas/labels';
 import { drawDotMarker } from '../canvas/markers';
-import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem, legendSideOf } from '../canvas/legend';
+import { drawLegend, measureLegendWidth, measureBottomLegend, type LegendItem, legendSideOf, legendBelowLabels } from '../canvas/legend';
 import { styleOf, byStyle, tickDirOf } from '../canvas/style';
 
 const LOOK = {
@@ -50,8 +50,10 @@ export function renderCategoryDotGraph(
     : 0;
 
   // 범례가 몇 줄이 될지 먼저 재야 그만큼 아래 여백을 잡을 수 있다
+  // 범주 이름 줄 아래로 상자를 띄운다 (2.4.1)
+  const belowOff = legendBelowLabels(options, 12 + styleOf(options).categoryGap, textSize(options, 'symbol', options.fontSize.tick));
   const legendReserve = (showLegend && legendPos === 'bottom')
-    ? measureBottomLegend(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85), w - 130 - (60 + legendW), options, 'circle')
+    ? measureBottomLegend(ctx, data.seriesLabels, textSize(options, 'legend', options.fontSize.dataLabel * 0.85), w - 130 - (60 + legendW), options, 'circle', belowOff)
     : 0;
 
   const padding: Padding = {
@@ -220,6 +222,7 @@ export function renderCategoryDotGraph(
       plotX, plotY, plotW, plotH,
       canvasW: w, canvasH: h,
       fontSize: textSize(options, 'legend', options.fontSize.dataLabel * 0.85),
+      bottomOffset: belowOff,
     });
   }
 

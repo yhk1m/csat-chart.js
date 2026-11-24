@@ -86,9 +86,11 @@ export function renderDataTable(
   // 각주 블록은 마지막 줄의 글자 높이만큼 위로 더 올라간다 (drawSourceAndFootnote).
   // 그 몫을 안 빼면 표 마지막 줄과 겹친다.
   const footCount = options.footnotes.filter((f) => f.trim()).length;
-  const footH = sourceFootnoteReserve(options, options.fontSize.dataLabel,
+  const footRaw = sourceFootnoteReserve(options, options.fontSize.dataLabel,
     (footCount > 0 ? footCount * 22 + options.fontSize.dataLabel + 12 : 0) +
     (options.source ? options.fontSize.dataLabel + 4 : 0));
+  // exam: 표 밑변과 각주·출처 사이를 띄운다 — 붙어 보였다 (2.4.1)
+  const footH = footRaw > 0 ? footRaw + byStyle(options, { classic: 0, exam: 14 }) : 0;
 
   // 항목 이름이 길면 표가 캔버스를 넘는다. 그럴 때는 표 전체를 줄여 넣는다 —
   // 잘리는 것보다 작아지는 편이 낫다. (MatrixTable 과 같은 규칙)

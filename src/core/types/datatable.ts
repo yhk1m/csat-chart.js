@@ -10,8 +10,11 @@ export interface DataTableRow {
   label: string;
   /** 이름 뒤에 붙는 괄호 단위. 원본은 이름보다 조금 작게 쓴다. 예: `'(℃)'` */
   unit?: string;
-  /** 머리글 순서대로 놓이는 값 */
-  values: number[];
+  /**
+   * 머리글 순서대로 놓이는 값. 글자(`'일본'`·`'A'`)를 넣으면 그대로 적는다 —
+   * 순위표처럼 칸에 나라 이름이나 기호가 들어가는 표다 (2.3.0~).
+   */
+  values: (number | string)[];
   /** 소수점 자릿수. 미지정이면 1자리 — 시험지 표는 대개 소수 한 자리다. */
   decimals?: number;
 }

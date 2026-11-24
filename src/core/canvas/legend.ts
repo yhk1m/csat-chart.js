@@ -256,6 +256,20 @@ function drawInsideIcon(
     return;
   }
 
+  // 점 견본 — 그림 속 점과 같은 모양 (2.3.0 전에는 네모 칸으로 그려 ● 계열에 ■ 가 붙었다)
+  if (item.type === 'circle') {
+    ctx.fillStyle = item.fillStyle;
+    const r = size * 0.3;
+    if (item.marker === 'square') {
+      ctx.fillRect(x + size / 2 - r, cy - r, r * 2, r * 2);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x + size / 2, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+
   ctx.fillStyle = item.fillStyle;
   ctx.fillRect(x, cy - size / 2, size, size);
   ctx.strokeStyle = item.strokeStyle ?? '#000';

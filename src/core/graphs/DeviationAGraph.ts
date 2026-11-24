@@ -114,6 +114,8 @@ function drawDeviationAGraph(
   const plotH = h - padding.top - padding.bottom;
 
   const indices = INTERVAL_INDICES[data.monthInterval] ?? INTERVAL_INDICES[12];
+  /** s 번째 칸(달 번호 k)의 이름 — slotLabels 가 있으면 그것, 없으면 달 숫자 */
+  const slotLabel = (s: number, k: number) => data.slotLabels?.[s] ?? MONTH_LABELS[k];
 
   // 편차 계산 (월별 기준값)
   const tempDevs = data.months.map((m, i) => m.temp - data.baseMonths[i].temp);
@@ -210,12 +212,12 @@ function drawDeviationAGraph(
   // exam: 글자가 커서 «10 11 12» 가 칸보다 넓으면 서로 붙는다 — 칸 폭에 맞춰 줄인다(바닥 0.7배)
   if (byStyle(options, { classic: false, exam: true })) {
     const makeTick = (size: number) => textFont(options, 'tick', size);
-    const labels = indices.slice(0, totalSlots).map((k) => MONTH_LABELS[k]);
+    const labels = indices.slice(0, totalSlots).map((k, s) => slotLabel(s, k));
     ctx.font = makeTick(shrinkToWidth(ctx, labels, tickFs, slotW - 6, makeTick));
   }
   for (let s = 0; s < totalSlots; s++) {
     const cx = plotX + slotW * s + slotW / 2;
-    ctx.fillText(MONTH_LABELS[indices[s]], cx, monthY);
+    ctx.fillText(slotLabel(s, indices[s]), cx, monthY);
   }
 
   // 기준선 (0선)
@@ -294,7 +296,9 @@ function drawDeviationAGraph(
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'top';
   const unitFont = textFont(options, 'unit', textSize(options, 'unit', options.fontSize.tick));
-  if (look.unitAdjacent) {
+  if (data.slotLabels) {
+    // 칸 이름을 따로 받으면 달이 아니므로 (월) 을 붙이지 않는다
+  } else if (look.unitAdjacent) {
     // 시험지는 마지막 달 숫자 바로 뒤에 붙인다
     const lastCx = plotX + slotW * (totalSlots - 1) + slotW / 2;
     ctx.font = textFont(options, 'tick', tickFs);

@@ -265,7 +265,8 @@ export function renderHythergraph(
   }
 
   // 계열별 렌더링
-  const mLabels = data.monthLabelStyle === 'english' ? MONTH_LABELS_EN : MONTH_LABELS_NUM;
+  const baseLabels = data.monthLabelStyle === 'english' ? MONTH_LABELS_EN : MONTH_LABELS_NUM;
+  const mLabels: readonly (string | null)[] = data.monthLabels ?? baseLabels;
   const showLoop = data.mode === 'loop' || data.mode === 'both';
   const showPts = data.mode === 'points' || data.mode === 'both';
 
@@ -286,7 +287,7 @@ export function renderHythergraph(
       for (let i = 1; i < 12; i++) {
         ctx.lineTo(pts[i].cx, pts[i].cy);
       }
-      ctx.closePath();
+      if (data.closeLoop ?? true) ctx.closePath();
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -307,12 +308,12 @@ export function renderHythergraph(
         drawMarker(ctx, marker, cx, cy, look.markerR, t.marker.stroke);
 
         // 월 라벨 (모든 계열에 표시) — exam 은 기호를 다 그린 뒤 겹치지 않게 따로 놓는다
-        if (!spreadMonths) {
+        if (!spreadMonths && mLabels[i]) {
           ctx.fillStyle = '#000';
           ctx.font = textFont(options, 'value', textSize(options, 'value', fs.dataLabel));
           ctx.textAlign = 'left';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(mLabels[i], cx + look.markerR + 4, cy - look.markerR);
+          ctx.fillText(mLabels[i] as string, cx + look.markerR + 4, cy - look.markerR);
         }
       }
     }
@@ -328,8 +329,10 @@ export function renderHythergraph(
     ctx.font = textFont(options, 'value', size);
     const bounds = { left: plotX + 2, right: plotX + plotW - 2, top: plotY + 2, bottom: plotY + plotH - 2 };
     for (const pts of all) {
-      pts.forEach((p, i) => placer.place(ctx, mLabels[i], p.cx, p.cy,
-        { gap: look.markerR + 3, lineHeight: size * 0.8, bounds }));
+      pts.forEach((p, i) => {
+        const label = mLabels[i];
+        if (label) placer.place(ctx, label, p.cx, p.cy, { gap: look.markerR + 3, lineHeight: size * 0.8, bounds });
+      });
     }
     ctx.restore();
   }

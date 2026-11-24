@@ -239,7 +239,8 @@ function drawRowLabel(
  * 시험지 표는 소수 한 자리가 기본이다(40.5·-21.4). 자릿수를 맞춰야 칸마다
  * 끝자리가 나란히 선다 — `3.8` 과 `4` 가 섞이면 표가 어수선해진다.
  */
-function formatValue(v: number, decimals = 1, groupThousands = true): string {
+function formatValue(v: number | string, decimals = 1, groupThousands = true): string {
+  if (typeof v === 'string') return v;
   if (!Number.isFinite(v)) return '-';
   const fixed = v.toFixed(decimals);
   if (!groupThousands) return fixed;

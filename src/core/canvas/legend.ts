@@ -11,11 +11,12 @@ import { drawDotMarker } from './markers';
  * 1.7.0 범례 선 견본이 계열 선·표지 토큰과 달랐던 값 — classic 에서만 둔다.
  * exam 은 비워 두어 `t.line.series`·`t.marker.r` 를 그대로 쓴다(견본 = 그림 속 계열).
  */
-const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number; rightMaxRatio: number; belowPlot: number }> = {
-  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity, belowPlot: 50 },
+const LOOK: Record<StyleName, { lineW?: number; insideLineW?: number; dotR?: number; rightMaxRatio: number; belowPlot: number; afterBox: number }> = {
+  classic: { lineW: 2.5, insideLineW: 2, dotR: 3.5, rightMaxRatio: Infinity, belowPlot: 50, afterBox: 2 },
   // 오른쪽 범례는 캔버스 폭의 40% 까지 — 넘는 이름은 글꼴을 줄여 담는다 (exam 글자가 커서 플롯이 사라졌다)
   // 아래 범례 상자는 플롯 바닥에서 belowPlot 만큼 — exam 의 큰 「(가)」 괄호가 상자 윗변에 닿아 8 더 내린다
-  exam: { rightMaxRatio: 0.4, belowPlot: 58 },
+  // afterBox: 상자 아래에 출처·연도·각주가 있을 때 비우는 칸. exam 은 그 줄이 상자 밑변에 붙어 보여 띄운다 (2.3.1)
+  exam: { rightMaxRatio: 0.4, belowPlot: 58, afterBox: 16 },
 };
 
 export interface LegendItem {
@@ -450,7 +451,10 @@ export function measureBottomLegend(
   const iconWidths = labels.map((_, i) =>
     sizeOf(Array.isArray(iconType) ? (iconType[i] ?? 'rect') : iconType));
   const { boxH } = layoutBottomLegend(ctx, labels, iconWidths, fontSize, plotW, fonts);
-  return bottomOffset + boxH + 2;
+  // 상자 아래에 글이 오는 그림만 띄운다 — 렌더러는 options 를 그대로 fonts 로 넘긴다
+  const below = fonts as FontOptions & { source?: string; sourceLeft?: string; footnotes?: string[] };
+  const hasBelow = !!below.source || !!below.sourceLeft || (below.footnotes ?? []).some((f) => f.trim());
+  return bottomOffset + boxH + (hasBelow ? byStyle(fonts, LOOK).afterBox : 2);
 }
 
 export function drawLegend({
